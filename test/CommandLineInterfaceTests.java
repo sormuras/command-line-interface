@@ -13,11 +13,7 @@ class CommandLineInterfaceTests {
     empty();
     conventional();
     demo();
-    try {
-      positional();
-      throw new AssertionError("Positional option values should not work...");
-    } catch (Throwable expected) {
-    }
+    positional();
   }
 
   void empty() {
@@ -28,7 +24,7 @@ class CommandLineInterfaceTests {
 
   void demo() {
     record Options(
-        @Option("-v") boolean verbose, @Option("--say") Optional<String> greet, String... names)
+            @Name("-v") boolean verbose, @Name("--say") Optional<String> greet, String... names)
         implements CommandLineInterface {
       static Parser<Options> parser() {
         return new Parser<>(MethodHandles.lookup(), Options.class);
