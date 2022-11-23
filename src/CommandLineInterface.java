@@ -5,6 +5,7 @@ import java.lang.annotation.Target;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Array;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayDeque;
@@ -18,6 +19,7 @@ import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.Stream;
 
+@SuppressWarnings("rawtypes")
 public interface CommandLineInterface {
 
   static <R extends Record> R parse(Lookup lookup, Class<R> schema, String... args) {
@@ -40,44 +42,74 @@ public interface CommandLineInterface {
     String[] value();
   }
 
+  record Option(Type type, Class<? extends Enum> enumType, Set<String> names, String help) implements Comparable<Option> {
 
-  record Option(Type type, Set<String> names, String help) implements Comparable<Option> {
+    interface ToEnum {
 
+      static ToEnum identity() {
+        return (cls, val) -> val;
+      }
+
+      Object toEnum(Class<? extends Enum> type, Object value);
+    }
+
+    @SuppressWarnings("unchecked")
     enum Type {
       /** An optional flag, like {@code --verbose}. */
-      FLAG(false),
+      FLAG(false, ToEnum.identity()),
       /** An optional key-value pair, like {@code --version 47.11}. */
-      KEY_VALUE(Optional.empty()),
+      KEY_VALUE(Optional.empty(), (cls, val) -> ((Optional<String>) val).map(name -> Enum.valueOf(cls, name))),
       /** An optional and repeatable key, like {@code --with alpha --with omega} */
-      REPEATABLE(List.of()),
+      REPEATABLE(List.of(), (cls, names) -> ((List<String>)names).stream().map(name -> Enum.valueOf(cls, name)).toList()),
       /** A required positional option */
-      REQUIRED(""),
+      REQUIRED("", (cls, name) -> Enum.valueOf(cls, (String) name)),
       /** A collection of all unhandled arguments. */
-      VARARGS(new String[0]);
+      VARARGS(new String[0], ToEnum.identity());
 
       private final Object defaultValue;
+      private final ToEnum toEnum;
 
-      Type(Object defaultValue) {
+      Type(Object defaultValue, ToEnum toEnum) {
         this.defaultValue = defaultValue;
+        this.toEnum = toEnum;
       }
 
       public Object getDefaultValue() {
         return defaultValue;
       }
 
+      public ToEnum getToEnum() {
+        return toEnum;
+      }
+
       static Type valueOf(Class<?> type) {
         if (type == Boolean.class || type == boolean.class) return FLAG;
         if (type == Optional.class) return KEY_VALUE;
         if (type == List.class) return REPEATABLE;
-        if (type == String.class) return REQUIRED ;
-        if (type == String[].class) return VARARGS;
+        if (type == String.class || type.isEnum()) return REQUIRED ;
+        if (type == String[].class || type.isArray() && type.getComponentType().isEnum()) return VARARGS;
         throw new IllegalArgumentException("Unsupported value type: " + type);
       }
+    }
+
+    private static Class<?> getEnumType(java.lang.reflect.Type type) {
+      if (type instanceof Class<?> rawType) {
+        if (rawType.isEnum()) return rawType;
+        if (rawType.isArray() && rawType.getComponentType().isEnum()) return rawType.getComponentType();
+      }
+      if (type instanceof ParameterizedType genericType) {
+        Class<?> rawType = (Class<?>) genericType.getRawType();
+        Class<?> elementType = (Class<?>) genericType.getActualTypeArguments()[0];
+        if (rawType == List.class && elementType.isEnum()) return elementType;
+        if (rawType == Optional.class && elementType.isEnum()) return elementType;
+      }
+      return null;
     }
 
     public static Option of(RecordComponent component) {
       return new Option(
               Type.valueOf(component.getType()),
+              (Class<? extends Enum>) getEnumType(component.getGenericType()),
               component.isAnnotationPresent(Name.class)
                       ? new LinkedHashSet<>(List.of(component.getAnnotation(Name.class).value()))
                       : Set.of(component.getName().replace('_', '-')),
@@ -188,6 +220,12 @@ public interface CommandLineInterface {
         var constructor =
             lookup.findConstructor(schema, MethodType.methodType(void.class, classes));
         var objects = list(args).toArray();
+        for (int i = 0; i < components.length; i++) {
+          Option option = options.get(i);
+          if (option.enumType() != null) {
+            objects[i] = option.type().getToEnum().toEnum(option.enumType(), objects[i]);
+          }
+        }
         var arguments = constructor.isVarargsCollector() ? spreadLastArgument(objects) : objects;
         @SuppressWarnings("unchecked")
         R instance = (R) constructor.invokeWithArguments(arguments);
@@ -218,7 +256,7 @@ public interface CommandLineInterface {
       var joiner = new StringJoiner("\n");
       for (var option : options.stream().sorted().toList()) {
         var text = option.help();
-        if (text.isEmpty()) continue;
+        //if (text.isEmpty()) continue;
         var suffix = switch (option.type()) {
           case FLAG -> " (flag)";
           case KEY_VALUE -> " <value>";
@@ -227,7 +265,7 @@ public interface CommandLineInterface {
           case VARARGS -> "...";
         };
         var names = String.join(", ", option.names());
-        joiner.add(names + suffix);
+        joiner.add(names + suffix + (option.enumType() == null ? "" : " "+ List.of(option.enumType().getEnumConstants())));
         joiner.add(text.indent(indent).stripTrailing());
       }
       return joiner.toString();

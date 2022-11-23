@@ -1,7 +1,9 @@
+import java.lang.annotation.RetentionPolicy;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 class CommandLineInterfaceTests {
 
@@ -24,7 +26,12 @@ class CommandLineInterfaceTests {
 
   void demo() {
     record Options(
-            @Name("-v") boolean verbose, @Name("--say") Optional<String> greet, String... names)
+            @Name("-v") boolean verbose,
+            @Name("--say") Optional<String> greet,
+            Thread.State state,
+            Optional<TimeUnit> __time,
+            List<RetentionPolicy> __police,
+            String... names)
         implements CommandLineInterface {
       static Parser<Options> parser() {
         return new Parser<>(MethodHandles.lookup(), Options.class);
@@ -33,11 +40,15 @@ class CommandLineInterfaceTests {
 
     var parser = Options.parser();
 
-    var options = parser.parse("-v", "--say=Hallo", "Joe", "Jim");
+    var options = parser.parse("--police=RUNTIME", "-v", "NEW", "--say=Hallo", "--time=MINUTES", "--police=SOURCE", "Joe", "Jim");
     assert options.verbose;
     assert "Hallo".equals(options.greet.orElse("Hi"));
     assert List.of("Joe", "Jim").equals(List.of(options.names));
-    assert parser.help().isEmpty() : "No @Help, no help()";
+    assert Thread.State.NEW == options.state;
+    assert TimeUnit.MINUTES == options.__time.orElseThrow();
+    assert List.of(RetentionPolicy.RUNTIME, RetentionPolicy.SOURCE).equals(options.__police);
+    //assert parser.help().isEmpty() : "No @Help, no help()";
+    System.out.println(parser.help());
   }
 
   void conventional() {
