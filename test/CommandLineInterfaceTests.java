@@ -1,5 +1,7 @@
+import static java.lang.invoke.MethodHandles.lookup;
+
 import java.lang.annotation.RetentionPolicy;
-import java.lang.invoke.MethodHandles;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -7,24 +9,44 @@ import java.util.concurrent.TimeUnit;
 
 class CommandLineInterfaceTests {
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     new CommandLineInterfaceTests().all();
   }
 
-  void all() {
+  void all() throws Exception {
     empty();
+    varargs();
     conventional();
     demo();
     positional();
   }
 
   void empty() {
-    record Empty() {}
-    var empty = new CommandLineInterface.Parser<>(MethodHandles.lookup(), Empty.class).parse();
-    assert 0 == empty.hashCode();
+    record Options() {}
+    try {
+      new CommandLineInterface.Parser<Options>(lookup(), Options.class);
+      throw new AssertionError();
+    } catch (IllegalArgumentException expected) {
+      assert "At least one option expected".equals(expected.getMessage());
+    }
   }
 
-  void demo() {
+  void varargs() {
+    record Options(String... more) implements CommandLineInterface {
+      static Options parse(String... args) {
+        var parser =
+            new CommandLineInterface.Parser<>(lookup(), Options.class, ArgumentsProcessor.IDENTITY);
+        return parser.parse(args);
+      }
+    }
+    assert Arrays.equals(new String[0], Options.parse().more());
+    assert Arrays.equals(new String[] {""}, Options.parse("").more());
+    assert Arrays.equals(new String[] {" "}, Options.parse(" ").more());
+    assert Arrays.equals(new String[] {"a"}, Options.parse("a").more());
+    assert Arrays.equals(new String[] {"b1", "b2"}, Options.parse("b1", "b2").more());
+  }
+
+  void demo() throws Exception {
     record Options(
         @Name("-v") boolean verbose,
         Optional<String> __say,
@@ -34,7 +56,7 @@ class CommandLineInterfaceTests {
         String... names)
         implements CommandLineInterface {
 
-      static final Parser<Options> PARSER = new Parser<>(MethodHandles.lookup(), Options.class);
+      static final Parser<Options> PARSER = new Parser<>(lookup(), Options.class);
 
       TimeUnit time() {
         return __time.map(TimeUnit::valueOf).orElse(TimeUnit.NANOSECONDS);
@@ -45,6 +67,16 @@ class CommandLineInterfaceTests {
       }
     }
 
+    var file =
+        Files.writeString(
+            Files.createTempFile("demo-", ".txt"),
+            """
+            # single-line comments are ignored
+
+            --policies=CLASS
+
+            """);
+
     var options =
         Options.PARSER.parse(
             """
@@ -52,18 +84,21 @@ class CommandLineInterfaceTests {
               RUNTIME
             -v
             NEW
+            @%s
             --say
               Hallo
             --time=MINUTES
             --policies=SOURCE
             Joe
             Jim"""
+                .formatted(file)
                 .lines());
     assert options.verbose;
     assert "Hallo".equals(options.__say.orElse("Hi"));
     assert Thread.State.NEW == Thread.State.valueOf(options.thread_state);
     assert TimeUnit.MINUTES == options.time();
-    assert List.of(RetentionPolicy.RUNTIME, RetentionPolicy.SOURCE).equals(options.policies());
+    assert List.of(RetentionPolicy.RUNTIME, RetentionPolicy.CLASS, RetentionPolicy.SOURCE)
+        .equals(options.policies());
     assert List.of("Joe", "Jim").equals(List.of(options.names));
     assert Options.PARSER.help().isEmpty() : "No @Help, no help()";
   }
@@ -71,7 +106,7 @@ class CommandLineInterfaceTests {
   void conventional() {
     record Options(boolean _flag, Optional<String> _key, List<String> _list, String... more) {
       static Options of(String... args) {
-        return CommandLineInterface.parse(MethodHandles.lookup(), Options.class, args);
+        return CommandLineInterface.parser(lookup(), Options.class).parse(args);
       }
     }
     var options = Options.of("-flag", "-key", "value", "-list", "a", "-list=o", "1", "2", "3");
@@ -83,7 +118,7 @@ class CommandLineInterfaceTests {
 
   void positional() {
     record Options(boolean a, String first, boolean b, String second, boolean c) {}
-    var objects = CommandLineInterface.parse(MethodHandles.lookup(), Options.class, "one", "two");
+    var objects = CommandLineInterface.parser(lookup(), Options.class).parse("one", "two");
     assert new Options(false, "one", false, "two", false).equals(objects);
   }
 }
