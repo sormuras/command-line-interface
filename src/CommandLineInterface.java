@@ -40,7 +40,7 @@ public interface CommandLineInterface {
   }
 
   record Option(Type type, Set<String> names, String help) implements Comparable<Option> {
-    enum Type {
+    public enum Type {
       /** An optional flag, like {@code --verbose}. */
       FLAG(false),
       /** An optional key-value pair, like {@code --version 47.11}. */
