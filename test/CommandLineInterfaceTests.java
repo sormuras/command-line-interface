@@ -19,6 +19,7 @@ class CommandLineInterfaceTests {
     conventional();
     demo();
     positional();
+    cardinality();
   }
 
   void empty() {
