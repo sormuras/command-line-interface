@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public interface CommandLineInterface {
@@ -38,7 +39,13 @@ public interface CommandLineInterface {
     String[] value();
   }
 
-  record Option(Type type, Set<String> names, String help) implements Comparable<Option> {
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.RECORD_COMPONENT)
+  @interface Cardinality {
+    int value();
+  }
+
+  record Option(Type type, Set<String> names, String help, int cardinality) implements Comparable<Option> {
     public enum Type {
       /** An optional flag, like {@code --verbose}. */
       FLAG(false),
@@ -77,13 +84,16 @@ public interface CommandLineInterface {
 
     public static Option of(RecordComponent component) {
       return new Option(
-          Type.valueOf(component.getType()),
-          component.isAnnotationPresent(Name.class)
-              ? new LinkedHashSet<>(List.of(component.getAnnotation(Name.class).value()))
-              : Set.of(component.getName().replace('_', '-')),
-          component.isAnnotationPresent(Help.class)
-              ? String.join("\n", component.getAnnotation(Help.class).value())
-              : "");
+              Type.valueOf(component.getType()),
+              component.isAnnotationPresent(Name.class)
+                      ? new LinkedHashSet<>(List.of(component.getAnnotation(Name.class).value()))
+                      : Set.of(component.getName().replace('_', '-')),
+              component.isAnnotationPresent(Help.class)
+                      ? String.join("\n", component.getAnnotation(Help.class).value())
+                      : "",
+              component.isAnnotationPresent(Cardinality.class)
+                      ? component.getAnnotation(Cardinality.class).value()
+                      : 1);
     }
 
     String name() {
@@ -161,10 +171,12 @@ public interface CommandLineInterface {
               workspace.put(name, Optional.of(value));
             }
             case REPEATABLE -> {
-              var value = pop ? pendingArguments.pop() : argument.substring(separator + 1);
+              var value = pop
+                      ? IntStream.range(0, option.cardinality()).mapToObj(i -> pendingArguments.pop()).toList()
+                      : List.of(argument.substring(separator + 1).split(","));
               @SuppressWarnings("unchecked")
               var elements = (List<String>) workspace.get(name);
-              workspace.put(name, Stream.concat(elements.stream(), Stream.of(value)).toList());
+              workspace.put(name, Stream.concat(elements.stream(), value.stream()).toList());
             }
             default -> throw new IllegalStateException("Programming error");
           }

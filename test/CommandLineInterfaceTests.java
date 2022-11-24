@@ -121,4 +121,12 @@ class CommandLineInterfaceTests {
     var objects = CommandLineInterface.parser(lookup(), Options.class).parse("one", "two");
     assert new Options(false, "one", false, "two", false).equals(objects);
   }
+
+  void cardinality() {
+    record CardOptions(@Name("-2") @Cardinality(2) List<String> take2) implements CommandLineInterface {}
+    CommandLineInterface.Parser<CardOptions> parser = CommandLineInterface.parser(lookup(), CardOptions.class);
+    var options = parser.parse("-2", "a", "b");
+    assert List.of("a", "b").equals(parser.parse("-2", "a", "b").take2());
+    assert List.of("a", "b", "c", "d").equals(parser.parse("-2", "a", "b", "-2", "c", "d").take2());
+  }
 }
