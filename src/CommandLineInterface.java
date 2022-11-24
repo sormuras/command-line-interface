@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
-import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 public interface CommandLineInterface {
@@ -198,7 +197,7 @@ public interface CommandLineInterface {
         var components = schema.getRecordComponents();
         var types = Stream.of(components).map(RecordComponent::getType).toArray(Class[]::new);
         var constructor = lookup.findConstructor(schema, MethodType.methodType(void.class, types));
-        var objects = parse(new ArrayDeque<>(processor.apply(args).toList()));
+        var objects = parse(new ArrayDeque<>(processor.process(args).toList()));
         var arguments = constructor.isVarargsCollector() ? spreadVarargs(objects) : objects;
         @SuppressWarnings("unchecked")
         R instance = (R) constructor.invokeWithArguments(arguments);
@@ -246,7 +245,7 @@ public interface CommandLineInterface {
     }
   }
 
-  interface ArgumentsProcessor extends UnaryOperator<Stream<String>> {
+  interface ArgumentsProcessor {
     ArgumentsProcessor IDENTITY = arguments -> arguments;
     ArgumentsProcessor TRIM = arguments -> arguments.map(String::trim);
     ArgumentsProcessor PRUNE = arguments -> arguments.filter(argument -> !argument.isEmpty());
@@ -289,8 +288,10 @@ public interface CommandLineInterface {
       return List.copyOf(arguments);
     }
 
+    Stream<String> process(Stream<String> arguments);
+
     default ArgumentsProcessor andThen(ArgumentsProcessor after) {
-      return stream -> after.apply(apply(stream));
+      return stream -> after.process(process(stream));
     }
   }
 }
