@@ -1,7 +1,7 @@
 package com.github.sormuras.cli;
 
-import com.google.sormuras.cli.CommandLineInterface.Cardinality;
-import com.google.sormuras.cli.CommandLineInterface.Name;
+import com.github.sormuras.cli.CommandLineInterface.Cardinality;
+import com.github.sormuras.cli.CommandLineInterface.Name;
 
 import java.util.List;
 import java.util.Optional;

@@ -10,6 +10,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Array;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.file.Files;
@@ -77,7 +78,7 @@ public interface CommandLineInterface {
   // compact flags: -fg
   // sub-records
 
-  record Option(Type type, Set<String> names, String help, int cardinality) {
+  record Option(Type type, Set<String> names, String help, int cardinality, Class<? extends Record> subSchema) {
     public enum Type {
       /** An optional flag, like {@code --verbose}. */
       FLAG(false),
@@ -114,6 +115,7 @@ public interface CommandLineInterface {
       Objects.requireNonNull(type, "type is null");
       Objects.requireNonNull(names, "named is null");
       Objects.requireNonNull(help, "help is null");
+      //Objects.requireNonNull(subSchema, "subSchema is null");
       names = Collections.unmodifiableSet(new LinkedHashSet<>(names));
       if (names.isEmpty()) {
         throw new IllegalArgumentException("no name defined");
@@ -147,7 +149,10 @@ public interface CommandLineInterface {
               : "",
           cardinality != null
               ? cardinality.value()
-              : 1);
+              : 1,
+          (component.getGenericType() instanceof ParameterizedType type)
+              ? type.getActualTypeArguments()[0] == String.class ? null : (Class<? extends Record>) type.getActualTypeArguments()[0]
+              : null);
     }
 
     String name() {
@@ -168,16 +173,17 @@ public interface CommandLineInterface {
       private final Class<R> schema;
       private final List<Option> options;
       private final ArgumentsProcessor processor;
+      private final boolean sub;
 
     public Parser(Lookup lookup, Class<R> schema) {
       this(lookup, schema, ArgumentsProcessor.DEFAULT);
     }
 
     public Parser(Lookup lookup, Class<R> schema, ArgumentsProcessor processor) {
-      this(lookup, schema, Option.scan(schema), processor);
+      this(lookup, schema, Option.scan(schema), processor, false);
     }
 
-    public Parser(Lookup lookup, Class<R> schema, List<? extends Option> options, ArgumentsProcessor processor) {
+    public Parser(Lookup lookup, Class<R> schema, List<? extends Option> options, ArgumentsProcessor processor, boolean sub) {
       Objects.requireNonNull(lookup, "lookup is null");
       Objects.requireNonNull(schema, "schema is null");
       Objects.requireNonNull(options, "options is null");
@@ -192,6 +198,7 @@ public interface CommandLineInterface {
       this.schema = schema;
       this.options = opts;
       this.processor = processor;
+      this.sub = sub;
     }
 
     private static void checkDuplicates(List<Option> options) {
@@ -249,13 +256,16 @@ public interface CommandLineInterface {
           switch (option.type()) {
             case FLAG -> workspace.put(name, true);
             case KEY_VALUE -> {
-              var value = pop ? pendingArguments.pop() : argument.substring(separator + 1);
+              var value = option.subSchema() != null
+                  ? parseSub(pendingArguments, option)
+                  : pop ? pendingArguments.pop() : argument.substring(separator + 1);
               workspace.put(name, Optional.of(value));
             }
             case REPEATABLE -> {
               var times = option.cardinality();
-              var value =
-                  pop
+              var value = option.subSchema() != null
+                  ? List.of(parseSub(pendingArguments, option))
+                  : pop
                       ? IntStream.range(0, times).mapToObj(__ -> pendingArguments.pop()).toList()
                       : List.of(argument.substring(separator + 1).split(","));
               @SuppressWarnings("unchecked")
@@ -282,6 +292,7 @@ public interface CommandLineInterface {
         }
         // restore pending arguments deque
         pendingArguments.addFirst(argument);
+        if (sub) return workspace.values().toArray();
         // try globbing all pending arguments into a varargs collector
         var varargsOption = options.get(options.size() - 1);
         if (varargsOption.isVarargs()) {
@@ -290,6 +301,13 @@ public interface CommandLineInterface {
         }
         throw new IllegalArgumentException("Unhandled arguments: " + pendingArguments);
       }
+    }
+
+    private Object parseSub(ArrayDeque<String> pendingArguments, Option option) {
+      var schema = option.subSchema;
+      var subParser = new Parser<>(lookup, schema, Option.scan(schema), processor, true);
+      var constructor = constructor(lookup, schema);
+      return createRecord(schema, constructor, subParser.parse(pendingArguments)) ;
     }
 
     public R parse(String... args) {
