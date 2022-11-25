@@ -53,6 +53,10 @@ public class CommandLineInterfaceTests implements TestRunner {
 
       static final Parser<Options> PARSER = new Parser<>(lookup(), Options.class);
 
+      Thread.State state() {
+        return findEnum(Thread.State.class, thread_state).orElseThrow();
+      }
+
       TimeUnit time() {
         return __time.map(TimeUnit::valueOf).orElse(TimeUnit.NANOSECONDS);
       }
@@ -90,7 +94,7 @@ public class CommandLineInterfaceTests implements TestRunner {
                 .lines());
     assert options.verbose;
     assert "Hallo".equals(options.__say.orElse("Hi"));
-    assert Thread.State.NEW == Thread.State.valueOf(options.thread_state);
+    assert Thread.State.NEW == options.state();
     assert TimeUnit.MINUTES == options.time();
     assert List.of(RetentionPolicy.RUNTIME, RetentionPolicy.CLASS, RetentionPolicy.SOURCE)
         .equals(options.policies());
