@@ -4,7 +4,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
-import java.lang.reflect.*;
+import java.lang.reflect.Array;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.RecordComponent;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -25,6 +28,23 @@ public interface CommandLineInterface {
     return new Parser<>(lookup, schema);
   }
 
+  /**
+   * Finds an enumeration constant by its name and wrapped it into an {@code Optional} instance.
+   *
+   * @param enumClass the class object of the enum class from which to wrap a constant
+   * @param name the name of the constant to wrap
+   * @return {@code Optional} instance describing the found enumeration constant or an empty one
+   * @param <E> the type of the enumeration class
+   * @see Enum#valueOf(Class, String)
+   */
+  default <E extends Enum<E>> Optional<E> findEnum(Class<E> enumClass, String name) {
+    try {
+      return Optional.of(Enum.valueOf(enumClass, name));
+    } catch (IllegalArgumentException exception) {
+      return Optional.empty();
+    }
+  }
+
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.RECORD_COMPONENT)
   @interface Name {
@@ -42,8 +62,6 @@ public interface CommandLineInterface {
   @interface Cardinality {
     int value();
   }
-
-  // subSchema-records
 
   record Option(Type type, Set<String> names, String help, int cardinality, Class<? extends Record> subSchema) implements Comparable<Option> {
     public enum Type {
@@ -85,20 +103,19 @@ public interface CommandLineInterface {
     @SuppressWarnings("unchecked")
     public static Option of(RecordComponent component) {
       return new Option(
-              Type.valueOf(component.getType()),
-              component.isAnnotationPresent(Name.class)
-                      ? new LinkedHashSet<>(List.of(component.getAnnotation(Name.class).value()))
-                      : Set.of(component.getName().replace('_', '-')),
-              component.isAnnotationPresent(Help.class)
-                      ? String.join("\n", component.getAnnotation(Help.class).value())
-                      : "",
-              component.isAnnotationPresent(Cardinality.class)
-                      ? component.getAnnotation(Cardinality.class).value()
-                      : 1,
-              (component.getGenericType() instanceof ParameterizedType type)
-                      ? type.getActualTypeArguments()[0] == String.class ? null : (Class<? extends Record>) type.getActualTypeArguments()[0]
-                      : null
-              );
+          Type.valueOf(component.getType()),
+          component.isAnnotationPresent(Name.class)
+              ? new LinkedHashSet<>(List.of(component.getAnnotation(Name.class).value()))
+              : Set.of(component.getName().replace('_', '-')),
+          component.isAnnotationPresent(Help.class)
+              ? String.join("\n", component.getAnnotation(Help.class).value())
+              : "",
+          component.isAnnotationPresent(Cardinality.class)
+              ? component.getAnnotation(Cardinality.class).value()
+              : 1,
+      (component.getGenericType() instanceof ParameterizedType type)
+              ? type.getActualTypeArguments()[0] == String.class ? null : (Class<? extends Record>) type.getActualTypeArguments()[0]
+              : null);
     }
 
     String name() {
@@ -178,10 +195,11 @@ public interface CommandLineInterface {
               workspace.put(name, Optional.of(value));
             }
             case REPEATABLE -> {
+              var times = option.cardinality();
               var value = option.subSchema() != null
-                ? List.of(parseSub(pendingArguments, option))
-                : pop
-                      ? IntStream.range(0, option.cardinality()).mapToObj(i -> pendingArguments.pop()).toList()
+                      ? List.of(parseSub(pendingArguments, option))
+                      : pop
+                      ? IntStream.range(0, times).mapToObj(__ -> pendingArguments.pop()).toList()
                       : List.of(argument.substring(separator + 1).split(","));
               @SuppressWarnings("unchecked")
               var elements = (List<String>) workspace.get(name);
@@ -193,7 +211,7 @@ public interface CommandLineInterface {
         }
         // maybe a combination of single letter flags?
         if (argument.matches("^-[a-zA-Z]{1,5}$")) {
-          List<String> flags = argument.substring(1).chars().mapToObj(c -> "-" + (char)c).toList();
+          var flags = argument.substring(1).chars().mapToObj(c -> "-" + (char) c).toList();
           if (flags.stream().allMatch(optionsByName::containsKey)) {
             flags.forEach(flag -> workspace.put(optionsByName.get(flag).name(), true));
             continue;

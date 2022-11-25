@@ -53,6 +53,10 @@ public class CommandLineInterfaceTests implements TestRunner {
 
       static final Parser<Options> PARSER = new Parser<>(lookup(), Options.class);
 
+      Thread.State state() {
+        return findEnum(Thread.State.class, thread_state).orElseThrow();
+      }
+
       TimeUnit time() {
         return __time.map(TimeUnit::valueOf).orElse(TimeUnit.NANOSECONDS);
       }
@@ -90,7 +94,7 @@ public class CommandLineInterfaceTests implements TestRunner {
                 .lines());
     assert options.verbose;
     assert "Hallo".equals(options.__say.orElse("Hi"));
-    assert Thread.State.NEW == Thread.State.valueOf(options.thread_state);
+    assert Thread.State.NEW == options.state();
     assert TimeUnit.MINUTES == options.time();
     assert List.of(RetentionPolicy.RUNTIME, RetentionPolicy.CLASS, RetentionPolicy.SOURCE)
         .equals(options.policies());
@@ -105,10 +109,10 @@ public class CommandLineInterfaceTests implements TestRunner {
         return CommandLineInterface.parser(lookup(), Options.class).parse(args);
       }
     }
-    var options = Options.of("-flag", "-key", "value", "-list", "a", "-list=o", "1", "2", "3");
+    var options = Options.of("-flag", "-key", "value", "-list", "a", "-list=b,o", "1", "2", "3");
     assert options._flag();
     assert Optional.of("value").equals(options._key());
-    assert List.of("a", "o").equals(options._list());
+    assert List.of("a", "b", "o").equals(options._list());
     assert Arrays.equals(new String[] {"1", "2", "3"}, options.more());
   }
 
@@ -121,17 +125,17 @@ public class CommandLineInterfaceTests implements TestRunner {
 
   @Test
   void cardinality() {
-    record CardOptions(@Name("-2") @Cardinality(2) List<String> take2) implements CommandLineInterface {}
-    var parser = CommandLineInterface.parser(lookup(), CardOptions.class);
-    var options = parser.parse("-2", "a", "b");
+    record Options(@Name("-2") @Cardinality(2) List<String> take2)
+        implements CommandLineInterface {}
+    var parser = CommandLineInterface.parser(lookup(), Options.class);
     assert List.of("a", "b").equals(parser.parse("-2", "a", "b").take2());
     assert List.of("a", "b", "c", "d").equals(parser.parse("-2", "a", "b", "-2", "c", "d").take2());
   }
 
   @Test
   void flags() {
-    record FlagOptions(boolean _f, boolean _h, boolean _z) {}
-    var parser = CommandLineInterface.parser(lookup(), FlagOptions.class);
+    record Options(boolean _f, boolean _h, boolean _z) {}
+    var parser = CommandLineInterface.parser(lookup(), Options.class);
     var options = parser.parse("-zfh");
     assertEquals(true, options._f);
     assertEquals(true, options._h);
