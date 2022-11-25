@@ -137,4 +137,31 @@ public class CommandLineInterfaceTests implements TestRunner {
     assertEquals(true, options._h);
     assertEquals(true, options._z);
   }
+
+  @Test
+  void sub_keyValue() {
+    record SubOptions(String dir, String file) {}
+    record MainOptions(boolean __flag, Optional<SubOptions> __release, String... rest) {}
+    var parser = CommandLineInterface.parser(lookup(), MainOptions.class);
+    var options = parser.parse("--release dirX fileX --flag and the rest".split(" "));
+    assertEquals(true, options.__flag);
+    assertEquals("dirX", options.__release.orElseThrow().dir());
+    assertEquals("fileX", options.__release.orElseThrow().file());
+    assertEquals(List.of("and", "the", "rest"), List.of(options.rest));
+  }
+
+  @Test
+  void sub_repeatable() {
+    record SubOptions(String dir, String file) {}
+    record MainOptions(boolean __flag, List<SubOptions> __release, String... rest) {}
+    var parser = CommandLineInterface.parser(lookup(), MainOptions.class);
+    var options = parser.parse("--release dirX fileX --flag --release dirY fileY and the rest".split(" "));
+    assertEquals(true, options.__flag);
+    assertEquals(2, options.__release.size());
+    assertEquals("dirX", options.__release.get(0).dir());
+    assertEquals("fileX", options.__release.get(0).file());
+    assertEquals("dirY", options.__release.get(1).dir());
+    assertEquals("fileY", options.__release.get(1).file());
+    assertEquals(List.of("and", "the", "rest"), List.of(options.rest));
+  }
 }

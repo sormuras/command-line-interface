@@ -4,9 +4,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
-import java.lang.reflect.Array;
-import java.lang.reflect.RecordComponent;
-import java.lang.reflect.UndeclaredThrowableException;
+import java.lang.reflect.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -18,7 +16,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -46,10 +43,9 @@ public interface CommandLineInterface {
     int value();
   }
 
-  // compact flags: -fg
-  // sub-records
+  // subSchema-records
 
-  record Option(Type type, Set<String> names, String help, int cardinality) implements Comparable<Option> {
+  record Option(Type type, Set<String> names, String help, int cardinality, Class<? extends Record> subSchema) implements Comparable<Option> {
     public enum Type {
       /** An optional flag, like {@code --verbose}. */
       FLAG(false),
@@ -86,6 +82,7 @@ public interface CommandLineInterface {
       return Stream.of(schema.getRecordComponents()).map(Option::of).toList();
     }
 
+    @SuppressWarnings("unchecked")
     public static Option of(RecordComponent component) {
       return new Option(
               Type.valueOf(component.getType()),
@@ -97,7 +94,11 @@ public interface CommandLineInterface {
                       : "",
               component.isAnnotationPresent(Cardinality.class)
                       ? component.getAnnotation(Cardinality.class).value()
-                      : 1);
+                      : 1,
+              (component.getGenericType() instanceof ParameterizedType type)
+                      ? type.getActualTypeArguments()[0] == String.class ? null : (Class<? extends Record>) type.getActualTypeArguments()[0]
+                      : null
+              );
     }
 
     String name() {
@@ -119,14 +120,14 @@ public interface CommandLineInterface {
   }
 
   record Parser<R extends Record>(
-      Lookup lookup, Class<R> schema, List<Option> options, ArgumentsProcessor processor) {
+      Lookup lookup, Class<R> schema, List<Option> options, ArgumentsProcessor processor, boolean sub) {
 
     public Parser(Lookup lookup, Class<R> schema) {
       this(lookup, schema, ArgumentsProcessor.DEFAULT);
     }
 
     public Parser(Lookup lookup, Class<R> schema, ArgumentsProcessor processor) {
-      this(lookup, schema, Option.scan(schema), processor);
+      this(lookup, schema, Option.scan(schema), processor, false);
     }
 
     public Parser {
@@ -171,11 +172,15 @@ public interface CommandLineInterface {
           switch (option.type()) {
             case FLAG -> workspace.put(name, true);
             case KEY_VALUE -> {
-              var value = pop ? pendingArguments.pop() : argument.substring(separator + 1);
+              var value = option.subSchema() != null
+                      ? parseSub(pendingArguments, option)
+                      : pop ? pendingArguments.pop() : argument.substring(separator + 1);
               workspace.put(name, Optional.of(value));
             }
             case REPEATABLE -> {
-              var value = pop
+              var value = option.subSchema() != null
+                ? List.of(parseSub(pendingArguments, option))
+                : pop
                       ? IntStream.range(0, option.cardinality()).mapToObj(i -> pendingArguments.pop()).toList()
                       : List.of(argument.substring(separator + 1).split(","));
               @SuppressWarnings("unchecked")
@@ -202,6 +207,7 @@ public interface CommandLineInterface {
         }
         // restore pending arguments deque
         pendingArguments.addFirst(argument);
+        if (sub) return workspace.values().toArray();
         // try globbing all pending arguments into a varargs collector
         var varargsOption = options.get(options.size() - 1);
         if (varargsOption.isVarargs()) {
@@ -212,16 +218,25 @@ public interface CommandLineInterface {
       }
     }
 
+    private Object parseSub(ArrayDeque<String> pendingArguments, Option option) {
+      Class<? extends Record> schema = option.subSchema;
+      Parser<? extends Record> subParser = new Parser<>(lookup, schema, Option.scan(schema), processor, true);
+      return toRecord(lookup, schema, subParser.parse(pendingArguments)) ;
+    }
+
     public R parse(String... args) {
       return parse(Stream.of(args));
     }
 
     public R parse(Stream<String> args) {
+      return toRecord(lookup, schema, parse(new ArrayDeque<>(processor.process(args).toList())));
+    }
+
+    private static <R> R toRecord(Lookup lookup, Class<R> schema, Object[] objects) {
       try {
         var components = schema.getRecordComponents();
         var types = Stream.of(components).map(RecordComponent::getType).toArray(Class[]::new);
         var constructor = lookup.findConstructor(schema, MethodType.methodType(void.class, types));
-        var objects = parse(new ArrayDeque<>(processor.process(args).toList()));
         var arguments = constructor.isVarargsCollector() ? spreadVarargs(objects) : objects;
         @SuppressWarnings("unchecked")
         R instance = (R) constructor.invokeWithArguments(arguments);
