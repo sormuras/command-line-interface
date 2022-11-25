@@ -115,7 +115,6 @@ public interface CommandLineInterface {
       Objects.requireNonNull(type, "type is null");
       Objects.requireNonNull(names, "named is null");
       Objects.requireNonNull(help, "help is null");
-      //Objects.requireNonNull(subSchema, "subSchema is null");
       names = Collections.unmodifiableSet(new LinkedHashSet<>(names));
       if (names.isEmpty()) {
         throw new IllegalArgumentException("no name defined");
@@ -150,8 +149,9 @@ public interface CommandLineInterface {
           cardinality != null
               ? cardinality.value()
               : 1,
-          (component.getGenericType() instanceof ParameterizedType type)
-              ? type.getActualTypeArguments()[0] == String.class ? null : (Class<? extends Record>) type.getActualTypeArguments()[0]
+          (component.getGenericType() instanceof ParameterizedType type &&
+           type.getActualTypeArguments()[0] instanceof Class<?> subOption && subOption.isRecord())
+              ? subOption.asSubclass(Record.class)
               : null);
     }
 
