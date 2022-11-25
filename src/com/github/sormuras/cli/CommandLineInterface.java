@@ -180,10 +180,14 @@ public interface CommandLineInterface {
     }
 
     public Parser(Lookup lookup, Class<R> schema, ArgumentsProcessor processor) {
-      this(lookup, schema, Option.scan(schema), processor, false);
+      this(lookup, schema, Option.scan(schema), processor);
     }
 
-    public Parser(Lookup lookup, Class<R> schema, List<? extends Option> options, ArgumentsProcessor processor, boolean sub) {
+    public Parser(Lookup lookup, Class<R> schema, List<? extends Option> options, ArgumentsProcessor processor) {
+      this(lookup, schema, options, processor, false);
+    }
+
+    private Parser(Lookup lookup, Class<R> schema, List<? extends Option> options, ArgumentsProcessor processor, boolean sub) {
       Objects.requireNonNull(lookup, "lookup is null");
       Objects.requireNonNull(schema, "schema is null");
       Objects.requireNonNull(options, "options is null");
