@@ -24,7 +24,7 @@ public interface TestRunner {
                         System.out.println("✓ " + method.getName());
                     } catch (InvocationTargetException ex) {
                         System.out.println("❌ "+ method.getName() +": "+ex.getTargetException().getMessage());
-                        ex.getTargetException().printStackTrace();
+                        ex.getTargetException().printStackTrace(System.out);
                     } catch (Exception ex) {
                         ex.printStackTrace();
                     }

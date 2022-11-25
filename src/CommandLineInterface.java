@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -44,6 +45,9 @@ public interface CommandLineInterface {
   @interface Cardinality {
     int value();
   }
+
+  // compact flags: -fg
+  // sub-records
 
   record Option(Type type, Set<String> names, String help, int cardinality) implements Comparable<Option> {
     public enum Type {
@@ -181,6 +185,14 @@ public interface CommandLineInterface {
             default -> throw new IllegalStateException("Programming error");
           }
           continue;
+        }
+        // maybe a combination of single letter flags?
+        if (argument.matches("^-[a-zA-Z]{1,5}$")) {
+          List<String> flags = argument.substring(1).chars().mapToObj(c -> "-" + (char)c).toList();
+          if (flags.stream().allMatch(optionsByName::containsKey)) {
+            flags.forEach(flag -> workspace.put(optionsByName.get(flag).name(), true));
+            continue;
+          }
         }
         // try required option
         if (!requiredOptions.isEmpty()) {

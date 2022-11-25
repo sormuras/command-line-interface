@@ -7,21 +7,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-class CommandLineInterfaceTests {
+public class CommandLineInterfaceTests implements TestRunner {
 
   public static void main(String[] args) throws Exception {
-    new CommandLineInterfaceTests().all();
+    new CommandLineInterfaceTests().runTests();
   }
 
-  void all() throws Exception {
-    empty();
-    varargs();
-    conventional();
-    demo();
-    positional();
-    cardinality();
-  }
-
+  @Test
   void empty() {
     record Options() {}
     try {
@@ -32,6 +24,7 @@ class CommandLineInterfaceTests {
     }
   }
 
+  @Test
   void varargs() {
     record Options(String... more) implements CommandLineInterface {
       static Options parse(String... args) {
@@ -47,6 +40,7 @@ class CommandLineInterfaceTests {
     assert Arrays.equals(new String[] {"b1", "b2"}, Options.parse("b1", "b2").more());
   }
 
+  @Test
   void demo() throws Exception {
     record Options(
         @Name("-v") boolean verbose,
@@ -104,6 +98,7 @@ class CommandLineInterfaceTests {
     assert Options.PARSER.help().isEmpty() : "No @Help, no help()";
   }
 
+  @Test
   void conventional() {
     record Options(boolean _flag, Optional<String> _key, List<String> _list, String... more) {
       static Options of(String... args) {
@@ -117,17 +112,29 @@ class CommandLineInterfaceTests {
     assert Arrays.equals(new String[] {"1", "2", "3"}, options.more());
   }
 
+  @Test
   void positional() {
     record Options(boolean a, String first, boolean b, String second, boolean c) {}
     var objects = CommandLineInterface.parser(lookup(), Options.class).parse("one", "two");
     assert new Options(false, "one", false, "two", false).equals(objects);
   }
 
+  @Test
   void cardinality() {
     record CardOptions(@Name("-2") @Cardinality(2) List<String> take2) implements CommandLineInterface {}
-    CommandLineInterface.Parser<CardOptions> parser = CommandLineInterface.parser(lookup(), CardOptions.class);
+    var parser = CommandLineInterface.parser(lookup(), CardOptions.class);
     var options = parser.parse("-2", "a", "b");
     assert List.of("a", "b").equals(parser.parse("-2", "a", "b").take2());
     assert List.of("a", "b", "c", "d").equals(parser.parse("-2", "a", "b", "-2", "c", "d").take2());
+  }
+
+  @Test
+  void flags() {
+    record FlagOptions(boolean _f, boolean _h, boolean _z) {}
+    var parser = CommandLineInterface.parser(lookup(), FlagOptions.class);
+    var options = parser.parse("-zfh");
+    assertEquals(true, options._f);
+    assertEquals(true, options._h);
+    assertEquals(true, options._z);
   }
 }
