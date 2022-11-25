@@ -1,26 +1,37 @@
+package com.github.sormuras.cli;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Array;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+
+import static java.util.function.Predicate.not;
+import static java.util.stream.Collectors.toCollection;
 
 public interface CommandLineInterface {
 
@@ -37,7 +48,7 @@ public interface CommandLineInterface {
    * @param <E> the type of the enumeration class
    * @see Enum#valueOf(Class, String)
    */
-  default <E extends Enum<E>> Optional<E> findEnum(Class<E> enumClass, String name) {
+  static <E extends Enum<E>> Optional<E> findEnum(Class<E> enumClass, String name) {
     try {
       return Optional.of(Enum.valueOf(enumClass, name));
     } catch (IllegalArgumentException exception) {
@@ -63,7 +74,10 @@ public interface CommandLineInterface {
     int value();
   }
 
-  record Option(Type type, Set<String> names, String help, int cardinality, Class<? extends Record> subSchema) implements Comparable<Option> {
+  // compact flags: -fg
+  // sub-records
+
+  record Option(Type type, Set<String> names, String help, int cardinality) {
     public enum Type {
       /** An optional flag, like {@code --verbose}. */
       FLAG(false),
@@ -76,13 +90,13 @@ public interface CommandLineInterface {
       /** A collection of all unhandled arguments. */
       VARARGS(new String[0]);
 
-      final Object defaultValue;
+      private final Object defaultValue;
 
       Type(Object defaultValue) {
         this.defaultValue = defaultValue;
       }
 
-      Object getDefaultValue() {
+      Object defaultValue() {
         return defaultValue;
       }
 
@@ -96,26 +110,44 @@ public interface CommandLineInterface {
       }
     }
 
-    public static <R extends Record> List<Option> scan(Class<R> schema) {
-      return Stream.of(schema.getRecordComponents()).map(Option::of).toList();
+    public Option {
+      Objects.requireNonNull(type, "type is null");
+      Objects.requireNonNull(names, "named is null");
+      Objects.requireNonNull(help, "help is null");
+      names = Collections.unmodifiableSet(new LinkedHashSet<>(names));
+      if (names.isEmpty()) {
+        throw new IllegalArgumentException("no name defined");
+      }
+      if (cardinality < 1) {
+        throw new IllegalArgumentException("invalid cardinality " + cardinality);
+      }
     }
 
-    @SuppressWarnings("unchecked")
+    public static List<Option> scan(Class<? extends Record> schema) {
+      Objects.requireNonNull(schema, "schema is null");
+      var recordComponents = schema.getRecordComponents();
+      if (recordComponents == null) {
+        throw new IllegalArgumentException("the schema is not a record");
+      }
+      return Arrays.stream(recordComponents).map(Option::of).toList();
+    }
+
     public static Option of(RecordComponent component) {
+      Objects.requireNonNull(component, "component is null");
+      var name = component.getAnnotation(Name.class);
+      var help = component.getAnnotation(Help.class);
+      var cardinality = component.getAnnotation(Cardinality.class);
       return new Option(
           Type.valueOf(component.getType()),
-          component.isAnnotationPresent(Name.class)
-              ? new LinkedHashSet<>(List.of(component.getAnnotation(Name.class).value()))
+          name != null
+              ? new LinkedHashSet<>(Arrays.asList(name.value()))
               : Set.of(component.getName().replace('_', '-')),
-          component.isAnnotationPresent(Help.class)
-              ? String.join("\n", component.getAnnotation(Help.class).value())
+          help != null
+              ? String.join("\n", help.value())
               : "",
-          component.isAnnotationPresent(Cardinality.class)
-              ? component.getAnnotation(Cardinality.class).value()
-              : 1,
-      (component.getGenericType() instanceof ParameterizedType type)
-              ? type.getActualTypeArguments()[0] == String.class ? null : (Class<? extends Record>) type.getActualTypeArguments()[0]
-              : null);
+          cardinality != null
+              ? cardinality.value()
+              : 1);
     }
 
     String name() {
@@ -129,48 +161,76 @@ public interface CommandLineInterface {
     boolean isRequired() {
       return type == Type.REQUIRED;
     }
-
-    @Override
-    public int compareTo(Option o) {
-      return names.toString().compareTo(o.names.toString());
-    }
   }
 
-  record Parser<R extends Record>(
-      Lookup lookup, Class<R> schema, List<Option> options, ArgumentsProcessor processor, boolean sub) {
+  final class Parser<R extends Record> {
+      private final Lookup lookup;
+      private final Class<R> schema;
+      private final List<Option> options;
+      private final ArgumentsProcessor processor;
 
     public Parser(Lookup lookup, Class<R> schema) {
       this(lookup, schema, ArgumentsProcessor.DEFAULT);
     }
 
     public Parser(Lookup lookup, Class<R> schema, ArgumentsProcessor processor) {
-      this(lookup, schema, Option.scan(schema), processor, false);
+      this(lookup, schema, Option.scan(schema), processor);
     }
 
-    public Parser {
-      if (options.isEmpty()) throw new IllegalArgumentException("At least one option expected");
-      var names = options.stream().flatMap(option -> option.names().stream()).toList();
-      var duplicates = new ArrayList<>(names);
-      Set.copyOf(names).forEach(duplicates::remove);
-      if (!duplicates.isEmpty()) {
-        throw new IllegalArgumentException("Duplicate option key name(s) detected: " + duplicates);
+    public Parser(Lookup lookup, Class<R> schema, List<? extends Option> options, ArgumentsProcessor processor) {
+      Objects.requireNonNull(lookup, "lookup is null");
+      Objects.requireNonNull(schema, "schema is null");
+      Objects.requireNonNull(options, "options is null");
+      Objects.requireNonNull(processor, "processor is null");
+      var opts = List.<Option>copyOf(options);
+      if (opts.isEmpty()) {
+        throw new IllegalArgumentException("At least one option is expected");
       }
+      checkDuplicates(opts);
+      checkVarargs(opts);
+      this.lookup = lookup;
+      this.schema = schema;
+      this.options = opts;
+      this.processor = processor;
+    }
+
+    private static void checkDuplicates(List<Option> options) {
+      var optionsByName = new HashMap<String, Option>();
+      for(var option: options) {
+        var names = option.names();
+        for(var name: names) {
+          var otherOption = optionsByName.put(name, option);
+          if (otherOption == option) {
+            throw new IllegalArgumentException("option " + option + " declares duplicated name " + name);
+          }
+          if (otherOption != null) {
+            throw new IllegalArgumentException("options " + option + " and " + otherOption + " both declares name " + name);
+          }
+        }
+      }
+    }
+
+    private static void checkVarargs(List<Option> options) {
       var varargs =
-          options.stream().filter(option -> option.type() == Option.Type.VARARGS).toList();
+          options.stream().filter(Option::isVarargs).toList();
       if (varargs.size() > 1) {
         throw new IllegalArgumentException("Too many varargs types specified: " + varargs);
       }
       if (varargs.size() == 1 && !(options.get(options.size() - 1).isVarargs())) {
-        throw new IllegalArgumentException("MoreOption not at last index: " + options);
+        throw new IllegalArgumentException("varargs is not at last index: " + options);
       }
     }
 
     private Object[] parse(ArrayDeque<String> pendingArguments) {
-      var requiredOptions = new ArrayDeque<>(options.stream().filter(Option::isRequired).toList());
+      var requiredOptions = options.stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
       var optionsByName = new HashMap<String, Option>();
       var workspace = new LinkedHashMap<String, Object>();
-      options.forEach(option -> option.names.forEach(name -> optionsByName.put(name, option)));
-      options.forEach(option -> workspace.put(option.name(), option.type().getDefaultValue()));
+      for(var option: options) {
+        for(var name: option.names()) {
+          optionsByName.put(name, option);
+        }
+        workspace.put(option.name(), option.type().defaultValue());
+      }
 
       while (true) {
         if (pendingArguments.isEmpty()) {
@@ -189,16 +249,13 @@ public interface CommandLineInterface {
           switch (option.type()) {
             case FLAG -> workspace.put(name, true);
             case KEY_VALUE -> {
-              var value = option.subSchema() != null
-                      ? parseSub(pendingArguments, option)
-                      : pop ? pendingArguments.pop() : argument.substring(separator + 1);
+              var value = pop ? pendingArguments.pop() : argument.substring(separator + 1);
               workspace.put(name, Optional.of(value));
             }
             case REPEATABLE -> {
               var times = option.cardinality();
-              var value = option.subSchema() != null
-                      ? List.of(parseSub(pendingArguments, option))
-                      : pop
+              var value =
+                  pop
                       ? IntStream.range(0, times).mapToObj(__ -> pendingArguments.pop()).toList()
                       : List.of(argument.substring(separator + 1).split(","));
               @SuppressWarnings("unchecked")
@@ -225,7 +282,6 @@ public interface CommandLineInterface {
         }
         // restore pending arguments deque
         pendingArguments.addFirst(argument);
-        if (sub) return workspace.values().toArray();
         // try globbing all pending arguments into a varargs collector
         var varargsOption = options.get(options.size() - 1);
         if (varargsOption.isVarargs()) {
@@ -236,29 +292,33 @@ public interface CommandLineInterface {
       }
     }
 
-    private Object parseSub(ArrayDeque<String> pendingArguments, Option option) {
-      Class<? extends Record> schema = option.subSchema;
-      Parser<? extends Record> subParser = new Parser<>(lookup, schema, Option.scan(schema), processor, true);
-      return toRecord(lookup, schema, subParser.parse(pendingArguments)) ;
-    }
-
     public R parse(String... args) {
-      return parse(Stream.of(args));
+      Objects.requireNonNull(args, "args is null");
+      return parse(Arrays.stream(args));
     }
 
     public R parse(Stream<String> args) {
-      return toRecord(lookup, schema, parse(new ArrayDeque<>(processor.process(args).toList())));
+      Objects.requireNonNull(args, "args is null");
+      var constructor = constructor(lookup, schema);
+      var values = processor.process(args).collect(toCollection(ArrayDeque::new));
+      var objects = parse(values);
+      var arguments = constructor.isVarargsCollector() ? spreadVarargs(objects) : objects;
+      return schema.cast(createRecord(schema, constructor, arguments));
     }
 
-    private static <R> R toRecord(Lookup lookup, Class<R> schema, Object[] objects) {
+    private static MethodHandle constructor(Lookup lookup, Class<?> schema) {
+      var components = schema.getRecordComponents();
+      var types = Stream.of(components).map(RecordComponent::getType).toArray(Class[]::new);
       try {
-        var components = schema.getRecordComponents();
-        var types = Stream.of(components).map(RecordComponent::getType).toArray(Class[]::new);
-        var constructor = lookup.findConstructor(schema, MethodType.methodType(void.class, types));
-        var arguments = constructor.isVarargsCollector() ? spreadVarargs(objects) : objects;
-        @SuppressWarnings("unchecked")
-        R instance = (R) constructor.invokeWithArguments(arguments);
-        return instance;
+        return lookup.findConstructor(schema, MethodType.methodType(void.class, types));
+      } catch (NoSuchMethodException | IllegalAccessException e) {
+        throw new IllegalStateException(e);
+      }
+    }
+
+    private static Object createRecord(Class<?> schema, MethodHandle constructor, Object[] arguments) {
+      try {
+        return schema.cast(constructor.invokeWithArguments(arguments));
       } catch (RuntimeException | Error e) {
         throw e;
       } catch (Throwable e) {
@@ -282,8 +342,11 @@ public interface CommandLineInterface {
     }
 
     public String help(int indent) {
+      if (indent < 0) {
+        throw new IllegalArgumentException("invalid indent " + indent);
+      }
       var joiner = new StringJoiner("\n");
-      for (var option : options.stream().sorted().toList()) {
+      for (var option : options.stream().sorted(Comparator.comparing(Option::name)).toList()) {
         var text = option.help();
         if (text.isEmpty()) continue;
         var suffix =
@@ -305,44 +368,38 @@ public interface CommandLineInterface {
   interface ArgumentsProcessor {
     ArgumentsProcessor IDENTITY = arguments -> arguments;
     ArgumentsProcessor TRIM = arguments -> arguments.map(String::trim);
-    ArgumentsProcessor PRUNE = arguments -> arguments.filter(argument -> !argument.isEmpty());
+    ArgumentsProcessor PRUNE = arguments -> arguments.filter(not(String::isEmpty));
     ArgumentsProcessor NORMALIZE = TRIM.andThen(PRUNE);
     ArgumentsProcessor EXPAND = ArgumentsProcessor::expandAtFileArguments;
     ArgumentsProcessor DEFAULT = NORMALIZE.andThen(EXPAND);
 
-    static Stream<String> expandAtFileArguments(Stream<String> source) {
-      var arguments = new ArrayList<String>();
-      for (var argument : source.toList()) {
+    private static Stream<String> expandAtFileArguments(Stream<String> source) {
+      return source.mapMulti((argument, consumer) -> {
         if (argument.startsWith("@") && !(argument.startsWith("@@"))) {
           var file = Path.of(argument.substring(1));
-          var list = expandArgumentsFile(file);
-          arguments.addAll(list);
-          continue;
+          expandArgumentsFile(file, consumer);
+          return;
         }
-        arguments.add(argument);
-      }
-      return arguments.stream();
+        consumer.accept(argument);
+      });
     }
 
-    static List<String> expandArgumentsFile(Path file) {
-      if (Files.notExists(file)) throw new RuntimeException("Arguments file not found: " + file);
-      var arguments = new ArrayList<String>();
+    private static void expandArgumentsFile(Path file, Consumer<String> consumer) {
+      List<String> lines;
       try {
-        for (var line : Files.readAllLines(file)) {
-          line = line.strip();
-          if (line.isEmpty()) continue;
-          if (line.startsWith("#")) continue;
-          if (line.startsWith("@") && !line.startsWith("@@")) {
-            throw new IllegalArgumentException("Expand arguments file not allowed: " + line);
-          }
-          arguments.add(line);
-        }
-      } catch (RuntimeException exception) {
-        throw exception;
-      } catch (Exception exception) {
-        throw new RuntimeException("Read all lines from file failed: " + file, exception);
+        lines = Files.readAllLines(file);
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
       }
-      return List.copyOf(arguments);
+      for (var line : lines) {
+        line = line.strip();
+        if (line.isEmpty()) continue;
+        if (line.startsWith("#")) continue;
+        if (line.startsWith("@") && !line.startsWith("@@")) {
+          throw new IllegalArgumentException("Expand arguments file not allowed: " + line);
+        }
+        consumer.accept(line);
+      }
     }
 
     Stream<String> process(Stream<String> arguments);

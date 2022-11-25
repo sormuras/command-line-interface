@@ -1,4 +1,4 @@
-import static java.util.Arrays.stream;
+package com.github.sormuras.cli;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,6 +7,8 @@ import java.lang.annotation.Target;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Objects;
 import java.util.Optional;
+
+import static java.util.Arrays.stream;
 
 public interface TestRunner {
 

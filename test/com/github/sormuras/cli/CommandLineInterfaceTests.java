@@ -1,4 +1,8 @@
-import static java.lang.invoke.MethodHandles.lookup;
+package com.github.sormuras.cli;
+
+import com.google.sormuras.cli.CommandLineInterface.ArgumentsProcessor;
+import com.google.sormuras.cli.CommandLineInterface.Name;
+import com.google.sormuras.cli.CommandLineInterface.Parser;
 
 import java.lang.annotation.RetentionPolicy;
 import java.nio.file.Files;
@@ -6,6 +10,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+
+import static java.lang.invoke.MethodHandles.lookup;
 
 public class CommandLineInterfaceTests implements TestRunner {
 
@@ -20,16 +26,16 @@ public class CommandLineInterfaceTests implements TestRunner {
       new CommandLineInterface.Parser<Options>(lookup(), Options.class);
       throw new AssertionError();
     } catch (IllegalArgumentException expected) {
-      assert "At least one option expected".equals(expected.getMessage());
+      assert "At least one option is expected".equals(expected.getMessage());
     }
   }
 
   @Test
   void varargs() {
-    record Options(String... more) implements CommandLineInterface {
+    record Options(String... more) {
       static Options parse(String... args) {
         var parser =
-            new CommandLineInterface.Parser<>(lookup(), Options.class, ArgumentsProcessor.IDENTITY);
+            new Parser<>(lookup(), Options.class, ArgumentsProcessor.IDENTITY);
         return parser.parse(args);
       }
     }
@@ -48,13 +54,12 @@ public class CommandLineInterfaceTests implements TestRunner {
         String thread_state,
         Optional<String> __time,
         List<String> __policies,
-        String... names)
-        implements CommandLineInterface {
+        String... names) {
 
       static final Parser<Options> PARSER = new Parser<>(lookup(), Options.class);
 
       Thread.State state() {
-        return findEnum(Thread.State.class, thread_state).orElseThrow();
+        return CommandLineInterface.findEnum(Thread.State.class, thread_state).orElseThrow();
       }
 
       TimeUnit time() {
@@ -140,32 +145,5 @@ public class CommandLineInterfaceTests implements TestRunner {
     assertEquals(true, options._f);
     assertEquals(true, options._h);
     assertEquals(true, options._z);
-  }
-
-  @Test
-  void sub_keyValue() {
-    record SubOptions(String dir, String file) {}
-    record MainOptions(boolean __flag, Optional<SubOptions> __release, String... rest) {}
-    var parser = CommandLineInterface.parser(lookup(), MainOptions.class);
-    var options = parser.parse("--release dirX fileX --flag and the rest".split(" "));
-    assertEquals(true, options.__flag);
-    assertEquals("dirX", options.__release.orElseThrow().dir());
-    assertEquals("fileX", options.__release.orElseThrow().file());
-    assertEquals(List.of("and", "the", "rest"), List.of(options.rest));
-  }
-
-  @Test
-  void sub_repeatable() {
-    record SubOptions(String dir, String file) {}
-    record MainOptions(boolean __flag, List<SubOptions> __release, String... rest) {}
-    var parser = CommandLineInterface.parser(lookup(), MainOptions.class);
-    var options = parser.parse("--release dirX fileX --flag --release dirY fileY and the rest".split(" "));
-    assertEquals(true, options.__flag);
-    assertEquals(2, options.__release.size());
-    assertEquals("dirX", options.__release.get(0).dir());
-    assertEquals("fileX", options.__release.get(0).file());
-    assertEquals("dirY", options.__release.get(1).dir());
-    assertEquals("fileY", options.__release.get(1).file());
-    assertEquals(List.of("and", "the", "rest"), List.of(options.rest));
   }
 }

@@ -1,7 +1,12 @@
-import static java.lang.invoke.MethodHandles.lookup;
+package com.github.sormuras.cli;
+
+import com.google.sormuras.cli.CommandLineInterface.Cardinality;
+import com.google.sormuras.cli.CommandLineInterface.Name;
 
 import java.util.List;
 import java.util.Optional;
+
+import static java.lang.invoke.MethodHandles.lookup;
 
 public class JarTests implements TestRunner {
 
@@ -32,8 +37,7 @@ public class JarTests implements TestRunner {
       @Name("--help:compat") boolean helpCompat,
       @Name("--help-extra") boolean helpExtra,
       @Name("--version") boolean version,
-      String... files)
-      implements CommandLineInterface {}
+      String... files) {}
 
   private static JarOptions parseInput(String line) {
     return CommandLineInterface.parser(lookup(), JarOptions.class).parse(line.split("\\s+"));
