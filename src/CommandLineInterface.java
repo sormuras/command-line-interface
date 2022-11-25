@@ -34,7 +34,6 @@ public interface CommandLineInterface {
    * @param name the name of the constant to wrap
    * @return {@code Optional} instance describing the found enumeration constant or an empty one
    * @param <E> the type of the enumeration class
-   *
    * @see Enum#valueOf(Class, String)
    */
   default <E extends Enum<E>> Optional<E> findEnum(Class<E> enumClass, String name) {
@@ -66,7 +65,8 @@ public interface CommandLineInterface {
   // compact flags: -fg
   // sub-records
 
-  record Option(Type type, Set<String> names, String help, int cardinality) implements Comparable<Option> {
+  record Option(Type type, Set<String> names, String help, int cardinality)
+      implements Comparable<Option> {
     public enum Type {
       /** An optional flag, like {@code --verbose}. */
       FLAG(false),
@@ -105,16 +105,16 @@ public interface CommandLineInterface {
 
     public static Option of(RecordComponent component) {
       return new Option(
-              Type.valueOf(component.getType()),
-              component.isAnnotationPresent(Name.class)
-                      ? new LinkedHashSet<>(List.of(component.getAnnotation(Name.class).value()))
-                      : Set.of(component.getName().replace('_', '-')),
-              component.isAnnotationPresent(Help.class)
-                      ? String.join("\n", component.getAnnotation(Help.class).value())
-                      : "",
-              component.isAnnotationPresent(Cardinality.class)
-                      ? component.getAnnotation(Cardinality.class).value()
-                      : 1);
+          Type.valueOf(component.getType()),
+          component.isAnnotationPresent(Name.class)
+              ? new LinkedHashSet<>(List.of(component.getAnnotation(Name.class).value()))
+              : Set.of(component.getName().replace('_', '-')),
+          component.isAnnotationPresent(Help.class)
+              ? String.join("\n", component.getAnnotation(Help.class).value())
+              : "",
+          component.isAnnotationPresent(Cardinality.class)
+              ? component.getAnnotation(Cardinality.class).value()
+              : 1);
     }
 
     String name() {
@@ -192,8 +192,10 @@ public interface CommandLineInterface {
               workspace.put(name, Optional.of(value));
             }
             case REPEATABLE -> {
-              var value = pop
-                      ? IntStream.range(0, option.cardinality()).mapToObj(i -> pendingArguments.pop()).toList()
+              var times = option.cardinality();
+              var value =
+                  pop
+                      ? IntStream.range(0, times).mapToObj(__ -> pendingArguments.pop()).toList()
                       : List.of(argument.substring(separator + 1).split(","));
               @SuppressWarnings("unchecked")
               var elements = (List<String>) workspace.get(name);
@@ -205,7 +207,7 @@ public interface CommandLineInterface {
         }
         // maybe a combination of single letter flags?
         if (argument.matches("^-[a-zA-Z]{1,5}$")) {
-          List<String> flags = argument.substring(1).chars().mapToObj(c -> "-" + (char)c).toList();
+          var flags = argument.substring(1).chars().mapToObj(c -> "-" + (char) c).toList();
           if (flags.stream().allMatch(optionsByName::containsKey)) {
             flags.forEach(flag -> workspace.put(optionsByName.get(flag).name(), true));
             continue;
