@@ -14,6 +14,10 @@ public class JarTests implements TestRunner {
     new JarTests().runTests();
   }
 
+  record JarCOptions(String dir, String file) {}
+
+  record JarReleaseOptions(String version, @Name("-C") List<JarCOptions> Cs ) {}
+
   record JarOptions(
       @Name({"-c", "--create"}) boolean create,
       @Name({"-i", "--generate-index"}) Optional<String> generateIndex,
@@ -21,9 +25,9 @@ public class JarTests implements TestRunner {
       @Name({"-u", "--update"}) boolean update,
       @Name({"-x", "--extract"}) boolean extract,
       @Name({"-d", "--describe-module"}) boolean describeModule,
-      @Name({"-C"}) @Cardinality(2) List<String> changeDir,
+      @Name({"-C"}) Optional<JarCOptions> changeDir,
       @Name({"-f", "--file"}) Optional<String> file,
-      @Name("--release") Optional<String> release,
+      @Name("--release") Optional<JarReleaseOptions> release,
       @Name({"-v", "--verbose"}) boolean verbose,
       @Name({"-e", "--main-class"}) Optional<String> mainClass,
       @Name({"-m", "--manifest"}) Optional<String> manifest,
@@ -68,7 +72,7 @@ public class JarTests implements TestRunner {
     assertEquals(true, options.create());
     assertEquals("classes.jar", options.file());
     assertEquals("mymanifest", options.manifest());
-    assertEquals(List.of("foo/", "."), options.changeDir());
+    assertEquals(new JarCOptions("foo/", "."), options.changeDir());
   }
 
   @Test
@@ -81,7 +85,9 @@ public class JarTests implements TestRunner {
     assertEquals("foo.jar", options.file());
     assertEquals("com.foo.Main", options.mainClass());
     assertEquals("1.0", options.moduleVersion());
-    assertEquals(List.of("foo/classes", "resources"), options.changeDir());
+    JarCOptions cOptions = options.changeDir().orElseThrow();
+    assertEquals("foo/classes", cOptions.dir());
+    assertEquals("resources", cOptions.file());
   }
 
   @Test
@@ -93,8 +99,7 @@ public class JarTests implements TestRunner {
     assertEquals(true, options.create());
     assertEquals("foo.jar", options.file());
     assertEquals("com.foo.Hello", options.mainClass());
-    // FIXME no longer clear what is meant for release 10
-    assertEquals(List.of("classes", ".", "classes-10", "."), options.changeDir());
-    assertEquals("10", options.release());
+    assertEquals(new JarCOptions("classes", "."), options.changeDir());
+    assertEquals(new JarReleaseOptions("10", List.of(new JarCOptions("classes-10", "."))), options.release());
   }
 }

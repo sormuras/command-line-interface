@@ -183,16 +183,16 @@ public interface CommandLineInterface {
       this(lookup, schema, Option.scan(schema), processor);
     }
 
-    public Parser(Lookup lookup, Class<R> schema, List<? extends Option> options, ArgumentsProcessor processor) {
+    public Parser(Lookup lookup, Class<R> schema, List<Option> options, ArgumentsProcessor processor) {
       this(lookup, schema, options, processor, false);
     }
 
-    private Parser(Lookup lookup, Class<R> schema, List<? extends Option> options, ArgumentsProcessor processor, boolean sub) {
+    private Parser(Lookup lookup, Class<R> schema, List<Option> options, ArgumentsProcessor processor, boolean sub) {
       Objects.requireNonNull(lookup, "lookup is null");
       Objects.requireNonNull(schema, "schema is null");
       Objects.requireNonNull(options, "options is null");
       Objects.requireNonNull(processor, "processor is null");
-      var opts = List.<Option>copyOf(options);
+      var opts = List.copyOf(options);
       if (opts.isEmpty()) {
         throw new IllegalArgumentException("At least one option is expected");
       }
@@ -338,7 +338,7 @@ public interface CommandLineInterface {
       }
     }
 
-    private static Object createRecord(Class<?> schema, MethodHandle constructor, Object[] arguments) {
+    private static Record createRecord(Class<? extends Record> schema, MethodHandle constructor, Object[] arguments) {
       try {
         return schema.cast(constructor.invokeWithArguments(arguments));
       } catch (RuntimeException | Error e) {
