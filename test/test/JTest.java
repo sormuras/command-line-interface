@@ -72,14 +72,14 @@ public interface JTest {
     }
   }
 
-  default void runAllTests(JTest... tests) {
+  static void runAllTests(JTest... tests) {
     Runner run = new Runner(new ArrayList<>());
     runAllTests(run, tests);
     run.print(System.out);
     run.verify();
   }
 
-  default void runAllTests(Listener listener, JTest... tests) {
+  static void runAllTests(Listener listener, JTest... tests) {
     for (JTest test : tests) test.runTests(listener);
   }
 
