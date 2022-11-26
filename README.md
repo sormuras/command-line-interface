@@ -1,6 +1,7 @@
 # Arguments Splitter
 
-An Arguments Splitter splits a structured `String` array into user-defined option `record` types.
+An Arguments Splitter splits structured string arrays (`String[]`) into instances of user-defined option `record` types.
+It can be used to model and handle command-line APIs of Java programs.
 
 ## Principles
 
