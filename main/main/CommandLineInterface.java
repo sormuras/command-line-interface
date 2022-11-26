@@ -1,5 +1,6 @@
 package main;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.toCollection;
 
@@ -12,7 +13,6 @@ import java.lang.annotation.Target;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
-import java.lang.reflect.Array;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.UndeclaredThrowableException;
@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -75,15 +74,12 @@ public interface CommandLineInterface {
     int value();
   }
 
-  // compact flags: -fg
-  // sub-records
-
   record Option(
       Type type,
       Set<String> names,
       String help,
       int cardinality,
-      Class<? extends Record> subSchema) {
+      Class<? extends Record> nestedSchema) {
     public enum Type {
       /** An optional flag, like {@code --verbose}. */
       FLAG(false),
@@ -117,9 +113,9 @@ public interface CommandLineInterface {
     }
 
     public Option {
-      Objects.requireNonNull(type, "type is null");
-      Objects.requireNonNull(names, "named is null");
-      Objects.requireNonNull(help, "help is null");
+      requireNonNull(type, "type is null");
+      requireNonNull(names, "named is null");
+      requireNonNull(help, "help is null");
       names = Collections.unmodifiableSet(new LinkedHashSet<>(names));
       if (names.isEmpty()) {
         throw new IllegalArgumentException("no name defined");
@@ -130,7 +126,7 @@ public interface CommandLineInterface {
     }
 
     public static List<Option> scan(Class<? extends Record> schema) {
-      Objects.requireNonNull(schema, "schema is null");
+      requireNonNull(schema, "schema is null");
       var recordComponents = schema.getRecordComponents();
       if (recordComponents == null) {
         throw new IllegalArgumentException("the schema is not a record");
@@ -139,22 +135,24 @@ public interface CommandLineInterface {
     }
 
     public static Option of(RecordComponent component) {
-      Objects.requireNonNull(component, "component is null");
-      var name = component.getAnnotation(Name.class);
-      var help = component.getAnnotation(Help.class);
-      var cardinality = component.getAnnotation(Cardinality.class);
-      return new Option(
-          Type.valueOf(component.getType()),
-          name != null
-              ? new LinkedHashSet<>(Arrays.asList(name.value()))
-              : Set.of(component.getName().replace('_', '-')),
-          help != null ? String.join("\n", help.value()) : "",
-          cardinality != null ? cardinality.value() : 1,
-          (component.getGenericType() instanceof ParameterizedType type
-                  && type.getActualTypeArguments()[0] instanceof Class<?> subOption
-                  && subOption.isRecord())
-              ? subOption.asSubclass(Record.class)
-              : null);
+      requireNonNull(component, "component is null");
+      var nameAnno = component.getAnnotation(Name.class);
+      var helpAnno = component.getAnnotation(Help.class);
+      var cardinalityAnno = component.getAnnotation(Cardinality.class);
+      var names =
+          nameAnno != null
+              ? new LinkedHashSet<>(Arrays.asList(nameAnno.value()))
+              : Set.of(component.getName().replace('_', '-'));
+      var type = Type.valueOf(component.getType());
+      var help = helpAnno != null ? String.join("\n", helpAnno.value()) : "";
+      int cardinality = cardinalityAnno != null ? cardinalityAnno.value() : 1;
+      var nestedSchema =
+          (component.getGenericType() instanceof ParameterizedType paramType
+                  && paramType.getActualTypeArguments()[0] instanceof Class<?> nestedType
+                  && nestedType.isRecord())
+              ? nestedType.asSubclass(Record.class)
+              : null;
+      return new Option(type, names, help, cardinality, nestedSchema);
     }
 
     String name() {
@@ -175,7 +173,7 @@ public interface CommandLineInterface {
     private final Class<R> schema;
     private final List<Option> options;
     private final ArgumentsProcessor processor;
-    private final boolean sub;
+    private final boolean nested;
 
     public Parser(Lookup lookup, Class<R> schema) {
       this(lookup, schema, ArgumentsProcessor.DEFAULT);
@@ -195,22 +193,20 @@ public interface CommandLineInterface {
         Class<R> schema,
         List<Option> options,
         ArgumentsProcessor processor,
-        boolean sub) {
-      Objects.requireNonNull(lookup, "lookup is null");
-      Objects.requireNonNull(schema, "schema is null");
-      Objects.requireNonNull(options, "options is null");
-      Objects.requireNonNull(processor, "processor is null");
+        boolean nested) {
+      requireNonNull(lookup, "lookup is null");
+      requireNonNull(schema, "schema is null");
+      requireNonNull(options, "options is null");
+      requireNonNull(processor, "processor is null");
       var opts = List.copyOf(options);
-      if (opts.isEmpty()) {
-        throw new IllegalArgumentException("At least one option is expected");
-      }
+      if (opts.isEmpty()) throw new IllegalArgumentException("At least one option is expected");
       checkDuplicates(opts);
       checkVarargs(opts);
       this.lookup = lookup;
       this.schema = schema;
       this.options = opts;
       this.processor = processor;
-      this.sub = sub;
+      this.nested = nested;
     }
 
     private static void checkDuplicates(List<Option> options) {
@@ -219,14 +215,12 @@ public interface CommandLineInterface {
         var names = option.names();
         for (var name : names) {
           var otherOption = optionsByName.put(name, option);
-          if (otherOption == option) {
+          if (otherOption == option)
             throw new IllegalArgumentException(
                 "option " + option + " declares duplicated name " + name);
-          }
-          if (otherOption != null) {
+          if (otherOption != null)
             throw new IllegalArgumentException(
                 "options " + option + " and " + otherOption + " both declares name " + name);
-          }
         }
       }
     }
@@ -271,16 +265,16 @@ public interface CommandLineInterface {
             case FLAG -> workspace.put(name, true);
             case KEY_VALUE -> {
               var value =
-                  option.subSchema() != null
-                      ? parseSub(pendingArguments, option)
+                  option.nestedSchema() != null
+                      ? parseNested(pendingArguments, option)
                       : pop ? pendingArguments.pop() : argument.substring(separator + 1);
               workspace.put(name, Optional.of(value));
             }
             case REPEATABLE -> {
               var times = option.cardinality();
               var value =
-                  option.subSchema() != null
-                      ? List.of(parseSub(pendingArguments, option))
+                  option.nestedSchema() != null
+                      ? List.of(parseNested(pendingArguments, option))
                       : pop
                           ? IntStream.range(0, times)
                               .mapToObj(__ -> pendingArguments.pop())
@@ -310,7 +304,7 @@ public interface CommandLineInterface {
         }
         // restore pending arguments deque
         pendingArguments.addFirst(argument);
-        if (sub) return workspace.values().toArray();
+        if (nested) return workspace.values().toArray();
         // try globbing all pending arguments into a varargs collector
         var varargsOption = options.get(options.size() - 1);
         if (varargsOption.isVarargs()) {
@@ -321,20 +315,21 @@ public interface CommandLineInterface {
       }
     }
 
-    private Object parseSub(ArrayDeque<String> pendingArguments, Option option) {
-      var schema = option.subSchema;
-      var subParser = new Parser<>(lookup, schema, Option.scan(schema), processor, true);
-      var constructor = constructor(lookup, schema);
-      return createRecord(schema, constructor, subParser.parse(pendingArguments));
+    private Object parseNested(ArrayDeque<String> pendingArguments, Option option) {
+      var nestedSchema = option.nestedSchema;
+      var nestedOptions = Option.scan(nestedSchema);
+      var nestedParser = new Parser<>(lookup, nestedSchema, nestedOptions, processor, true);
+      var constructor = constructor(lookup, nestedSchema);
+      return createRecord(nestedSchema, constructor, nestedParser.parse(pendingArguments));
     }
 
     public R parse(String... args) {
-      Objects.requireNonNull(args, "args is null");
+      requireNonNull(args, "args is null");
       return parse(Arrays.stream(args));
     }
 
     public R parse(Stream<String> args) {
-      Objects.requireNonNull(args, "args is null");
+      requireNonNull(args, "args is null");
       var constructor = constructor(lookup, schema).asFixedArity();
       var values = processor.process(args).collect(toCollection(ArrayDeque::new));
       var arguments = parse(values);
@@ -351,10 +346,10 @@ public interface CommandLineInterface {
       }
     }
 
-    private static Record createRecord(
-        Class<? extends Record> schema, MethodHandle constructor, Object[] arguments) {
+    private static <T extends Record> T createRecord(
+        Class<T> schema, MethodHandle constructor, Object[] args) {
       try {
-        return schema.cast(constructor.invokeWithArguments(arguments));
+        return schema.cast(constructor.invokeWithArguments(args));
       } catch (RuntimeException | Error e) {
         throw e;
       } catch (Throwable e) {
@@ -367,9 +362,7 @@ public interface CommandLineInterface {
     }
 
     public String help(int indent) {
-      if (indent < 0) {
-        throw new IllegalArgumentException("invalid indent " + indent);
-      }
+      if (indent < 0) throw new IllegalArgumentException("invalid indent " + indent);
       var joiner = new StringJoiner("\n");
       for (var option : options.stream().sorted(Comparator.comparing(Option::name)).toList()) {
         var text = option.help();
