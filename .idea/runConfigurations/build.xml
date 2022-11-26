@@ -2,6 +2,7 @@
   <configuration default="false" name="build" type="Application" factoryName="Application" nameIsGenerated="true">
     <option name="MAIN_CLASS_NAME" value="build" />
     <module name="command-line-interface" />
+    <option name="WORKING_DIRECTORY" value="$ProjectFileDir$" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

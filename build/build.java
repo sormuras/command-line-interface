@@ -1,5 +1,6 @@
+import static java.util.Arrays.copyOfRange;
+
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.List;
 import java.util.spi.ToolProvider;
 
@@ -7,14 +8,22 @@ class build {
   public static void main(String... args) throws Exception {
     tool("javac                       --module main --module-source-path . -d classes");
     tool("javac --module-path classes --module test --module-source-path . -d classes");
-    java("      --module-path classes --module test/test.AllTests");
+    if (args.length == 0) {
+      java("--module-path classes --module test/test.AllTests");
+    } else {
+      java(
+          "--module-path classes --module test/test."
+              + args[0]
+              + " "
+              + String.join(" ", copyOfRange(args, 1, args.length)));
+    }
   }
 
   static void tool(String line) {
     var words = line.trim().split("\\s+");
     System.out.println(List.of(words));
     var name = words[0];
-    var args = Arrays.copyOfRange(words, 1, words.length);
+    var args = copyOfRange(words, 1, words.length);
     var code = ToolProvider.findFirst(name).orElseThrow().run(System.out, System.err, args);
     if (code != 0) throw new RuntimeException();
   }
