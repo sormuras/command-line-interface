@@ -49,6 +49,8 @@ public interface CommandLineInterface {
    * @see Enum#valueOf(Class, String)
    */
   static <E extends Enum<E>> Optional<E> findEnum(Class<E> enumClass, String name) {
+    requireNonNull(enumClass, "enumClass is null");
+    requireNonNull(name, "name is null");
     try {
       return Optional.of(Enum.valueOf(enumClass, name));
     } catch (IllegalArgumentException exception) {
