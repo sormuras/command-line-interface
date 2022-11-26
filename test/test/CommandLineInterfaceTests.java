@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import main.CommandLineInterface;
 import main.CommandLineInterface.ArgumentsProcessor;
+import main.CommandLineInterface.Cardinality;
 import main.CommandLineInterface.Name;
 import main.CommandLineInterface.Parser;
 
@@ -129,8 +130,7 @@ class CommandLineInterfaceTests implements JTest {
 
   @Test
   void cardinality() {
-    record Options(@Name("-2") @Cardinality(2) List<String> take2)
-        implements CommandLineInterface {}
+    record Options(@Name("-2") @Cardinality(2) List<String> take2) {}
     var parser = CommandLineInterface.parser(lookup(), Options.class);
     assertEquals(List.of("a", "b"), parser.parse("-2", "a", "b").take2());
     assertEquals(List.of("a", "b", "c", "d"), parser.parse("-2", "a", "b", "-2", "c", "d").take2());
