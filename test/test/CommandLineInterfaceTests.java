@@ -1,10 +1,10 @@
 package test;
 
 import static java.lang.invoke.MethodHandles.lookup;
+import static test.Assertions.*;
 
 import java.lang.annotation.RetentionPolicy;
 import java.nio.file.Files;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -13,21 +13,18 @@ import main.CommandLineInterface.ArgumentsProcessor;
 import main.CommandLineInterface.Name;
 import main.CommandLineInterface.Parser;
 
-public class CommandLineInterfaceTests implements TestRunner {
+class CommandLineInterfaceTests implements JTest {
 
-  public static void main(String... args) throws Exception {
+  public static void main(String... args) {
     new CommandLineInterfaceTests().runTests();
   }
 
   @Test
   void empty() {
     record Options() {}
-    try {
-      new CommandLineInterface.Parser<Options>(lookup(), Options.class);
-      throw new AssertionError();
-    } catch (IllegalArgumentException expected) {
-      assert "At least one option is expected".equals(expected.getMessage());
-    }
+    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+            () -> new CommandLineInterface.Parser<>(lookup(), Options.class) );
+    assertEquals("At least one option is expected", ex.getMessage());
   }
 
   @Test
@@ -38,11 +35,11 @@ public class CommandLineInterfaceTests implements TestRunner {
         return parser.parse(args);
       }
     }
-    assert Arrays.equals(new String[0], Options.parse().more());
-    assert Arrays.equals(new String[] {""}, Options.parse("").more());
-    assert Arrays.equals(new String[] {" "}, Options.parse(" ").more());
-    assert Arrays.equals(new String[] {"a"}, Options.parse("a").more());
-    assert Arrays.equals(new String[] {"b1", "b2"}, Options.parse("b1", "b2").more());
+    assertArrayEquals(new String[0], Options.parse().more());
+    assertArrayEquals(new String[] {""}, Options.parse("").more());
+    assertArrayEquals(new String[] {" "}, Options.parse(" ").more());
+    assertArrayEquals(new String[] {"a"}, Options.parse("a").more());
+    assertArrayEquals(new String[] {"b1", "b2"}, Options.parse("b1", "b2").more());
   }
 
   @Test
@@ -96,14 +93,13 @@ public class CommandLineInterfaceTests implements TestRunner {
             Jim"""
                 .formatted(file)
                 .lines());
-    assert options.verbose;
-    assert "Hallo".equals(options.__say.orElse("Hi"));
-    assert Thread.State.NEW == options.state();
-    assert TimeUnit.MINUTES == options.time();
-    assert List.of(RetentionPolicy.RUNTIME, RetentionPolicy.CLASS, RetentionPolicy.SOURCE)
-        .equals(options.policies());
-    assert List.of("Joe", "Jim").equals(List.of(options.names));
-    assert Options.PARSER.help().isEmpty() : "No @Help, no help()";
+    assertTrue(options.verbose);
+    assertEquals("Hallo", options.__say.orElse("Hi"));
+    assertEquals(Thread.State.NEW, options.state());
+    assertEquals(TimeUnit.MINUTES, options.time());
+    assertEquals(List.of(RetentionPolicy.RUNTIME, RetentionPolicy.CLASS, RetentionPolicy.SOURCE), options.policies());
+    assertEquals(List.of("Joe", "Jim"), List.of(options.names));
+    assertTrue(Options.PARSER.help().isEmpty(), "No @Help, no help()");
   }
 
   @Test
@@ -114,17 +110,17 @@ public class CommandLineInterfaceTests implements TestRunner {
       }
     }
     var options = Options.of("-flag", "-key", "value", "-list", "a", "-list=b,o", "1", "2", "3");
-    assert options._flag();
-    assert Optional.of("value").equals(options._key());
-    assert List.of("a", "b", "o").equals(options._list());
-    assert Arrays.equals(new String[] {"1", "2", "3"}, options.more());
+    assertTrue(options._flag());
+    assertEqualsOptional("value", options._key());
+    assertEquals(List.of("a", "b", "o"), options._list());
+    assertArrayEquals(new String[] {"1", "2", "3"}, options.more());
   }
 
   @Test
   void positional() {
     record Options(boolean a, String first, boolean b, String second, boolean c) {}
     var objects = CommandLineInterface.parser(lookup(), Options.class).parse("one", "two");
-    assert new Options(false, "one", false, "two", false).equals(objects);
+    assertEquals(new Options(false, "one", false, "two", false), objects);
   }
 
   @Test
@@ -132,8 +128,8 @@ public class CommandLineInterfaceTests implements TestRunner {
     record Options(@Name("-2") @Cardinality(2) List<String> take2)
         implements CommandLineInterface {}
     var parser = CommandLineInterface.parser(lookup(), Options.class);
-    assert List.of("a", "b").equals(parser.parse("-2", "a", "b").take2());
-    assert List.of("a", "b", "c", "d").equals(parser.parse("-2", "a", "b", "-2", "c", "d").take2());
+    assertEquals(List.of("a", "b"), parser.parse("-2", "a", "b").take2());
+    assertEquals(List.of("a", "b", "c", "d"), parser.parse("-2", "a", "b", "-2", "c", "d").take2());
   }
 
   @Test

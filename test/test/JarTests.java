@@ -1,15 +1,16 @@
 package test;
 
 import static java.lang.invoke.MethodHandles.lookup;
+import static test.Assertions.assertEquals;
 
 import java.util.List;
 import java.util.Optional;
 import main.CommandLineInterface;
 import main.CommandLineInterface.Name;
 
-public class JarTests implements TestRunner {
+class JarTests implements JTest {
 
-  public static void main(String... args) throws Exception {
+  public static void main(String... args) {
     new JarTests().runTests();
   }
 
@@ -50,7 +51,7 @@ public class JarTests implements TestRunner {
   void example1() {
     JarOptions options = parseInput("--create --file classes.jar Foo.class Bar.class");
     assertEquals(true, options.create());
-    assertEquals("classes.jar", options.file());
+    Assertions.assertEqualsOptional("classes.jar", options.file());
     assertEquals(List.of("Foo.class", "Bar.class"), List.of(options.files()));
   }
 
@@ -60,8 +61,8 @@ public class JarTests implements TestRunner {
         parseInput(
             "--create --date=\"2021-01-06T14:36:00+02:00\" --file=classes.jar Foo.class Bar.class");
     assertEquals(true, options.create());
-    assertEquals("\"2021-01-06T14:36:00+02:00\"", options.date());
-    assertEquals("classes.jar", options.file());
+    Assertions.assertEqualsOptional("\"2021-01-06T14:36:00+02:00\"", options.date());
+    Assertions.assertEqualsOptional("classes.jar", options.file());
     assertEquals(List.of("Foo.class", "Bar.class"), List.of(options.files()));
   }
 
@@ -69,9 +70,9 @@ public class JarTests implements TestRunner {
   void example3() {
     JarOptions options = parseInput("--create --file classes.jar --manifest mymanifest -C foo/ .");
     assertEquals(true, options.create());
-    assertEquals("classes.jar", options.file());
-    assertEquals("mymanifest", options.manifest());
-    assertEquals(new JarCOptions("foo/", "."), options.changeDir());
+    Assertions.assertEqualsOptional("classes.jar", options.file());
+    Assertions.assertEqualsOptional("mymanifest", options.manifest());
+    Assertions.assertEqualsOptional(new JarCOptions("foo/", "."), options.changeDir());
   }
 
   @Test
@@ -81,9 +82,9 @@ public class JarTests implements TestRunner {
             "--create --file foo.jar --main-class com.foo.Main --module-version 1.0 -C foo/classes"
                 + " resources");
     assertEquals(true, options.create());
-    assertEquals("foo.jar", options.file());
-    assertEquals("com.foo.Main", options.mainClass());
-    assertEquals("1.0", options.moduleVersion());
+    Assertions.assertEqualsOptional("foo.jar", options.file());
+    Assertions.assertEqualsOptional("com.foo.Main", options.mainClass());
+    Assertions.assertEqualsOptional("1.0", options.moduleVersion());
     JarCOptions cOptions = options.changeDir().orElseThrow();
     assertEquals("foo/classes", cOptions.dir());
     assertEquals("resources", cOptions.file());
@@ -96,10 +97,10 @@ public class JarTests implements TestRunner {
             "--create --file foo.jar --main-class com.foo.Hello -C classes . --release 10 -C"
                 + " classes-10 .");
     assertEquals(true, options.create());
-    assertEquals("foo.jar", options.file());
-    assertEquals("com.foo.Hello", options.mainClass());
-    assertEquals(new JarCOptions("classes", "."), options.changeDir());
-    assertEquals(
+    Assertions.assertEqualsOptional("foo.jar", options.file());
+    Assertions.assertEqualsOptional("com.foo.Hello", options.mainClass());
+    Assertions.assertEqualsOptional(new JarCOptions("classes", "."), options.changeDir());
+    Assertions.assertEqualsOptional(
         new JarReleaseOptions("10", List.of(new JarCOptions("classes-10", "."))),
         options.release());
   }
