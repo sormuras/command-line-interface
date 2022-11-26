@@ -56,7 +56,7 @@ class AssortedTests implements JTest {
           new ArgumentsSplitter<>(lookup(), Options.class);
 
       Thread.State state() {
-        return ArgumentsSplitter.findEnum(Thread.State.class, thread_state).orElseThrow();
+        return Thread.State.valueOf(thread_state);
       }
 
       TimeUnit time() {

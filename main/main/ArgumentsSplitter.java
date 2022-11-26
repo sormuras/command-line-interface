@@ -43,25 +43,6 @@ public final class ArgumentsSplitter<R extends Record> {
     return new ArgumentsSplitter<>(lookup, schema);
   }
 
-  /**
-   * Finds an enumeration constant by its name and wrapped it into an {@code Optional} instance.
-   *
-   * @param enumClass the class object of the enum class from which to wrap a constant
-   * @param name the name of the constant to wrap
-   * @return {@code Optional} instance describing the found enumeration constant or an empty one
-   * @param <E> the type of the enumeration class
-   * @see Enum#valueOf(Class, String)
-   */
-  public static <E extends Enum<E>> Optional<E> findEnum(Class<E> enumClass, String name) {
-    requireNonNull(enumClass, "enumClass is null");
-    requireNonNull(name, "name is null");
-    try {
-      return Optional.of(Enum.valueOf(enumClass, name));
-    } catch (IllegalArgumentException exception) {
-      return Optional.empty();
-    }
-  }
-
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.RECORD_COMPONENT)
   public @interface Name {
