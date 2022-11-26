@@ -3,6 +3,8 @@ package test;
 import static java.lang.System.currentTimeMillis;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.stream;
+import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.groupingBy;
 
 import java.io.PrintStream;
 import java.lang.annotation.ElementType;
@@ -16,7 +18,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 /** JUnit on a diet of air and love */
 public interface JTest {
@@ -25,36 +26,42 @@ public interface JTest {
   @Retention(RetentionPolicy.RUNTIME)
   @interface Test {}
 
-  record Event(Method test, Duration executionTime, Optional<Throwable> error) {}
+  record Event(Method test, Duration executionTime, Optional<Throwable> error) {
+    public Event {
+      requireNonNull(test);
+      requireNonNull(executionTime);
+      requireNonNull(error);
+    }
+  }
 
   @FunctionalInterface
   interface Listener {
     void accept(Event e);
   }
 
-  record Runner(List<Event> events) implements Listener {
-
-    @Override
-    public void accept(Event e) {
-      events.add(e);
+  record Runner(List<Event> events) {
+    public Runner {
+      events = List.copyOf(events);
     }
 
-    void print(PrintStream out) {
-      Class<?> in = null;
+    public void print(PrintStream out) {
+      requireNonNull(out);
       int maxNameLength =
           events.stream().mapToInt(ev -> ev.test.getName().length()).max().orElse(0);
-      for (Event e : events) {
-        if (e.test.getDeclaringClass() != in)
-          out.println("\n" + e.test.getDeclaringClass().getSimpleName());
-        in = e.test.getDeclaringClass();
-        String status = e.error.isPresent() ? "!!" : "ok";
-        out.printf(
-            "  [%s] %-" + maxNameLength + "s  %4d ms%n",
-            status,
-            e.test.getName(),
-            e.executionTime.toMillis());
-      }
-      out.println("\n" + "=".repeat(maxNameLength + 16));
+      var map = events.stream().collect(groupingBy(e -> e.test.getDeclaringClass().getSimpleName()));
+      map.forEach((className, events) -> {
+        out.println(className);
+        for (var event : events) {
+          var status = event.error.isPresent() ? "!!" : "ok";
+          out.printf(
+              "  [%s] %-" + maxNameLength + "s  %4d ms%n",
+              status,
+              event.test.getName(),
+              event.executionTime.toMillis());
+        }
+        out.println();
+      });
+      out.println("=".repeat(maxNameLength + 16));
       out.printf(
           "  [ok] %3d   %" + maxNameLength + "d ms%n",
           events.stream().filter(e -> e.error.isEmpty()).count(),
@@ -71,55 +78,52 @@ public interface JTest {
               .sum());
     }
 
-    void verify() {
+    public void verify() {
       if (events.stream().anyMatch(e -> e.error().isPresent())) throw new RuntimeException();
     }
   }
 
   static void runAllTests(JTest... tests) {
-    Runner run = new Runner(new ArrayList<>());
-    runAllTests(run, tests);
-    run.print(System.out);
-    run.verify();
-  }
-
-  static void runAllTests(Listener listener, JTest... tests) {
-    for (JTest test : tests) test.runTests(listener);
+    requireNonNull(tests, "tests is null");
+    var events = new ArrayList<Event>();
+    for (var test : tests) {
+      test.executeTests(events::add);
+    }
+    var runner = new Runner(events);
+    runner.print(System.out);
+    runner.verify();
   }
 
   default void runTests(String... args) {
-    Runner run = new Runner(new ArrayList<>());
-    runTests(run, args);
-    run.print(System.out);
-    run.verify();
+    requireNonNull(args, "args is null");
+    var events = new ArrayList<Event>();
+    executeTests(events::add);
+    var runner = new Runner(events);
+    runner.print(System.out);
+    runner.verify();
   }
 
-  default void runTests(Listener listener, String... args) {
-    Set<String> names = new HashSet<>(asList(args));
-
+  default void executeTests(Listener listener, String... args) {
+    requireNonNull(listener, "listener is null");
+    requireNonNull(args, "args is null");
+    var names = new HashSet<>(asList(args));
     stream(getClass().getDeclaredMethods())
         .filter(method -> method.isAnnotationPresent(Test.class))
         .filter(method -> names.isEmpty() || names.contains(method.getName()))
         .forEach(
             method -> {
-              long before = currentTimeMillis();
+              var start = currentTimeMillis();
+              Throwable cause;
               try {
-
                 method.invoke(this);
-                listener.accept(
-                    new Event(
-                        method, Duration.ofMillis(currentTimeMillis() - before), Optional.empty()));
+                cause = null;
               } catch (InvocationTargetException ex) {
-                listener.accept(
-                    new Event(
-                        method,
-                        Duration.ofMillis(currentTimeMillis() - before),
-                        Optional.of(ex.getTargetException())));
+                cause = ex.getCause();
               } catch (Exception ex) {
-                listener.accept(
-                    new Event(
-                        method, Duration.ofMillis(currentTimeMillis() - before), Optional.of(ex)));
+                cause = ex;
               }
+              var executionTime = Duration.ofMillis(currentTimeMillis() - start);
+              listener.accept(new Event(method, executionTime, Optional.ofNullable(cause)));
             });
   }
 }
