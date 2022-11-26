@@ -7,8 +7,7 @@ class build {
   public static void main(String... args) throws Exception {
     tool("javac                       --module main --module-source-path . -d classes");
     tool("javac --module-path classes --module test --module-source-path . -d classes");
-    java("-ea   --module-path classes --module test/test.CommandLineInterfaceTests");
-    java("-ea   --module-path classes --module test/test.JarTests");
+    java("-ea   --module-path classes --module test/test.AllTests");
   }
 
   static void tool(String line) {
