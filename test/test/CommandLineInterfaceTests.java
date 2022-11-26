@@ -1,8 +1,9 @@
-package com.github.sormuras.cli;
+package test;
 
-import com.github.sormuras.cli.CommandLineInterface.ArgumentsProcessor;
-import com.github.sormuras.cli.CommandLineInterface.Name;
-import com.github.sormuras.cli.CommandLineInterface.Parser;
+import main.CommandLineInterface;
+import main.CommandLineInterface.ArgumentsProcessor;
+import main.CommandLineInterface.Name;
+import main.CommandLineInterface.Parser;
 
 import java.lang.annotation.RetentionPolicy;
 import java.nio.file.Files;
@@ -15,7 +16,7 @@ import static java.lang.invoke.MethodHandles.lookup;
 
 public class CommandLineInterfaceTests implements TestRunner {
 
-  public static void main(String[] args) throws Exception {
+  public static void main(String... args) throws Exception {
     new CommandLineInterfaceTests().runTests();
   }
 

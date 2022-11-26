@@ -1,4 +1,4 @@
-package com.github.sormuras.cli;
+package test;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -24,10 +24,10 @@ public interface TestRunner {
             method -> {
               try {
                 method.invoke(instance);
-                System.out.println("✓ " + method.getName());
+                System.out.println("[OK] " + method.getName());
               } catch (InvocationTargetException ex) {
                 System.out.println(
-                    "❌ " + method.getName() + ": " + ex.getTargetException().getMessage());
+                    "[##] " + method.getName() + ": " + ex.getTargetException().getMessage());
                 ex.getTargetException().printStackTrace(System.out);
               } catch (Exception ex) {
                 ex.printStackTrace();

@@ -1,0 +1,3 @@
+module main {
+  exports main;
+}

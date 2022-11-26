@@ -1,4 +1,4 @@
-package com.github.sormuras.cli;
+package main;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;

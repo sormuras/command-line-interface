@@ -1,7 +1,7 @@
-package com.github.sormuras.cli;
+package test;
 
-import com.github.sormuras.cli.CommandLineInterface.Cardinality;
-import com.github.sormuras.cli.CommandLineInterface.Name;
+import main.CommandLineInterface;
+import main.CommandLineInterface.Name;
 
 import java.util.List;
 import java.util.Optional;
@@ -10,7 +10,7 @@ import static java.lang.invoke.MethodHandles.lookup;
 
 public class JarTests implements TestRunner {
 
-  public static void main(String[] args) throws Exception {
+  public static void main(String... args) throws Exception {
     new JarTests().runTests();
   }
 
