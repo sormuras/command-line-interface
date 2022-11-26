@@ -11,6 +11,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.ParameterizedType;
@@ -32,10 +33,14 @@ import java.util.StringJoiner;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-public final class CommandLineParser<R extends Record> {
+public final class ArgumentsSplitter<R extends Record> {
 
-  public static <R extends Record> CommandLineParser<R> parser(Lookup lookup, Class<R> schema) {
-    return new CommandLineParser<>(lookup, schema);
+  public static <R extends Record> ArgumentsSplitter<R> of(Class<R> schema) {
+    return of(schema, MethodHandles.publicLookup());
+  }
+
+  public static <R extends Record> ArgumentsSplitter<R> of(Class<R> schema, Lookup lookup) {
+    return new ArgumentsSplitter<>(lookup, schema);
   }
 
   /**
@@ -157,20 +162,20 @@ public final class CommandLineParser<R extends Record> {
   private final ArgumentsProcessor processor;
   private final boolean nested;
 
-  public CommandLineParser(Lookup lookup, Class<R> schema) {
+  public ArgumentsSplitter(Lookup lookup, Class<R> schema) {
     this(lookup, schema, ArgumentsProcessor.DEFAULT);
   }
 
-  public CommandLineParser(Lookup lookup, Class<R> schema, ArgumentsProcessor processor) {
+  public ArgumentsSplitter(Lookup lookup, Class<R> schema, ArgumentsProcessor processor) {
     this(lookup, schema, Option.scan(schema), processor);
   }
 
-  private CommandLineParser(
+  private ArgumentsSplitter(
       Lookup lookup, Class<R> schema, List<Option> options, ArgumentsProcessor processor) {
     this(lookup, schema, options, processor, false);
   }
 
-  private CommandLineParser(
+  private ArgumentsSplitter(
       Lookup lookup,
       Class<R> schema,
       List<Option> options,
@@ -217,7 +222,7 @@ public final class CommandLineParser<R extends Record> {
     }
   }
 
-  private Object[] parse(ArrayDeque<String> pendingArguments) {
+  private Object[] split(ArrayDeque<String> pendingArguments) {
     var requiredOptions =
         options.stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
     var optionsByName = new HashMap<String, Option>();
@@ -248,14 +253,14 @@ public final class CommandLineParser<R extends Record> {
           case KEY_VALUE -> {
             var value =
                 option.nestedSchema() != null
-                    ? parseNested(pendingArguments, option)
+                    ? splitNested(pendingArguments, option)
                     : pop ? pendingArguments.pop() : argument.substring(separator + 1);
             workspace.put(name, Optional.of(value));
           }
           case REPEATABLE -> {
             var value =
                 option.nestedSchema() != null
-                    ? List.of(parseNested(pendingArguments, option))
+                    ? List.of(splitNested(pendingArguments, option))
                     : pop
                         ? List.of(pendingArguments.pop())
                         : List.of(argument.substring(separator + 1).split(","));
@@ -294,25 +299,25 @@ public final class CommandLineParser<R extends Record> {
     }
   }
 
-  private Object parseNested(ArrayDeque<String> pendingArguments, Option option) {
+  private Object splitNested(ArrayDeque<String> pendingArguments, Option option) {
     var nestedSchema = option.nestedSchema;
     var nestedOptions = Option.scan(nestedSchema);
-    var nestedParser =
-        new CommandLineParser<>(lookup, nestedSchema, nestedOptions, processor, true);
+    var nestedSplitter =
+        new ArgumentsSplitter<>(lookup, nestedSchema, nestedOptions, processor, true);
     var constructor = constructor(lookup, nestedSchema);
-    return createRecord(constructor, nestedParser.parse(pendingArguments));
+    return createRecord(constructor, nestedSplitter.split(pendingArguments));
   }
 
-  public R parse(String... args) {
+  public R split(String... args) {
     requireNonNull(args, "args is null");
-    return parse(Arrays.stream(args));
+    return split(Arrays.stream(args));
   }
 
-  public R parse(Stream<String> args) {
+  public R split(Stream<String> args) {
     requireNonNull(args, "args is null");
     var constructor = constructor(lookup, schema).asFixedArity();
     var values = processor.process(args).collect(toCollection(ArrayDeque::new));
-    var arguments = parse(values);
+    var arguments = split(values);
     return schema.cast(createRecord(constructor, arguments));
   }
 

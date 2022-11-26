@@ -1,26 +1,32 @@
-# command-line-interface
-Parses `main(String... args)` into `record`s.
+# Arguments Splitter
 
-### Principles
-Options can be described by using Java types only.
+An Arguments Splitter splits a structured `String` array into user-defined option `record` types.
 
-- `boolean`/`Boolean` for flags
-- `String` for any other value
-  - `Optional<String>` for optional key-value pairs
-  - `List<String>` for repeatable key-values 
-  - `String...` for variadic values (last)
-- structuring using `record`s
-  - `_` in record component names becomes `-`
+## Principles
 
-Optionally record components can be annotated
+Option structures are described using Java types.
 
-- `@Name` to specify names that aren't legal Java names or to bind multiple names to one record component
-- `@Help` to provide a help description
+- Optional flags are described by `boolean` and `Boolean` types
+- Optional key-value pairs are described by the `Optional<String>` type
+- Optional repeatable key-value options are described by the `List<String>` type
+- Required (positional) options are described by the `String` type
+- Variadic options are described by the `String...` type
+ 
+Nested option structures can be described by custom `record` types.
+Nested option structures can only be used for key-value pairs and repeatable key-value options.
+
+By convention, a `_` character in record component names is mapped to `-` character on the command-line.
+
+In addition to the above conventions record components can be annotated with:
+
+- `@Name` in order to specify names that aren't legal Java names or to bind multiple names to one record component
+- `@Help` in order to provide a help description
 
 Potential mapping to non-`String` or boolean types is meant to be done programmatically by user code after the input has been mapped to an options record.
 
-### Usage
-A `record` is defined for the tool, here unix's `wc` as an example:
+## Usage
+
+An option `record` is defined for a tool, here unix's `wc` as an example:
 
 ```java
 record WordCountOptions(
@@ -36,28 +42,29 @@ record WordCountOptions(
 ) {}
 ```
 
-A parser is created from the `WordCountOptions` definition and the command-line arguments are parsed:
+A splitter is created for the `WordCountOptions` definition and command-line arguments are processed:
 
 ```java
 class Program {
   public static void main(String[] args) {
-    CommandLineParser<WordCountOptions> parser = CommandLineParser.parser(MethodHandles.lookup(), WordCountOptions.class);
-    WordCountOptions options = parser.parse(args);
-    // use options instance
+    var splitter = ArgumentsSplitter.of(WordCountOptions.class, MethodHandles.lookup());
+    WordCountOptions options = splitter.split(args);
+    // use options instance...
   }
 }
 ```
 
-### Patterns
-Advanced command line options structures can be build in (at least) two ways.
+## Patterns
 
-- By using `Optional` or `List` or nested option `record`s:
+Advanced command-line options structures can be built in two or more ways.
+
+- By using `Optional` or `List` of nested option `record`s:
 
 ```java
 record JarOptions(
-    // ...
+    //...
     @Name("-C")                        Optional<ChangeDirOptions> changeDir,
-    // ...
+    //...
     @Name("--release")                 List<ReleaseOptions> releases
 ) {
     record ChangeDirOptions(String dir, String file) {}
@@ -74,19 +81,21 @@ class Program {
   record ModeYOptions(Optional<String> __algorithm, String... files) {}
 
   public static void main(String... args) {
-    var mainOptions = parser(lookup(), MainOptions.class).parse(args);
+    var mainOptions = splitter(lookup(), MainOptions.class).split(args);
     var modeOptions = switch (mainOptions.mode()) {
-      case "x" -> parser(lookup(), ModeXOptions.class).parse(mainOptions.rest());
-      case "y" -> parser(lookup(), ModeYOptions.class).parse(mainOptions.rest());
+      case "x" -> splitter(lookup(), ModeXOptions.class).split(mainOptions.rest());
+      case "y" -> splitter(lookup(), ModeYOptions.class).split(mainOptions.rest());
     };      
   }
 }
 ```
 
-### Running Tests
-How to run tests for this project.
+## Build
 
-On command line:
+How to build this project and run tests.
+
+Setup JDK 17 or later, and on the command-line run:
+
 ```shell
 # run all tests
 java build/build.java
@@ -98,10 +107,11 @@ java build/build.java JarTests
 java build/build.java JarTests example2 example4
 ```
 
-In IDE:
+In an IDE:
+
 - run as java application (`main` method)
 - use name(s) of methods as arguments to limit
 
-### Credits
+## Credits
 
 This project is inspired by https://github.com/forax/argvester

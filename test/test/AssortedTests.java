@@ -8,9 +8,9 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import main.CommandLineParser;
-import main.CommandLineParser.ArgumentsProcessor;
-import main.CommandLineParser.Name;
+import main.ArgumentsSplitter;
+import main.ArgumentsSplitter.ArgumentsProcessor;
+import main.ArgumentsSplitter.Name;
 
 class AssortedTests implements JTest {
 
@@ -23,7 +23,7 @@ class AssortedTests implements JTest {
     record Options() {}
     IllegalArgumentException ex =
         assertThrows(
-            IllegalArgumentException.class, () -> new CommandLineParser<>(lookup(), Options.class));
+            IllegalArgumentException.class, () -> new ArgumentsSplitter<>(lookup(), Options.class));
     assertEquals("At least one option is expected", ex.getMessage());
   }
 
@@ -31,8 +31,8 @@ class AssortedTests implements JTest {
   void varargs() {
     record Options(String... more) {
       static Options parse(String... args) {
-        var parser = new CommandLineParser<>(lookup(), Options.class, ArgumentsProcessor.IDENTITY);
-        return parser.parse(args);
+        var parser = new ArgumentsSplitter<>(lookup(), Options.class, ArgumentsProcessor.IDENTITY);
+        return parser.split(args);
       }
     }
     assertArrayEquals(new String[0], Options.parse().more());
@@ -52,11 +52,11 @@ class AssortedTests implements JTest {
         List<String> __policies,
         String... names) {
 
-      static final CommandLineParser<Options> PARSER =
-          new CommandLineParser<>(lookup(), Options.class);
+      static final ArgumentsSplitter<Options> PARSER =
+          new ArgumentsSplitter<>(lookup(), Options.class);
 
       Thread.State state() {
-        return CommandLineParser.findEnum(Thread.State.class, thread_state).orElseThrow();
+        return ArgumentsSplitter.findEnum(Thread.State.class, thread_state).orElseThrow();
       }
 
       TimeUnit time() {
@@ -79,7 +79,7 @@ class AssortedTests implements JTest {
             """);
 
     var options =
-        Options.PARSER.parse(
+        Options.PARSER.split(
             """
             --policies
               RUNTIME
@@ -109,7 +109,7 @@ class AssortedTests implements JTest {
   void conventional() {
     record Options(boolean _flag, Optional<String> _key, List<String> _list, String... more) {
       static Options of(String... args) {
-        return CommandLineParser.parser(lookup(), Options.class).parse(args);
+        return ArgumentsSplitter.of(Options.class, lookup()).split(args);
       }
     }
     var options = Options.of("-flag", "-key", "value", "-list", "a", "-list=b,o", "1", "2", "3");
@@ -122,15 +122,15 @@ class AssortedTests implements JTest {
   @Test
   void positional() {
     record Options(boolean a, String first, boolean b, String second, boolean c) {}
-    var objects = CommandLineParser.parser(lookup(), Options.class).parse("one", "two");
+    var objects = ArgumentsSplitter.of(Options.class, lookup()).split("one", "two");
     assertEquals(new Options(false, "one", false, "two", false), objects);
   }
 
   @Test
   void flags() {
     record Options(boolean _f, boolean _h, boolean _z) {}
-    var parser = CommandLineParser.parser(lookup(), Options.class);
-    var options = parser.parse("-zfh");
+    var parser = ArgumentsSplitter.of(Options.class, lookup());
+    var options = parser.split("-zfh");
     assertEquals(true, options._f);
     assertEquals(true, options._h);
     assertEquals(true, options._z);
@@ -140,8 +140,8 @@ class AssortedTests implements JTest {
   void nested_keyValue() {
     record SubOptions(String dir, String file) {}
     record MainOptions(boolean __flag, Optional<SubOptions> __release, String... rest) {}
-    var parser = CommandLineParser.parser(lookup(), MainOptions.class);
-    var options = parser.parse("--release dirX fileX --flag and the rest".split(" "));
+    var parser = ArgumentsSplitter.of(MainOptions.class, lookup());
+    var options = parser.split("--release dirX fileX --flag and the rest".split(" "));
     assertEquals(true, options.__flag);
     assertEquals("dirX", options.__release.orElseThrow().dir());
     assertEquals("fileX", options.__release.orElseThrow().file());
@@ -152,9 +152,9 @@ class AssortedTests implements JTest {
   void nested_repeatable() {
     record SubOptions(String dir, String file) {}
     record MainOptions(boolean __flag, List<SubOptions> __release, String... rest) {}
-    var parser = CommandLineParser.parser(lookup(), MainOptions.class);
+    var parser = ArgumentsSplitter.of(MainOptions.class, lookup());
     var options =
-        parser.parse("--release dirX fileX --flag --release dirY fileY and the rest".split(" "));
+        parser.split("--release dirX fileX --flag --release dirY fileY and the rest".split(" "));
     assertEquals(true, options.__flag);
     assertEquals(2, options.__release.size());
     assertEquals("dirX", options.__release.get(0).dir());

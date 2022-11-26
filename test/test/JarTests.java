@@ -6,8 +6,8 @@ import static test.Assertions.assertEqualsOptional;
 
 import java.util.List;
 import java.util.Optional;
-import main.CommandLineParser;
-import main.CommandLineParser.Name;
+import main.ArgumentsSplitter;
+import main.ArgumentsSplitter.Name;
 import test.JarTests.JarOptions.ChangeDirOptions;
 import test.JarTests.JarOptions.ReleaseOptions;
 
@@ -48,7 +48,7 @@ class JarTests implements JTest {
   }
 
   private static JarOptions parseInput(String line) {
-    return CommandLineParser.parser(lookup(), JarOptions.class).parse(line.split("\\s+"));
+    return ArgumentsSplitter.of(JarOptions.class, lookup()).split(line.split("\\s+"));
   }
 
   @Test
