@@ -335,10 +335,9 @@ public interface CommandLineInterface {
 
     public R parse(Stream<String> args) {
       Objects.requireNonNull(args, "args is null");
-      var constructor = constructor(lookup, schema);
+      var constructor = constructor(lookup, schema).asFixedArity();
       var values = processor.process(args).collect(toCollection(ArrayDeque::new));
-      var objects = parse(values);
-      var arguments = constructor.isVarargsCollector() ? spreadVarargs(objects) : objects;
+      var arguments = parse(values);
       return schema.cast(createRecord(schema, constructor, arguments));
     }
 
@@ -361,17 +360,6 @@ public interface CommandLineInterface {
       } catch (Throwable e) {
         throw new UndeclaredThrowableException(e);
       }
-    }
-
-    // From [ ..., x, ["1", "2", "3"]] to [..., x, "1", "2", "3"]
-    private static Object[] spreadVarargs(Object[] source) {
-      var head = source.length - 1;
-      var last = (String[]) source[head];
-      var tail = Array.getLength(last);
-      var target = new Object[head + tail];
-      System.arraycopy(source, 0, target, 0, head);
-      System.arraycopy(last, 0, target, head, tail);
-      return target;
     }
 
     public String help() {
