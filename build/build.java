@@ -5,10 +5,10 @@ import java.util.spi.ToolProvider;
 
 class build {
   public static void main(String... args) throws Exception {
-    tool("javac                   --module main --module-source-path . -d bin");
-    tool("javac --module-path bin --module test --module-source-path . -d bin");
-    java("      --module-path bin --module test/test.CommandLineInterfaceTests");
-    java("      --module-path bin --module test/test.JarTests");
+    tool("javac                       --module main --module-source-path . -d classes");
+    tool("javac --module-path classes --module test --module-source-path . -d classes");
+    java("-ea   --module-path classes --module test/test.CommandLineInterfaceTests");
+    java("-ea   --module-path classes --module test/test.JarTests");
   }
 
   static void tool(String line) {

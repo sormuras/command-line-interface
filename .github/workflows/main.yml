@@ -22,4 +22,4 @@ jobs:
           distribution: 'oracle'
           java-version: ${{ matrix.java }}
       - name: "Build"
-        run: java build.java
+        run: java build/build.java

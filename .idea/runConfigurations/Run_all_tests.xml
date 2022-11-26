@@ -1,7 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Run all tests" type="CompoundRunConfigurationType">
-    <toRun name="CommandLineInterfaceTests" type="Application" />
-    <toRun name="JarTests" type="Application" />
-    <method v="2" />
-  </configuration>
-</component>
