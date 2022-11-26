@@ -170,218 +170,216 @@ public final class CommandLineParser<R extends Record> {
     }
   }
 
+  private final Lookup lookup;
+  private final Class<R> schema;
+  private final List<Option> options;
+  private final ArgumentsProcessor processor;
+  private final boolean nested;
 
-    private final Lookup lookup;
-    private final Class<R> schema;
-    private final List<Option> options;
-    private final ArgumentsProcessor processor;
-    private final boolean nested;
+  public CommandLineParser(Lookup lookup, Class<R> schema) {
+    this(lookup, schema, ArgumentsProcessor.DEFAULT);
+  }
 
-    public CommandLineParser(Lookup lookup, Class<R> schema) {
-      this(lookup, schema, ArgumentsProcessor.DEFAULT);
+  public CommandLineParser(Lookup lookup, Class<R> schema, ArgumentsProcessor processor) {
+    this(lookup, schema, Option.scan(schema), processor);
+  }
+
+  private CommandLineParser(
+      Lookup lookup, Class<R> schema, List<Option> options, ArgumentsProcessor processor) {
+    this(lookup, schema, options, processor, false);
+  }
+
+  private CommandLineParser(
+      Lookup lookup,
+      Class<R> schema,
+      List<Option> options,
+      ArgumentsProcessor processor,
+      boolean nested) {
+    requireNonNull(lookup, "lookup is null");
+    requireNonNull(schema, "schema is null");
+    requireNonNull(options, "options is null");
+    requireNonNull(processor, "processor is null");
+    var opts = List.copyOf(options);
+    if (opts.isEmpty()) throw new IllegalArgumentException("At least one option is expected");
+    checkDuplicates(opts);
+    checkVarargs(opts);
+    this.lookup = lookup;
+    this.schema = schema;
+    this.options = opts;
+    this.processor = processor;
+    this.nested = nested;
+  }
+
+  private static void checkDuplicates(List<Option> options) {
+    var optionsByName = new HashMap<String, Option>();
+    for (var option : options) {
+      var names = option.names();
+      for (var name : names) {
+        var otherOption = optionsByName.put(name, option);
+        if (otherOption == option)
+          throw new IllegalArgumentException(
+              "option " + option + " declares duplicated name " + name);
+        if (otherOption != null)
+          throw new IllegalArgumentException(
+              "options " + option + " and " + otherOption + " both declares name " + name);
+      }
+    }
+  }
+
+  private static void checkVarargs(List<Option> options) {
+    var varargs = options.stream().filter(Option::isVarargs).toList();
+    if (varargs.size() > 1) {
+      throw new IllegalArgumentException("Too many varargs types specified: " + varargs);
+    }
+    if (varargs.size() == 1 && !(options.get(options.size() - 1).isVarargs())) {
+      throw new IllegalArgumentException("varargs is not at last index: " + options);
+    }
+  }
+
+  private Object[] parse(ArrayDeque<String> pendingArguments) {
+    var requiredOptions =
+        options.stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
+    var optionsByName = new HashMap<String, Option>();
+    var workspace = new LinkedHashMap<String, Object>();
+    for (var option : options) {
+      for (var name : option.names()) {
+        optionsByName.put(name, option);
+      }
+      workspace.put(option.name(), option.type().defaultValue());
     }
 
-    public CommandLineParser(Lookup lookup, Class<R> schema, ArgumentsProcessor processor) {
-      this(lookup, schema, Option.scan(schema), processor);
-    }
-
-    private CommandLineParser(
-        Lookup lookup, Class<R> schema, List<Option> options, ArgumentsProcessor processor) {
-      this(lookup, schema, options, processor, false);
-    }
-
-    private CommandLineParser(
-        Lookup lookup,
-        Class<R> schema,
-        List<Option> options,
-        ArgumentsProcessor processor,
-        boolean nested) {
-      requireNonNull(lookup, "lookup is null");
-      requireNonNull(schema, "schema is null");
-      requireNonNull(options, "options is null");
-      requireNonNull(processor, "processor is null");
-      var opts = List.copyOf(options);
-      if (opts.isEmpty()) throw new IllegalArgumentException("At least one option is expected");
-      checkDuplicates(opts);
-      checkVarargs(opts);
-      this.lookup = lookup;
-      this.schema = schema;
-      this.options = opts;
-      this.processor = processor;
-      this.nested = nested;
-    }
-
-    private static void checkDuplicates(List<Option> options) {
-      var optionsByName = new HashMap<String, Option>();
-      for (var option : options) {
-        var names = option.names();
-        for (var name : names) {
-          var otherOption = optionsByName.put(name, option);
-          if (otherOption == option)
-            throw new IllegalArgumentException(
-                "option " + option + " declares duplicated name " + name);
-          if (otherOption != null)
-            throw new IllegalArgumentException(
-                "options " + option + " and " + otherOption + " both declares name " + name);
+    while (true) {
+      if (pendingArguments.isEmpty()) {
+        if (requiredOptions.isEmpty()) return workspace.values().toArray();
+        throw new IllegalArgumentException("Required option(s) missing: " + requiredOptions);
+      }
+      // acquire next argument
+      var argument = pendingArguments.removeFirst();
+      int separator = argument.indexOf('=');
+      var pop = separator == -1;
+      var maybeName = pop ? argument : argument.substring(0, separator);
+      // try well-known option first
+      if (optionsByName.containsKey(maybeName)) {
+        var option = optionsByName.get(maybeName);
+        var name = option.name();
+        switch (option.type()) {
+          case FLAG -> workspace.put(name, true);
+          case KEY_VALUE -> {
+            var value =
+                option.nestedSchema() != null
+                    ? parseNested(pendingArguments, option)
+                    : pop ? pendingArguments.pop() : argument.substring(separator + 1);
+            workspace.put(name, Optional.of(value));
+          }
+          case REPEATABLE -> {
+            var times = option.cardinality();
+            var value =
+                option.nestedSchema() != null
+                    ? List.of(parseNested(pendingArguments, option))
+                    : pop
+                        ? IntStream.range(0, times).mapToObj(__ -> pendingArguments.pop()).toList()
+                        : List.of(argument.substring(separator + 1).split(","));
+            @SuppressWarnings("unchecked")
+            var elements = (List<String>) workspace.get(name);
+            workspace.put(name, Stream.concat(elements.stream(), value.stream()).toList());
+          }
+          default -> throw new IllegalStateException("Programming error");
+        }
+        continue;
+      }
+      // maybe a combination of single letter flags?
+      if (argument.matches("^-[a-zA-Z]{1,5}$")) {
+        var flags = argument.substring(1).chars().mapToObj(c -> "-" + (char) c).toList();
+        if (flags.stream().allMatch(optionsByName::containsKey)) {
+          flags.forEach(flag -> workspace.put(optionsByName.get(flag).name(), true));
+          continue;
         }
       }
+      // try required option
+      if (!requiredOptions.isEmpty()) {
+        var requiredOption = requiredOptions.pop();
+        workspace.put(requiredOption.name(), argument);
+        continue;
+      }
+      // restore pending arguments deque
+      pendingArguments.addFirst(argument);
+      if (nested) return workspace.values().toArray();
+      // try globbing all pending arguments into a varargs collector
+      var varargsOption = options.get(options.size() - 1);
+      if (varargsOption.isVarargs()) {
+        workspace.put(varargsOption.name(), pendingArguments.toArray(String[]::new));
+        return workspace.values().toArray();
+      }
+      throw new IllegalArgumentException("Unhandled arguments: " + pendingArguments);
     }
+  }
 
-    private static void checkVarargs(List<Option> options) {
-      var varargs = options.stream().filter(Option::isVarargs).toList();
-      if (varargs.size() > 1) {
-        throw new IllegalArgumentException("Too many varargs types specified: " + varargs);
-      }
-      if (varargs.size() == 1 && !(options.get(options.size() - 1).isVarargs())) {
-        throw new IllegalArgumentException("varargs is not at last index: " + options);
-      }
+  private Object parseNested(ArrayDeque<String> pendingArguments, Option option) {
+    var nestedSchema = option.nestedSchema;
+    var nestedOptions = Option.scan(nestedSchema);
+    var nestedParser =
+        new CommandLineParser<>(lookup, nestedSchema, nestedOptions, processor, true);
+    var constructor = constructor(lookup, nestedSchema);
+    return createRecord(constructor, nestedParser.parse(pendingArguments));
+  }
+
+  public R parse(String... args) {
+    requireNonNull(args, "args is null");
+    return parse(Arrays.stream(args));
+  }
+
+  public R parse(Stream<String> args) {
+    requireNonNull(args, "args is null");
+    var constructor = constructor(lookup, schema).asFixedArity();
+    var values = processor.process(args).collect(toCollection(ArrayDeque::new));
+    var arguments = parse(values);
+    return schema.cast(createRecord(constructor, arguments));
+  }
+
+  private static MethodHandle constructor(Lookup lookup, Class<?> schema) {
+    var components = schema.getRecordComponents();
+    var types = Stream.of(components).map(RecordComponent::getType).toArray(Class[]::new);
+    try {
+      return lookup.findConstructor(schema, MethodType.methodType(void.class, types));
+    } catch (NoSuchMethodException | IllegalAccessException e) {
+      throw new IllegalStateException(e);
     }
+  }
 
-    private Object[] parse(ArrayDeque<String> pendingArguments) {
-      var requiredOptions =
-          options.stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
-      var optionsByName = new HashMap<String, Option>();
-      var workspace = new LinkedHashMap<String, Object>();
-      for (var option : options) {
-        for (var name : option.names()) {
-          optionsByName.put(name, option);
-        }
-        workspace.put(option.name(), option.type().defaultValue());
-      }
+  private static Object createRecord(MethodHandle constructor, Object[] args) {
+    try {
+      return constructor.invokeWithArguments(args);
+    } catch (RuntimeException | Error e) {
+      throw e;
+    } catch (Throwable e) {
+      throw new UndeclaredThrowableException(e);
+    }
+  }
 
-      while (true) {
-        if (pendingArguments.isEmpty()) {
-          if (requiredOptions.isEmpty()) return workspace.values().toArray();
-          throw new IllegalArgumentException("Required option(s) missing: " + requiredOptions);
-        }
-        // acquire next argument
-        var argument = pendingArguments.removeFirst();
-        int separator = argument.indexOf('=');
-        var pop = separator == -1;
-        var maybeName = pop ? argument : argument.substring(0, separator);
-        // try well-known option first
-        if (optionsByName.containsKey(maybeName)) {
-          var option = optionsByName.get(maybeName);
-          var name = option.name();
+  public String help() {
+    return help(2);
+  }
+
+  public String help(int indent) {
+    if (indent < 0) throw new IllegalArgumentException("invalid indent " + indent);
+    var joiner = new StringJoiner("\n");
+    for (var option : options.stream().sorted(Comparator.comparing(Option::name)).toList()) {
+      var text = option.help();
+      if (text.isEmpty()) continue;
+      var suffix =
           switch (option.type()) {
-            case FLAG -> workspace.put(name, true);
-            case KEY_VALUE -> {
-              var value =
-                  option.nestedSchema() != null
-                      ? parseNested(pendingArguments, option)
-                      : pop ? pendingArguments.pop() : argument.substring(separator + 1);
-              workspace.put(name, Optional.of(value));
-            }
-            case REPEATABLE -> {
-              var times = option.cardinality();
-              var value =
-                  option.nestedSchema() != null
-                      ? List.of(parseNested(pendingArguments, option))
-                      : pop
-                          ? IntStream.range(0, times)
-                              .mapToObj(__ -> pendingArguments.pop())
-                              .toList()
-                          : List.of(argument.substring(separator + 1).split(","));
-              @SuppressWarnings("unchecked")
-              var elements = (List<String>) workspace.get(name);
-              workspace.put(name, Stream.concat(elements.stream(), value.stream()).toList());
-            }
-            default -> throw new IllegalStateException("Programming error");
-          }
-          continue;
-        }
-        // maybe a combination of single letter flags?
-        if (argument.matches("^-[a-zA-Z]{1,5}$")) {
-          var flags = argument.substring(1).chars().mapToObj(c -> "-" + (char) c).toList();
-          if (flags.stream().allMatch(optionsByName::containsKey)) {
-            flags.forEach(flag -> workspace.put(optionsByName.get(flag).name(), true));
-            continue;
-          }
-        }
-        // try required option
-        if (!requiredOptions.isEmpty()) {
-          var requiredOption = requiredOptions.pop();
-          workspace.put(requiredOption.name(), argument);
-          continue;
-        }
-        // restore pending arguments deque
-        pendingArguments.addFirst(argument);
-        if (nested) return workspace.values().toArray();
-        // try globbing all pending arguments into a varargs collector
-        var varargsOption = options.get(options.size() - 1);
-        if (varargsOption.isVarargs()) {
-          workspace.put(varargsOption.name(), pendingArguments.toArray(String[]::new));
-          return workspace.values().toArray();
-        }
-        throw new IllegalArgumentException("Unhandled arguments: " + pendingArguments);
-      }
+            case FLAG -> " (flag)";
+            case KEY_VALUE -> " <value>";
+            case REPEATABLE -> " <value> (repeatable)";
+            case REQUIRED -> " (required)";
+            case VARARGS -> "...";
+          };
+      var names = String.join(", ", option.names());
+      joiner.add(names + suffix);
+      joiner.add(text.indent(indent).stripTrailing());
     }
-
-    private Object parseNested(ArrayDeque<String> pendingArguments, Option option) {
-      var nestedSchema = option.nestedSchema;
-      var nestedOptions = Option.scan(nestedSchema);
-      var nestedParser = new CommandLineParser<>(lookup, nestedSchema, nestedOptions, processor, true);
-      var constructor = constructor(lookup, nestedSchema);
-      return createRecord(constructor, nestedParser.parse(pendingArguments));
-    }
-
-    public R parse(String... args) {
-      requireNonNull(args, "args is null");
-      return parse(Arrays.stream(args));
-    }
-
-    public R parse(Stream<String> args) {
-      requireNonNull(args, "args is null");
-      var constructor = constructor(lookup, schema).asFixedArity();
-      var values = processor.process(args).collect(toCollection(ArrayDeque::new));
-      var arguments = parse(values);
-      return schema.cast(createRecord(constructor, arguments));
-    }
-
-    private static MethodHandle constructor(Lookup lookup, Class<?> schema) {
-      var components = schema.getRecordComponents();
-      var types = Stream.of(components).map(RecordComponent::getType).toArray(Class[]::new);
-      try {
-        return lookup.findConstructor(schema, MethodType.methodType(void.class, types));
-      } catch (NoSuchMethodException | IllegalAccessException e) {
-        throw new IllegalStateException(e);
-      }
-    }
-
-    private static Object createRecord(MethodHandle constructor, Object[] args) {
-      try {
-        return constructor.invokeWithArguments(args);
-      } catch (RuntimeException | Error e) {
-        throw e;
-      } catch (Throwable e) {
-        throw new UndeclaredThrowableException(e);
-      }
-    }
-
-    public String help() {
-      return help(2);
-    }
-
-    public String help(int indent) {
-      if (indent < 0) throw new IllegalArgumentException("invalid indent " + indent);
-      var joiner = new StringJoiner("\n");
-      for (var option : options.stream().sorted(Comparator.comparing(Option::name)).toList()) {
-        var text = option.help();
-        if (text.isEmpty()) continue;
-        var suffix =
-            switch (option.type()) {
-              case FLAG -> " (flag)";
-              case KEY_VALUE -> " <value>";
-              case REPEATABLE -> " <value> (repeatable)";
-              case REQUIRED -> " (required)";
-              case VARARGS -> "...";
-            };
-        var names = String.join(", ", option.names());
-        joiner.add(names + suffix);
-        joiner.add(text.indent(indent).stripTrailing());
-      }
-      return joiner.toString();
-    }
+    return joiner.toString();
+  }
 
   @FunctionalInterface
   public interface ArgumentsProcessor {
