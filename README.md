@@ -4,91 +4,83 @@ Parses `main(String... args)` into `record`s.
 ### Principles
 Options can be described by using Java types only.
 
-* `boolean`/`Boolean` for flags
-* `String` for any other value
-  * `Optional<String>` for optional key-value pairs
-  * `List<String>` for repeatable key-values 
-  * `String...` for variadic values (last)
-* structuring using `record`s
-  * `_` in record component names becomes `-`
+- `boolean`/`Boolean` for flags
+- `String` for any other value
+  - `Optional<String>` for optional key-value pairs
+  - `List<String>` for repeatable key-values 
+  - `String...` for variadic values (last)
+- structuring using `record`s
+  - `_` in record component names becomes `-`
 
 Optionally record components can be annotated
 
-* `@Name` to specify names that aren't legal Java names or to bind multiple names to one record component
-* `@Help` to provide a help description
+- `@Name` to specify names that aren't legal Java names or to bind multiple names to one record component
+- `@Help` to provide a help description
 
-
-Potential mapping to non-`String` or boolean types is meant to be done 
-programmatically by user code after the input has been mapped to an options record.
+Potential mapping to non-`String` or boolean types is meant to be done programmatically by user code after the input has been mapped to an options record.
 
 ### Usage
-A `record` is defined for the tool, here unix's `wc` (word count):
+A `record` is defined for the tool, here unix's `wc` as an example:
 
 ```java
-record WcOptions(
-    @Name({"-c", "--bytes"})
-    boolean bytes,
-    @Name({"-m", "--chars"})
-    boolean chars,
-    @Name({"-l", "--lines"})
-    boolean lines,
-    @Name("--files0-from")
-    Optional<String> files0From,
-    @Name({"-L", "--max-line-length"})
-    boolean maxLineLength,
-    @Name({"-w", "--words"})
-    boolean words,
-    @Name("--help")
-    boolean help,
-    @Name("--version")
-    boolean version,
-    String... files
-) {
+record WordCountOptions(
+    @Name({"-c", "--bytes"})           boolean bytes,
+    @Name({"-m", "--chars"})           boolean chars,
+    @Name({"-l", "--lines"})           boolean lines,
+    @Name("--files0-from")             Optional<String> files0From,
+    @Name({"-L", "--max-line-length"}) boolean maxLineLength,
+    @Name({"-w", "--words"})           boolean words,
+    @Name("--help")                    boolean help,
+    @Name("--version")                 boolean version,
+    /* unnamed */                      String... files
+) {}
+```
+
+A parser is created from the `WordCountOptions` definition and the command-line arguments are parsed:
+
+```java
+class Program {
+  public static void main(String[] args) {
+    CommandLineParser<WordCountOptions> parser = CommandLineParser.parser(MethodHandles.lookup(), WordCountOptions.class);
+    WordCountOptions options = parser.parse(args);
+    // use options instance
+  }
 }
-```
-
-A parser is created from the options `record`:
-```java
-var parser = CommandLineInterface.parser(MethodHandles.lookup(), WcOptions.class);
-```
-
-The command line input is parsed:
-```java
-WcOptions options = parser.parse(args);
 ```
 
 ### Patterns
 Advanced command line options structures can be build in (at least) two ways.
 
-1. By using `Optional` or `List` or nested option `record`s:
+- By using `Optional` or `List` or nested option `record`s:
 
 ```java
 record JarOptions(
     // ...
-    @Name("-C")
-    Optional<ChangeDirOptions> changeDir,
+    @Name("-C")                        Optional<ChangeDirOptions> changeDir,
     // ...
-    @Name("--release")
-    List<ReleaseOptions> releases
-){
+    @Name("--release")                 List<ReleaseOptions> releases
+) {
     record ChangeDirOptions(String dir, String file) {}
     record ReleaseOptions(String version, List<ChangeDirOptions> changeDirs) {}
 }
 ```
 
-2. By utilising variadic options to continue programmatically:
+- By utilising variadic options to continue programmatically:
 
 ```java
-record MainOptions(boolean __verbose,  String dir, String mode, String... rest) {}
-record ModeXOptions(boolean __fast, List<String> __file) {}
-record ModeYOptions(Optional<String> __algorithm, String...files) {}
- 
-var mainOptions = parser(lookup(), MainOptions.class).parse(args);
-// for example using a switch
-var modeOptions = switch (mainOptions.mode()) {
-    case "x" -> parser(lookup(), ModeXOptions.class).parse(mainOptions.rest());
-    case "y" -> parser(lookup(), ModeYOptions.class).parse(mainOptions.rest());
-};
+class Program {
+  record MainOptions(boolean __verbose, String dir, String mode, String... rest) {}
+  record ModeXOptions(boolean __fast, List<String> __file) {}
+  record ModeYOptions(Optional<String> __algorithm, String... files) {}
+
+  public static void main(String... args) {
+    var mainOptions = parser(lookup(), MainOptions.class).parse(args);
+    var modeOptions = switch (mainOptions.mode()) {
+      case "x" -> parser(lookup(), ModeXOptions.class).parse(mainOptions.rest());
+      case "y" -> parser(lookup(), ModeYOptions.class).parse(mainOptions.rest());
+    };      
+  }
+}
 ```
 
 ### Running Tests
@@ -107,8 +99,8 @@ java build/build.java JarTests example2 example4
 ```
 
 In IDE:
-* run as java application (`main` method)
-* use name(s) of methods as arguments to limit
+- run as java application (`main` method)
+- use name(s) of methods as arguments to limit
 
 ### Credits
 

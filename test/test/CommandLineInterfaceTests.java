@@ -8,10 +8,10 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import main.CommandLineInterface;
-import main.CommandLineInterface.ArgumentsProcessor;
-import main.CommandLineInterface.Cardinality;
-import main.CommandLineInterface.Name;
+import main.CommandLineParser;
+import main.CommandLineParser.ArgumentsProcessor;
+import main.CommandLineParser.Cardinality;
+import main.CommandLineParser.Name;
 
 class CommandLineInterfaceTests implements JTest {
 
@@ -25,7 +25,7 @@ class CommandLineInterfaceTests implements JTest {
     IllegalArgumentException ex =
         assertThrows(
             IllegalArgumentException.class,
-            () -> new CommandLineInterface<>(lookup(), Options.class));
+            () -> new CommandLineParser<>(lookup(), Options.class));
     assertEquals("At least one option is expected", ex.getMessage());
   }
 
@@ -33,7 +33,7 @@ class CommandLineInterfaceTests implements JTest {
   void varargs() {
     record Options(String... more) {
       static Options parse(String... args) {
-        var parser = new CommandLineInterface<>(lookup(), Options.class, ArgumentsProcessor.IDENTITY);
+        var parser = new CommandLineParser<>(lookup(), Options.class, ArgumentsProcessor.IDENTITY);
         return parser.parse(args);
       }
     }
@@ -54,10 +54,10 @@ class CommandLineInterfaceTests implements JTest {
         List<String> __policies,
         String... names) {
 
-      static final CommandLineInterface<Options> PARSER = new CommandLineInterface<>(lookup(), Options.class);
+      static final CommandLineParser<Options> PARSER = new CommandLineParser<>(lookup(), Options.class);
 
       Thread.State state() {
-        return CommandLineInterface.findEnum(Thread.State.class, thread_state).orElseThrow();
+        return CommandLineParser.findEnum(Thread.State.class, thread_state).orElseThrow();
       }
 
       TimeUnit time() {
@@ -110,7 +110,7 @@ class CommandLineInterfaceTests implements JTest {
   void conventional() {
     record Options(boolean _flag, Optional<String> _key, List<String> _list, String... more) {
       static Options of(String... args) {
-        return CommandLineInterface.parser(lookup(), Options.class).parse(args);
+        return CommandLineParser.parser(lookup(), Options.class).parse(args);
       }
     }
     var options = Options.of("-flag", "-key", "value", "-list", "a", "-list=b,o", "1", "2", "3");
@@ -123,14 +123,14 @@ class CommandLineInterfaceTests implements JTest {
   @Test
   void positional() {
     record Options(boolean a, String first, boolean b, String second, boolean c) {}
-    var objects = CommandLineInterface.parser(lookup(), Options.class).parse("one", "two");
+    var objects = CommandLineParser.parser(lookup(), Options.class).parse("one", "two");
     assertEquals(new Options(false, "one", false, "two", false), objects);
   }
 
   @Test
   void cardinality() {
     record Options(@Name("-2") @Cardinality(2) List<String> take2) {}
-    var parser = CommandLineInterface.parser(lookup(), Options.class);
+    var parser = CommandLineParser.parser(lookup(), Options.class);
     assertEquals(List.of("a", "b"), parser.parse("-2", "a", "b").take2());
     assertEquals(List.of("a", "b", "c", "d"), parser.parse("-2", "a", "b", "-2", "c", "d").take2());
   }
@@ -138,7 +138,7 @@ class CommandLineInterfaceTests implements JTest {
   @Test
   void flags() {
     record Options(boolean _f, boolean _h, boolean _z) {}
-    var parser = CommandLineInterface.parser(lookup(), Options.class);
+    var parser = CommandLineParser.parser(lookup(), Options.class);
     var options = parser.parse("-zfh");
     assertEquals(true, options._f);
     assertEquals(true, options._h);
@@ -149,7 +149,7 @@ class CommandLineInterfaceTests implements JTest {
   void nested_keyValue() {
     record SubOptions(String dir, String file) {}
     record MainOptions(boolean __flag, Optional<SubOptions> __release, String... rest) {}
-    var parser = CommandLineInterface.parser(lookup(), MainOptions.class);
+    var parser = CommandLineParser.parser(lookup(), MainOptions.class);
     var options = parser.parse("--release dirX fileX --flag and the rest".split(" "));
     assertEquals(true, options.__flag);
     assertEquals("dirX", options.__release.orElseThrow().dir());
@@ -161,7 +161,7 @@ class CommandLineInterfaceTests implements JTest {
   void nested_repeatable() {
     record SubOptions(String dir, String file) {}
     record MainOptions(boolean __flag, List<SubOptions> __release, String... rest) {}
-    var parser = CommandLineInterface.parser(lookup(), MainOptions.class);
+    var parser = CommandLineParser.parser(lookup(), MainOptions.class);
     var options =
         parser.parse("--release dirX fileX --flag --release dirY fileY and the rest".split(" "));
     assertEquals(true, options.__flag);

@@ -33,10 +33,10 @@ import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public final class CommandLineInterface<R extends Record> {
+public final class CommandLineParser<R extends Record> {
 
-  public static <R extends Record> CommandLineInterface<R> parser(Lookup lookup, Class<R> schema) {
-    return new CommandLineInterface<>(lookup, schema);
+  public static <R extends Record> CommandLineParser<R> parser(Lookup lookup, Class<R> schema) {
+    return new CommandLineParser<>(lookup, schema);
   }
 
   /**
@@ -177,20 +177,20 @@ public final class CommandLineInterface<R extends Record> {
     private final ArgumentsProcessor processor;
     private final boolean nested;
 
-    public CommandLineInterface(Lookup lookup, Class<R> schema) {
+    public CommandLineParser(Lookup lookup, Class<R> schema) {
       this(lookup, schema, ArgumentsProcessor.DEFAULT);
     }
 
-    public CommandLineInterface(Lookup lookup, Class<R> schema, ArgumentsProcessor processor) {
+    public CommandLineParser(Lookup lookup, Class<R> schema, ArgumentsProcessor processor) {
       this(lookup, schema, Option.scan(schema), processor);
     }
 
-    private CommandLineInterface(
+    private CommandLineParser(
         Lookup lookup, Class<R> schema, List<Option> options, ArgumentsProcessor processor) {
       this(lookup, schema, options, processor, false);
     }
 
-    private CommandLineInterface(
+    private CommandLineParser(
         Lookup lookup,
         Class<R> schema,
         List<Option> options,
@@ -320,7 +320,7 @@ public final class CommandLineInterface<R extends Record> {
     private Object parseNested(ArrayDeque<String> pendingArguments, Option option) {
       var nestedSchema = option.nestedSchema;
       var nestedOptions = Option.scan(nestedSchema);
-      var nestedParser = new CommandLineInterface<>(lookup, nestedSchema, nestedOptions, processor, true);
+      var nestedParser = new CommandLineParser<>(lookup, nestedSchema, nestedOptions, processor, true);
       var constructor = constructor(lookup, nestedSchema);
       return createRecord(constructor, nestedParser.parse(pendingArguments));
     }
