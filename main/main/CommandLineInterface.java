@@ -402,6 +402,7 @@ public interface CommandLineInterface {
     }
   }
 
+  @FunctionalInterface
   interface ArgumentsProcessor {
     ArgumentsProcessor IDENTITY = arguments -> arguments;
     ArgumentsProcessor TRIM = arguments -> arguments.map(String::trim);
