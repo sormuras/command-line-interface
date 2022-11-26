@@ -425,6 +425,7 @@ public interface CommandLineInterface {
     Stream<String> process(Stream<String> arguments);
 
     default ArgumentsProcessor andThen(ArgumentsProcessor after) {
+      requireNonNull(after, "after is null");
       return stream -> after.process(process(stream));
     }
   }
