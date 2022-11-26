@@ -1,12 +1,11 @@
 package test;
 
-import main.CommandLineInterface;
-import main.CommandLineInterface.Name;
+import static java.lang.invoke.MethodHandles.lookup;
 
 import java.util.List;
 import java.util.Optional;
-
-import static java.lang.invoke.MethodHandles.lookup;
+import main.CommandLineInterface;
+import main.CommandLineInterface.Name;
 
 public class JarTests implements TestRunner {
 
@@ -16,7 +15,7 @@ public class JarTests implements TestRunner {
 
   record JarCOptions(String dir, String file) {}
 
-  record JarReleaseOptions(String version, @Name("-C") List<JarCOptions> Cs ) {}
+  record JarReleaseOptions(String version, @Name("-C") List<JarCOptions> Cs) {}
 
   record JarOptions(
       @Name({"-c", "--create"}) boolean create,
@@ -100,6 +99,8 @@ public class JarTests implements TestRunner {
     assertEquals("foo.jar", options.file());
     assertEquals("com.foo.Hello", options.mainClass());
     assertEquals(new JarCOptions("classes", "."), options.changeDir());
-    assertEquals(new JarReleaseOptions("10", List.of(new JarCOptions("classes-10", "."))), options.release());
+    assertEquals(
+        new JarReleaseOptions("10", List.of(new JarCOptions("classes-10", "."))),
+        options.release());
   }
 }

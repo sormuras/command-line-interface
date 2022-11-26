@@ -1,5 +1,8 @@
 package main;
 
+import static java.util.function.Predicate.not;
+import static java.util.stream.Collectors.toCollection;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.annotation.ElementType;
@@ -30,9 +33,6 @@ import java.util.StringJoiner;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
-import static java.util.function.Predicate.not;
-import static java.util.stream.Collectors.toCollection;
 
 public interface CommandLineInterface {
 
@@ -78,7 +78,12 @@ public interface CommandLineInterface {
   // compact flags: -fg
   // sub-records
 
-  record Option(Type type, Set<String> names, String help, int cardinality, Class<? extends Record> subSchema) {
+  record Option(
+      Type type,
+      Set<String> names,
+      String help,
+      int cardinality,
+      Class<? extends Record> subSchema) {
     public enum Type {
       /** An optional flag, like {@code --verbose}. */
       FLAG(false),
@@ -143,14 +148,11 @@ public interface CommandLineInterface {
           name != null
               ? new LinkedHashSet<>(Arrays.asList(name.value()))
               : Set.of(component.getName().replace('_', '-')),
-          help != null
-              ? String.join("\n", help.value())
-              : "",
-          cardinality != null
-              ? cardinality.value()
-              : 1,
-          (component.getGenericType() instanceof ParameterizedType type &&
-           type.getActualTypeArguments()[0] instanceof Class<?> subOption && subOption.isRecord())
+          help != null ? String.join("\n", help.value()) : "",
+          cardinality != null ? cardinality.value() : 1,
+          (component.getGenericType() instanceof ParameterizedType type
+                  && type.getActualTypeArguments()[0] instanceof Class<?> subOption
+                  && subOption.isRecord())
               ? subOption.asSubclass(Record.class)
               : null);
     }
@@ -169,11 +171,11 @@ public interface CommandLineInterface {
   }
 
   final class Parser<R extends Record> {
-      private final Lookup lookup;
-      private final Class<R> schema;
-      private final List<Option> options;
-      private final ArgumentsProcessor processor;
-      private final boolean sub;
+    private final Lookup lookup;
+    private final Class<R> schema;
+    private final List<Option> options;
+    private final ArgumentsProcessor processor;
+    private final boolean sub;
 
     public Parser(Lookup lookup, Class<R> schema) {
       this(lookup, schema, ArgumentsProcessor.DEFAULT);
@@ -183,11 +185,17 @@ public interface CommandLineInterface {
       this(lookup, schema, Option.scan(schema), processor);
     }
 
-    public Parser(Lookup lookup, Class<R> schema, List<Option> options, ArgumentsProcessor processor) {
+    public Parser(
+        Lookup lookup, Class<R> schema, List<Option> options, ArgumentsProcessor processor) {
       this(lookup, schema, options, processor, false);
     }
 
-    private Parser(Lookup lookup, Class<R> schema, List<Option> options, ArgumentsProcessor processor, boolean sub) {
+    private Parser(
+        Lookup lookup,
+        Class<R> schema,
+        List<Option> options,
+        ArgumentsProcessor processor,
+        boolean sub) {
       Objects.requireNonNull(lookup, "lookup is null");
       Objects.requireNonNull(schema, "schema is null");
       Objects.requireNonNull(options, "options is null");
@@ -207,23 +215,24 @@ public interface CommandLineInterface {
 
     private static void checkDuplicates(List<Option> options) {
       var optionsByName = new HashMap<String, Option>();
-      for(var option: options) {
+      for (var option : options) {
         var names = option.names();
-        for(var name: names) {
+        for (var name : names) {
           var otherOption = optionsByName.put(name, option);
           if (otherOption == option) {
-            throw new IllegalArgumentException("option " + option + " declares duplicated name " + name);
+            throw new IllegalArgumentException(
+                "option " + option + " declares duplicated name " + name);
           }
           if (otherOption != null) {
-            throw new IllegalArgumentException("options " + option + " and " + otherOption + " both declares name " + name);
+            throw new IllegalArgumentException(
+                "options " + option + " and " + otherOption + " both declares name " + name);
           }
         }
       }
     }
 
     private static void checkVarargs(List<Option> options) {
-      var varargs =
-          options.stream().filter(Option::isVarargs).toList();
+      var varargs = options.stream().filter(Option::isVarargs).toList();
       if (varargs.size() > 1) {
         throw new IllegalArgumentException("Too many varargs types specified: " + varargs);
       }
@@ -233,11 +242,12 @@ public interface CommandLineInterface {
     }
 
     private Object[] parse(ArrayDeque<String> pendingArguments) {
-      var requiredOptions = options.stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
+      var requiredOptions =
+          options.stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
       var optionsByName = new HashMap<String, Option>();
       var workspace = new LinkedHashMap<String, Object>();
-      for(var option: options) {
-        for(var name: option.names()) {
+      for (var option : options) {
+        for (var name : option.names()) {
           optionsByName.put(name, option);
         }
         workspace.put(option.name(), option.type().defaultValue());
@@ -260,18 +270,22 @@ public interface CommandLineInterface {
           switch (option.type()) {
             case FLAG -> workspace.put(name, true);
             case KEY_VALUE -> {
-              var value = option.subSchema() != null
-                  ? parseSub(pendingArguments, option)
-                  : pop ? pendingArguments.pop() : argument.substring(separator + 1);
+              var value =
+                  option.subSchema() != null
+                      ? parseSub(pendingArguments, option)
+                      : pop ? pendingArguments.pop() : argument.substring(separator + 1);
               workspace.put(name, Optional.of(value));
             }
             case REPEATABLE -> {
               var times = option.cardinality();
-              var value = option.subSchema() != null
-                  ? List.of(parseSub(pendingArguments, option))
-                  : pop
-                      ? IntStream.range(0, times).mapToObj(__ -> pendingArguments.pop()).toList()
-                      : List.of(argument.substring(separator + 1).split(","));
+              var value =
+                  option.subSchema() != null
+                      ? List.of(parseSub(pendingArguments, option))
+                      : pop
+                          ? IntStream.range(0, times)
+                              .mapToObj(__ -> pendingArguments.pop())
+                              .toList()
+                          : List.of(argument.substring(separator + 1).split(","));
               @SuppressWarnings("unchecked")
               var elements = (List<String>) workspace.get(name);
               workspace.put(name, Stream.concat(elements.stream(), value.stream()).toList());
@@ -311,7 +325,7 @@ public interface CommandLineInterface {
       var schema = option.subSchema;
       var subParser = new Parser<>(lookup, schema, Option.scan(schema), processor, true);
       var constructor = constructor(lookup, schema);
-      return createRecord(schema, constructor, subParser.parse(pendingArguments)) ;
+      return createRecord(schema, constructor, subParser.parse(pendingArguments));
     }
 
     public R parse(String... args) {
@@ -338,7 +352,8 @@ public interface CommandLineInterface {
       }
     }
 
-    private static Record createRecord(Class<? extends Record> schema, MethodHandle constructor, Object[] arguments) {
+    private static Record createRecord(
+        Class<? extends Record> schema, MethodHandle constructor, Object[] arguments) {
       try {
         return schema.cast(constructor.invokeWithArguments(arguments));
       } catch (RuntimeException | Error e) {
@@ -396,14 +411,15 @@ public interface CommandLineInterface {
     ArgumentsProcessor DEFAULT = NORMALIZE.andThen(EXPAND);
 
     private static Stream<String> expandAtFileArguments(Stream<String> source) {
-      return source.mapMulti((argument, consumer) -> {
-        if (argument.startsWith("@") && !(argument.startsWith("@@"))) {
-          var file = Path.of(argument.substring(1));
-          expandArgumentsFile(file, consumer);
-          return;
-        }
-        consumer.accept(argument);
-      });
+      return source.mapMulti(
+          (argument, consumer) -> {
+            if (argument.startsWith("@") && !(argument.startsWith("@@"))) {
+              var file = Path.of(argument.substring(1));
+              expandArgumentsFile(file, consumer);
+              return;
+            }
+            consumer.accept(argument);
+          });
     }
 
     private static void expandArgumentsFile(Path file, Consumer<String> consumer) {

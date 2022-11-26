@@ -1,9 +1,6 @@
 package test;
 
-import main.CommandLineInterface;
-import main.CommandLineInterface.ArgumentsProcessor;
-import main.CommandLineInterface.Name;
-import main.CommandLineInterface.Parser;
+import static java.lang.invoke.MethodHandles.lookup;
 
 import java.lang.annotation.RetentionPolicy;
 import java.nio.file.Files;
@@ -11,8 +8,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
-import static java.lang.invoke.MethodHandles.lookup;
+import main.CommandLineInterface;
+import main.CommandLineInterface.ArgumentsProcessor;
+import main.CommandLineInterface.Name;
+import main.CommandLineInterface.Parser;
 
 public class CommandLineInterfaceTests implements TestRunner {
 
@@ -35,8 +34,7 @@ public class CommandLineInterfaceTests implements TestRunner {
   void varargs() {
     record Options(String... more) {
       static Options parse(String... args) {
-        var parser =
-            new Parser<>(lookup(), Options.class, ArgumentsProcessor.IDENTITY);
+        var parser = new Parser<>(lookup(), Options.class, ArgumentsProcessor.IDENTITY);
         return parser.parse(args);
       }
     }
@@ -165,7 +163,8 @@ public class CommandLineInterfaceTests implements TestRunner {
     record SubOptions(String dir, String file) {}
     record MainOptions(boolean __flag, List<SubOptions> __release, String... rest) {}
     var parser = CommandLineInterface.parser(lookup(), MainOptions.class);
-    var options = parser.parse("--release dirX fileX --flag --release dirY fileY and the rest".split(" "));
+    var options =
+        parser.parse("--release dirX fileX --flag --release dirY fileY and the rest".split(" "));
     assertEquals(true, options.__flag);
     assertEquals(2, options.__release.size());
     assertEquals("dirX", options.__release.get(0).dir());
