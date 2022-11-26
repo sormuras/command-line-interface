@@ -11,7 +11,7 @@ import main.CommandLineInterface.Name;
 class JarTests implements JTest {
 
   public static void main(String... args) {
-    new JarTests().runTests();
+    new JarTests().runTests(args);
   }
 
   record JarCOptions(String dir, String file) {}

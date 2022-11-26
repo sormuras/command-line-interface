@@ -16,14 +16,16 @@ import main.CommandLineInterface.Parser;
 class CommandLineInterfaceTests implements JTest {
 
   public static void main(String... args) {
-    new CommandLineInterfaceTests().runTests();
+    new CommandLineInterfaceTests().runTests(args);
   }
 
   @Test
   void empty() {
     record Options() {}
-    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-            () -> new CommandLineInterface.Parser<>(lookup(), Options.class) );
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new CommandLineInterface.Parser<>(lookup(), Options.class));
     assertEquals("At least one option is expected", ex.getMessage());
   }
 
@@ -97,7 +99,9 @@ class CommandLineInterfaceTests implements JTest {
     assertEquals("Hallo", options.__say.orElse("Hi"));
     assertEquals(Thread.State.NEW, options.state());
     assertEquals(TimeUnit.MINUTES, options.time());
-    assertEquals(List.of(RetentionPolicy.RUNTIME, RetentionPolicy.CLASS, RetentionPolicy.SOURCE), options.policies());
+    assertEquals(
+        List.of(RetentionPolicy.RUNTIME, RetentionPolicy.CLASS, RetentionPolicy.SOURCE),
+        options.policies());
     assertEquals(List.of("Joe", "Jim"), List.of(options.names));
     assertTrue(Options.PARSER.help().isEmpty(), "No @Help, no help()");
   }
@@ -143,7 +147,7 @@ class CommandLineInterfaceTests implements JTest {
   }
 
   @Test
-  void sub_keyValue() {
+  void nested_keyValue() {
     record SubOptions(String dir, String file) {}
     record MainOptions(boolean __flag, Optional<SubOptions> __release, String... rest) {}
     var parser = CommandLineInterface.parser(lookup(), MainOptions.class);
@@ -155,7 +159,7 @@ class CommandLineInterfaceTests implements JTest {
   }
 
   @Test
-  void sub_repeatable() {
+  void nested_repeatable() {
     record SubOptions(String dir, String file) {}
     record MainOptions(boolean __flag, List<SubOptions> __release, String... rest) {}
     var parser = CommandLineInterface.parser(lookup(), MainOptions.class);
