@@ -22,7 +22,7 @@ final class Assertions {
     assertEquals(false, actual);
   }
 
-  static <T> void assertEqualsOptional(T expected, Optional<T> actual) {
+  static <T> void assertEqualsOptional(T expected, Optional<? extends T> actual) {
     assertEquals(expected, actual.orElseThrow());
   }
 
