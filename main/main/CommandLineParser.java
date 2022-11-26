@@ -30,7 +30,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.function.Consumer;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public final class CommandLineParser<R extends Record> {
@@ -70,18 +69,7 @@ public final class CommandLineParser<R extends Record> {
     String[] value();
   }
 
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target(ElementType.RECORD_COMPONENT)
-  public @interface Cardinality {
-    int value();
-  }
-
-  record Option(
-      Type type,
-      Set<String> names,
-      String help,
-      int cardinality,
-      Class<? extends Record> nestedSchema) {
+  record Option(Type type, Set<String> names, String help, Class<? extends Record> nestedSchema) {
     public enum Type {
       /** An optional flag, like {@code --verbose}. */
       FLAG(false),
@@ -119,12 +107,7 @@ public final class CommandLineParser<R extends Record> {
       requireNonNull(names, "named is null");
       requireNonNull(help, "help is null");
       names = Collections.unmodifiableSet(new LinkedHashSet<>(names));
-      if (names.isEmpty()) {
-        throw new IllegalArgumentException("no name defined");
-      }
-      if (cardinality < 1) {
-        throw new IllegalArgumentException("invalid cardinality " + cardinality);
-      }
+      if (names.isEmpty()) throw new IllegalArgumentException("no name defined");
     }
 
     public static List<Option> scan(Class<? extends Record> schema) {
@@ -140,21 +123,19 @@ public final class CommandLineParser<R extends Record> {
       requireNonNull(component, "component is null");
       var nameAnno = component.getAnnotation(Name.class);
       var helpAnno = component.getAnnotation(Help.class);
-      var cardinalityAnno = component.getAnnotation(Cardinality.class);
       var names =
           nameAnno != null
               ? new LinkedHashSet<>(Arrays.asList(nameAnno.value()))
               : Set.of(component.getName().replace('_', '-'));
       var type = Type.valueOf(component.getType());
       var help = helpAnno != null ? String.join("\n", helpAnno.value()) : "";
-      int cardinality = cardinalityAnno != null ? cardinalityAnno.value() : 1;
       var nestedSchema =
           (component.getGenericType() instanceof ParameterizedType paramType
                   && paramType.getActualTypeArguments()[0] instanceof Class<?> nestedType
                   && nestedType.isRecord())
               ? nestedType.asSubclass(Record.class)
               : null;
-      return new Option(type, names, help, cardinality, nestedSchema);
+      return new Option(type, names, help, nestedSchema);
     }
 
     String name() {
@@ -272,12 +253,11 @@ public final class CommandLineParser<R extends Record> {
             workspace.put(name, Optional.of(value));
           }
           case REPEATABLE -> {
-            var times = option.cardinality();
             var value =
                 option.nestedSchema() != null
                     ? List.of(parseNested(pendingArguments, option))
                     : pop
-                        ? IntStream.range(0, times).mapToObj(__ -> pendingArguments.pop()).toList()
+                        ? List.of(pendingArguments.pop())
                         : List.of(argument.substring(separator + 1).split(","));
             @SuppressWarnings("unchecked")
             var elements = (List<String>) workspace.get(name);

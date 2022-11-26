@@ -10,7 +10,6 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import main.CommandLineParser;
 import main.CommandLineParser.ArgumentsProcessor;
-import main.CommandLineParser.Cardinality;
 import main.CommandLineParser.Name;
 
 class AssortedTests implements JTest {
@@ -125,14 +124,6 @@ class AssortedTests implements JTest {
     record Options(boolean a, String first, boolean b, String second, boolean c) {}
     var objects = CommandLineParser.parser(lookup(), Options.class).parse("one", "two");
     assertEquals(new Options(false, "one", false, "two", false), objects);
-  }
-
-  @Test
-  void cardinality() {
-    record Options(@Name("-2") @Cardinality(2) List<String> take2) {}
-    var parser = CommandLineParser.parser(lookup(), Options.class);
-    assertEquals(List.of("a", "b"), parser.parse("-2", "a", "b").take2());
-    assertEquals(List.of("a", "b", "c", "d"), parser.parse("-2", "a", "b", "-2", "c", "d").take2());
   }
 
   @Test
