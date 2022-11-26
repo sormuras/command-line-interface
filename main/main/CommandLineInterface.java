@@ -33,10 +33,10 @@ import java.util.function.Consumer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public interface CommandLineInterface {
+public final class CommandLineInterface<R extends Record> {
 
-  static <R extends Record> Parser<R> parser(Lookup lookup, Class<R> schema) {
-    return new Parser<>(lookup, schema);
+  public static <R extends Record> CommandLineInterface<R> parser(Lookup lookup, Class<R> schema) {
+    return new CommandLineInterface<>(lookup, schema);
   }
 
   /**
@@ -48,7 +48,7 @@ public interface CommandLineInterface {
    * @param <E> the type of the enumeration class
    * @see Enum#valueOf(Class, String)
    */
-  static <E extends Enum<E>> Optional<E> findEnum(Class<E> enumClass, String name) {
+  public static <E extends Enum<E>> Optional<E> findEnum(Class<E> enumClass, String name) {
     requireNonNull(enumClass, "enumClass is null");
     requireNonNull(name, "name is null");
     try {
@@ -60,19 +60,19 @@ public interface CommandLineInterface {
 
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.RECORD_COMPONENT)
-  @interface Name {
+  public @interface Name {
     String[] value();
   }
 
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.RECORD_COMPONENT)
-  @interface Help {
+  public @interface Help {
     String[] value();
   }
 
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.RECORD_COMPONENT)
-  @interface Cardinality {
+  public @interface Cardinality {
     int value();
   }
 
@@ -170,27 +170,27 @@ public interface CommandLineInterface {
     }
   }
 
-  final class Parser<R extends Record> {
+
     private final Lookup lookup;
     private final Class<R> schema;
     private final List<Option> options;
     private final ArgumentsProcessor processor;
     private final boolean nested;
 
-    public Parser(Lookup lookup, Class<R> schema) {
+    public CommandLineInterface(Lookup lookup, Class<R> schema) {
       this(lookup, schema, ArgumentsProcessor.DEFAULT);
     }
 
-    public Parser(Lookup lookup, Class<R> schema, ArgumentsProcessor processor) {
+    public CommandLineInterface(Lookup lookup, Class<R> schema, ArgumentsProcessor processor) {
       this(lookup, schema, Option.scan(schema), processor);
     }
 
-    public Parser(
+    private CommandLineInterface(
         Lookup lookup, Class<R> schema, List<Option> options, ArgumentsProcessor processor) {
       this(lookup, schema, options, processor, false);
     }
 
-    private Parser(
+    private CommandLineInterface(
         Lookup lookup,
         Class<R> schema,
         List<Option> options,
@@ -320,7 +320,7 @@ public interface CommandLineInterface {
     private Object parseNested(ArrayDeque<String> pendingArguments, Option option) {
       var nestedSchema = option.nestedSchema;
       var nestedOptions = Option.scan(nestedSchema);
-      var nestedParser = new Parser<>(lookup, nestedSchema, nestedOptions, processor, true);
+      var nestedParser = new CommandLineInterface<>(lookup, nestedSchema, nestedOptions, processor, true);
       var constructor = constructor(lookup, nestedSchema);
       return createRecord(constructor, nestedParser.parse(pendingArguments));
     }
@@ -382,10 +382,9 @@ public interface CommandLineInterface {
       }
       return joiner.toString();
     }
-  }
 
   @FunctionalInterface
-  interface ArgumentsProcessor {
+  public interface ArgumentsProcessor {
     ArgumentsProcessor IDENTITY = arguments -> arguments;
     ArgumentsProcessor TRIM = arguments -> arguments.map(String::trim);
     ArgumentsProcessor PRUNE = arguments -> arguments.filter(not(String::isEmpty));

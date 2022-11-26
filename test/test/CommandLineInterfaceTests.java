@@ -12,7 +12,6 @@ import main.CommandLineInterface;
 import main.CommandLineInterface.ArgumentsProcessor;
 import main.CommandLineInterface.Cardinality;
 import main.CommandLineInterface.Name;
-import main.CommandLineInterface.Parser;
 
 class CommandLineInterfaceTests implements JTest {
 
@@ -26,7 +25,7 @@ class CommandLineInterfaceTests implements JTest {
     IllegalArgumentException ex =
         assertThrows(
             IllegalArgumentException.class,
-            () -> new CommandLineInterface.Parser<>(lookup(), Options.class));
+            () -> new CommandLineInterface<>(lookup(), Options.class));
     assertEquals("At least one option is expected", ex.getMessage());
   }
 
@@ -34,7 +33,7 @@ class CommandLineInterfaceTests implements JTest {
   void varargs() {
     record Options(String... more) {
       static Options parse(String... args) {
-        var parser = new Parser<>(lookup(), Options.class, ArgumentsProcessor.IDENTITY);
+        var parser = new CommandLineInterface<>(lookup(), Options.class, ArgumentsProcessor.IDENTITY);
         return parser.parse(args);
       }
     }
@@ -55,7 +54,7 @@ class CommandLineInterfaceTests implements JTest {
         List<String> __policies,
         String... names) {
 
-      static final Parser<Options> PARSER = new Parser<>(lookup(), Options.class);
+      static final CommandLineInterface<Options> PARSER = new CommandLineInterface<>(lookup(), Options.class);
 
       Thread.State state() {
         return CommandLineInterface.findEnum(Thread.State.class, thread_state).orElseThrow();
