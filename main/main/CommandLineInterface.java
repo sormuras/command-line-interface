@@ -49,6 +49,8 @@ public interface CommandLineInterface {
    * @see Enum#valueOf(Class, String)
    */
   static <E extends Enum<E>> Optional<E> findEnum(Class<E> enumClass, String name) {
+    requireNonNull(enumClass, "enumClass is null");
+    requireNonNull(name, "name is null");
     try {
       return Optional.of(Enum.valueOf(enumClass, name));
     } catch (IllegalArgumentException exception) {
@@ -320,7 +322,7 @@ public interface CommandLineInterface {
       var nestedOptions = Option.scan(nestedSchema);
       var nestedParser = new Parser<>(lookup, nestedSchema, nestedOptions, processor, true);
       var constructor = constructor(lookup, nestedSchema);
-      return createRecord(nestedSchema, constructor, nestedParser.parse(pendingArguments));
+      return createRecord(constructor, nestedParser.parse(pendingArguments));
     }
 
     public R parse(String... args) {
@@ -333,7 +335,7 @@ public interface CommandLineInterface {
       var constructor = constructor(lookup, schema).asFixedArity();
       var values = processor.process(args).collect(toCollection(ArrayDeque::new));
       var arguments = parse(values);
-      return schema.cast(createRecord(schema, constructor, arguments));
+      return schema.cast(createRecord(constructor, arguments));
     }
 
     private static MethodHandle constructor(Lookup lookup, Class<?> schema) {
@@ -346,10 +348,9 @@ public interface CommandLineInterface {
       }
     }
 
-    private static <T extends Record> T createRecord(
-        Class<T> schema, MethodHandle constructor, Object[] args) {
+    private static Object createRecord(MethodHandle constructor, Object[] args) {
       try {
-        return schema.cast(constructor.invokeWithArguments(args));
+        return constructor.invokeWithArguments(args);
       } catch (RuntimeException | Error e) {
         throw e;
       } catch (Throwable e) {
@@ -425,6 +426,7 @@ public interface CommandLineInterface {
     Stream<String> process(Stream<String> arguments);
 
     default ArgumentsProcessor andThen(ArgumentsProcessor after) {
+      requireNonNull(after, "after is null");
       return stream -> after.process(process(stream));
     }
   }

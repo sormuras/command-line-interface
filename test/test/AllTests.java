@@ -1,8 +1,8 @@
 package test;
 
-class AllTests implements JTest {
+class AllTests {
 
   public static void main(String[] args) {
-    new AllTests().runAllTests(new CommandLineInterfaceTests(), new JarTests());
+    JTest.runAllTests(new CommandLineInterfaceTests(), new JarTests());
   }
 }

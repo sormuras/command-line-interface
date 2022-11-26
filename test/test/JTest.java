@@ -12,7 +12,11 @@ import java.lang.annotation.Target;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 /** JUnit on a diet of air and love */
 public interface JTest {
@@ -72,14 +76,14 @@ public interface JTest {
     }
   }
 
-  default void runAllTests(JTest... tests) {
+  static void runAllTests(JTest... tests) {
     Runner run = new Runner(new ArrayList<>());
     runAllTests(run, tests);
     run.print(System.out);
     run.verify();
   }
 
-  default void runAllTests(Listener listener, JTest... tests) {
+  static void runAllTests(Listener listener, JTest... tests) {
     for (JTest test : tests) test.runTests(listener);
   }
 
