@@ -20,13 +20,16 @@ import java.util.List;
 import java.util.Optional;
 
 /** JUnit on a diet of air and love */
-public interface JTest {
+public final class JTest {
+  private JTest() {
+    throw new AssertionError();
+  }
 
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
-  @interface Test {}
+  public @interface Test {}
 
-  record Event(Method test, Duration executionTime, Optional<Throwable> error) {
+  public record Event(Method test, Duration executionTime, Optional<Throwable> error) {
     public Event {
       requireNonNull(test);
       requireNonNull(executionTime);
@@ -35,11 +38,11 @@ public interface JTest {
   }
 
   @FunctionalInterface
-  interface Listener {
+  public interface Listener {
     void accept(Event e);
   }
 
-  record Runner(List<Event> events) {
+  public record Runner(List<Event> events) {
     public Runner {
       events = List.copyOf(events);
     }
@@ -83,31 +86,31 @@ public interface JTest {
     }
   }
 
-  static void runAllTests(JTest... tests) {
+  public static void runAllTests(Object... tests) {
     requireNonNull(tests, "tests is null");
     var events = new ArrayList<Event>();
     for (var test : tests) {
-      test.executeTests(events::add);
+      executeTests(test, events::add);
     }
     var runner = new Runner(events);
     runner.print(System.out);
     runner.verify();
   }
 
-  default void runTests(String... args) {
+  public static void runTests(Object test, String... args) {
     requireNonNull(args, "args is null");
     var events = new ArrayList<Event>();
-    executeTests(events::add);
+    executeTests(test, events::add, args);
     var runner = new Runner(events);
     runner.print(System.out);
     runner.verify();
   }
 
-  default void executeTests(Listener listener, String... args) {
+  private static void executeTests(Object test, Listener listener, String... args) {
     requireNonNull(listener, "listener is null");
     requireNonNull(args, "args is null");
     var names = new HashSet<>(asList(args));
-    stream(getClass().getDeclaredMethods())
+    stream(test.getClass().getDeclaredMethods())
         .filter(method -> method.isAnnotationPresent(Test.class))
         .filter(method -> names.isEmpty() || names.contains(method.getName()))
         .forEach(
@@ -115,7 +118,7 @@ public interface JTest {
               var start = currentTimeMillis();
               Throwable cause;
               try {
-                method.invoke(this);
+                method.invoke(test);
                 cause = null;
               } catch (InvocationTargetException ex) {
                 cause = ex.getCause();

@@ -5,10 +5,11 @@ import static test.Assertions.assertTrue;
 
 import main.ArgumentsSplitter;
 import published.PublishedOptions;
+import test.JTest.Test;
 
-public class PublishedTests implements JTest {
+public class PublishedTests {
   public static void main(String... args) {
-    new PublishedTests().runTests(args);
+    JTest.runTests(new PublishedTests(), args);
   }
 
   @Test

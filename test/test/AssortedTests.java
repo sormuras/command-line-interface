@@ -11,11 +11,12 @@ import java.util.concurrent.TimeUnit;
 import main.ArgumentsSplitter;
 import main.ArgumentsSplitter.ArgumentsProcessor;
 import main.ArgumentsSplitter.Name;
+import test.JTest.Test;
 
-class AssortedTests implements JTest {
+class AssortedTests {
 
   public static void main(String... args) {
-    new AssortedTests().runTests(args);
+    JTest.runTests(new AssortedTests(), args);
   }
 
   @Test

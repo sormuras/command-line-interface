@@ -8,13 +8,14 @@ import java.util.List;
 import java.util.Optional;
 import main.ArgumentsSplitter;
 import main.ArgumentsSplitter.Name;
+import test.JTest.Test;
 import test.JarTests.JarOptions.ChangeDirOptions;
 import test.JarTests.JarOptions.ReleaseOptions;
 
-class JarTests implements JTest {
+class JarTests {
 
   public static void main(String... args) {
-    new JarTests().runTests(args);
+    JTest.runTests(new JarTests(), args);
   }
 
   record JarOptions(
