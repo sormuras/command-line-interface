@@ -1,4 +1,4 @@
-package test;
+package test.api;
 
 import java.util.Arrays;
 import java.util.Objects;

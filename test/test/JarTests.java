@@ -1,21 +1,23 @@
 package test;
 
-import static java.lang.invoke.MethodHandles.lookup;
-import static test.Assertions.assertEquals;
-import static test.Assertions.assertEqualsOptional;
+import main.ArgumentsSplitter;
+import main.ArgumentsSplitter.Name;
+import test.JarTests.JarOptions.ChangeDirOptions;
+import test.JarTests.JarOptions.ReleaseOptions;
+import test.api.JTest;
+import test.api.JTest.Test;
 
 import java.util.List;
 import java.util.Optional;
-import main.ArgumentsSplitter;
-import main.ArgumentsSplitter.Name;
-import test.JTest.Test;
-import test.JarTests.JarOptions.ChangeDirOptions;
-import test.JarTests.JarOptions.ReleaseOptions;
+
+import static java.lang.invoke.MethodHandles.lookup;
+import static test.api.Assertions.assertEquals;
+import static test.api.Assertions.assertEqualsOptional;
 
 class JarTests {
 
   public static void main(String... args) {
-    JTest.runTests(new JarTests(), args);
+    JTest.runTests(lookup(), new JarTests(), args);
   }
 
   record JarOptions(

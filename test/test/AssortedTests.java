@@ -1,22 +1,28 @@
 package test;
 
-import static java.lang.invoke.MethodHandles.lookup;
-import static test.Assertions.*;
+import main.ArgumentsSplitter;
+import main.ArgumentsSplitter.ArgumentsProcessor;
+import main.ArgumentsSplitter.Name;
+import test.api.JTest;
+import test.api.JTest.Test;
 
 import java.lang.annotation.RetentionPolicy;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import main.ArgumentsSplitter;
-import main.ArgumentsSplitter.ArgumentsProcessor;
-import main.ArgumentsSplitter.Name;
-import test.JTest.Test;
+
+import static java.lang.invoke.MethodHandles.lookup;
+import static test.api.Assertions.assertArrayEquals;
+import static test.api.Assertions.assertEquals;
+import static test.api.Assertions.assertEqualsOptional;
+import static test.api.Assertions.assertThrows;
+import static test.api.Assertions.assertTrue;
 
 class AssortedTests {
 
   public static void main(String... args) {
-    JTest.runTests(new AssortedTests(), args);
+    JTest.runTests(lookup(), new AssortedTests(), args);
   }
 
   @Test

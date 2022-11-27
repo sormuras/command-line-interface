@@ -1,15 +1,17 @@
 package test;
 
-import static test.Assertions.assertFalse;
-import static test.Assertions.assertTrue;
-
 import main.ArgumentsSplitter;
 import published.PublishedOptions;
-import test.JTest.Test;
+import test.api.JTest;
+import test.api.JTest.Test;
+
+import static java.lang.invoke.MethodHandles.lookup;
+import static test.api.Assertions.assertFalse;
+import static test.api.Assertions.assertTrue;
 
 class PublishedTests {
   public static void main(String... args) {
-    JTest.runTests(new PublishedTests(), args);
+    JTest.runTests(lookup(), new PublishedTests(), args);
   }
 
   @Test

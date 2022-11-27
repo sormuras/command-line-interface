@@ -1,4 +1,4 @@
-package test;
+package test.api;
 
 import static java.lang.System.currentTimeMillis;
 import static java.util.Arrays.asList;
@@ -11,7 +11,8 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.lang.reflect.InvocationTargetException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -82,31 +83,37 @@ public final class JTest {
     }
 
     public void verify() {
-      if (events.stream().anyMatch(e -> e.error().isPresent())) throw new RuntimeException();
+      var verifyError = new AssertionError();
+      for(var event: events) {
+        event.error.ifPresent(verifyError::addSuppressed);
+      }
+      if (verifyError.getSuppressed().length != 0) {
+        throw verifyError;
+      }
     }
   }
 
-  public static void runAllTests(Object... tests) {
+  public static void runAllTests(Lookup lookup, Object... tests) {
     requireNonNull(tests, "tests is null");
     var events = new ArrayList<Event>();
     for (var test : tests) {
-      executeTests(test, events::add);
+      executeTests(lookup, test, events::add);
     }
     var runner = new Runner(events);
     runner.print(System.out);
     runner.verify();
   }
 
-  public static void runTests(Object test, String... args) {
+  public static void runTests(Lookup lookup, Object test, String... args) {
     requireNonNull(args, "args is null");
     var events = new ArrayList<Event>();
-    executeTests(test, events::add, args);
+    executeTests(lookup, test, events::add, args);
     var runner = new Runner(events);
     runner.print(System.out);
     runner.verify();
   }
 
-  private static void executeTests(Object test, Listener listener, String... args) {
+  private static void executeTests(Lookup lookup, Object test, Listener listener, String... args) {
     requireNonNull(listener, "listener is null");
     requireNonNull(args, "args is null");
     var names = new HashSet<>(asList(args));
@@ -115,14 +122,18 @@ public final class JTest {
         .filter(method -> names.isEmpty() || names.contains(method.getName()))
         .forEach(
             method -> {
+              MethodHandle mh;
+              try {
+                mh = lookup.unreflect(method);
+              } catch (IllegalAccessException e) {
+                throw (IllegalAccessError) new IllegalAccessError().initCause(e);
+              }
               var start = currentTimeMillis();
               Throwable cause;
               try {
-                method.invoke(test);
+                mh.invoke(test);
                 cause = null;
-              } catch (InvocationTargetException ex) {
-                cause = ex.getCause();
-              } catch (Exception ex) {
+              } catch (Throwable ex) {
                 cause = ex;
               }
               var executionTime = Duration.ofMillis(currentTimeMillis() - start);
