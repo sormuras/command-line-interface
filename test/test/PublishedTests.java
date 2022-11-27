@@ -7,7 +7,7 @@ import main.ArgumentsSplitter;
 import published.PublishedOptions;
 import test.JTest.Test;
 
-public class PublishedTests {
+class PublishedTests {
   public static void main(String... args) {
     JTest.runTests(new PublishedTests(), args);
   }
