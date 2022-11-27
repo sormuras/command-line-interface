@@ -7,11 +7,13 @@ import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.groupingBy;
 
 import java.io.PrintStream;
+import java.lang.StackWalker.Option;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -93,6 +95,23 @@ public final class JTest {
     }
   }
 
+  private static class LookupAccess {
+    private static final StackWalker STACK_WALKER = StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE);
+
+    static Lookup privateLookup(Class<?> callerClass) {
+      try {
+        return MethodHandles.privateLookupIn(callerClass, MethodHandles.lookup());
+      } catch (IllegalAccessException e) {
+        throw (IllegalAccessError) new IllegalAccessError().initCause(e);
+      }
+    }
+  }
+
+  public static void runAllTests(Object... tests) {
+    var callerClass = LookupAccess.STACK_WALKER.getCallerClass();
+    runAllTests(LookupAccess.privateLookup(callerClass), tests);
+  }
+
   public static void runAllTests(Lookup lookup, Object... tests) {
     requireNonNull(tests, "tests is null");
     var events = new ArrayList<Event>();
@@ -102,6 +121,11 @@ public final class JTest {
     var runner = new Runner(events);
     runner.print(System.out);
     runner.verify();
+  }
+
+  public static void runTests(Object test, String... args) {
+    var callerClass = LookupAccess.STACK_WALKER.getCallerClass();
+    runTests(LookupAccess.privateLookup(callerClass), test, args);
   }
 
   public static void runTests(Lookup lookup, Object test, String... args) {

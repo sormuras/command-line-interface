@@ -17,7 +17,7 @@ import static test.api.Assertions.assertEqualsOptional;
 class JarTests {
 
   public static void main(String... args) {
-    JTest.runTests(lookup(), new JarTests(), args);
+    JTest.runTests(new JarTests(), args);
   }
 
   record JarOptions(

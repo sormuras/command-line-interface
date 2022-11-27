@@ -5,13 +5,12 @@ import published.PublishedOptions;
 import test.api.JTest;
 import test.api.JTest.Test;
 
-import static java.lang.invoke.MethodHandles.lookup;
 import static test.api.Assertions.assertFalse;
 import static test.api.Assertions.assertTrue;
 
 class PublishedTests {
   public static void main(String... args) {
-    JTest.runTests(lookup(), new PublishedTests(), args);
+    JTest.runTests(new PublishedTests(), args);
   }
 
   @Test

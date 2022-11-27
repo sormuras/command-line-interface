@@ -22,7 +22,7 @@ import static test.api.Assertions.assertTrue;
 class AssortedTests {
 
   public static void main(String... args) {
-    JTest.runTests(lookup(), new AssortedTests(), args);
+    JTest.runTests(new AssortedTests(), args);
   }
 
   @Test
