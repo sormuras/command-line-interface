@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 public final class ArgumentsSplitter<R extends Record> {
@@ -207,7 +208,8 @@ public final class ArgumentsSplitter<R extends Record> {
         options.stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
     var optionsByName = new HashMap<String, Option>();
     var workspace = new LinkedHashMap<String, Object>();
-    int flagCount = (int) options.stream().filter(Option::isFlag).count();
+    var flagCount = options.stream().filter(Option::isFlag).count();
+    var flagPattern = flagCount == 0 ? null : Pattern.compile("^-[a-zA-Z]{1," + flagCount + "}$");
     for (var option : options) {
       for (var name : option.names()) {
         optionsByName.put(name, option);
@@ -254,7 +256,7 @@ public final class ArgumentsSplitter<R extends Record> {
         continue;
       }
       // maybe a combination of single letter flags?
-      if (flagCount > 0 && argument.matches("^-[a-zA-Z]{1,"+flagCount+"}$")) {
+      if (flagPattern != null && flagPattern.matcher(argument).matches()) {
         var flags = argument.substring(1).chars().mapToObj(c -> "-" + (char) c).toList();
         if (flags.stream().allMatch(optionsByName::containsKey)) {
           flags.forEach(flag -> workspace.put(optionsByName.get(flag).name(), true));
