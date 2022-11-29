@@ -9,6 +9,10 @@ public final class Assertions {
     throw new AssertionError();
   }
 
+  private static String format(String expected, String actual, String message) {
+    return "expected: `"+expected + "` but was: `" + actual +"` "+ (message.isEmpty() ? "" : ": " + message);
+  }
+
   public static void fail(String message) {
     throw new AssertionError(message);
   }
@@ -35,12 +39,12 @@ public final class Assertions {
 
   public static <T> void assertEquals(T expected, T actual, String message) {
     if (Objects.equals(expected, actual)) return;
-    fail(expected + " != " + actual + (message.isEmpty() ? "" : ": " + message));
+    fail(format(String.valueOf(expected), String.valueOf(actual), message ));
   }
 
   public static <T> void assertArrayEquals(T[] expected, T[] actual) {
     if (Arrays.equals(expected, actual)) return;
-    fail(Arrays.toString(expected) + " != " + Arrays.toString(actual));
+    fail(format(Arrays.toString(expected), Arrays.toString(actual), ""));
   }
 
   public static <E extends RuntimeException> E assertThrows(Class<? extends E> expected, Runnable test) {

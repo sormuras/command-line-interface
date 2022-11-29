@@ -59,11 +59,13 @@ public final class JTest {
         out.println(className);
         for (var event : events) {
           var status = event.error.isPresent() ? "!!" : "ok";
+          var error = briefError(event.error());
           out.printf(
-              "  [%s] %-" + maxNameLength + "s  %4d ms%n",
+              "  [%s] %-" + maxNameLength + "s  %4d ms %s%n",
               status,
               event.test.getName(),
-              event.executionTime.toMillis());
+              event.executionTime.toMillis(),
+              error);
         }
         out.println();
       });
@@ -82,6 +84,20 @@ public final class JTest {
               .filter(e -> e.error.isPresent())
               .mapToLong(e -> e.executionTime.toMillis())
               .sum());
+    }
+
+    private String briefError(Optional<Throwable> maybeError) {
+      if (maybeError.isEmpty()) return "";
+      Throwable error = maybeError.get();
+      var msg = "  " + error.getMessage();
+      if (msg.indexOf('\n') > 0)
+        msg = msg.substring(0, msg.indexOf('\n'))+"...";
+      var trace = error.getStackTrace();
+      for (StackTraceElement e : trace) {
+        if (!e.getClassName().equals("test.api.Assertions"))
+          return msg + " at " + e;
+      }
+      return msg;
     }
 
     public void verify() {
