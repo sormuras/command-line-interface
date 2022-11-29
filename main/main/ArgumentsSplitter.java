@@ -248,7 +248,7 @@ public final class ArgumentsSplitter<R extends Record> {
         continue;
       }
       // maybe a combination of single letter flags?
-      if (argument.matches("^-[a-zA-Z]{1,5}$")) {
+      if (argument.matches("^-[a-zA-Z]+$")) {
         var flags = argument.substring(1).chars().mapToObj(c -> "-" + (char) c).toList();
         if (flags.stream().allMatch(optionsByName::containsKey)) {
           flags.forEach(flag -> workspace.put(optionsByName.get(flag).name(), true));
