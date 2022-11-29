@@ -13,11 +13,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static java.lang.invoke.MethodHandles.lookup;
-import static test.api.Assertions.assertArrayEquals;
-import static test.api.Assertions.assertEquals;
-import static test.api.Assertions.assertEqualsOptional;
-import static test.api.Assertions.assertThrows;
-import static test.api.Assertions.assertTrue;
+import static test.api.Assertions.*;
 
 class AssortedTests {
 
@@ -141,6 +137,16 @@ class AssortedTests {
     assertEquals(true, options._f);
     assertEquals(true, options._h);
     assertEquals(true, options._z);
+  }
+
+  @Test
+  void flags_trueFalse() {
+    record Options(boolean __verbose, boolean __brief, boolean __x) {};
+    var parser = ArgumentsSplitter.of(lookup(), Options.class);
+    var options = parser.split("--verbose=true", "--brief=false", "--x");
+    assertTrue(options.__verbose());
+    assertFalse( options.__brief());
+    assertTrue(options.__x());
   }
 
   @Test

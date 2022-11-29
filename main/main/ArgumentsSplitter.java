@@ -1,5 +1,6 @@
 package main;
 
+import static java.lang.Boolean.parseBoolean;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.toCollection;
@@ -129,6 +130,10 @@ public final class ArgumentsSplitter<R extends Record> {
     boolean isRequired() {
       return type == Type.REQUIRED;
     }
+
+    boolean isFlag() {
+      return type == Type.FLAG;
+    }
   }
 
   private final Lookup lookup;
@@ -202,6 +207,7 @@ public final class ArgumentsSplitter<R extends Record> {
         options.stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
     var optionsByName = new HashMap<String, Option>();
     var workspace = new LinkedHashMap<String, Object>();
+    int flagCount = (int) options.stream().filter(Option::isFlag).count();
     for (var option : options) {
       for (var name : option.names()) {
         optionsByName.put(name, option);
@@ -217,26 +223,26 @@ public final class ArgumentsSplitter<R extends Record> {
       // acquire next argument
       var argument = pendingArguments.removeFirst();
       int separator = argument.indexOf('=');
-      var pop = separator == -1;
-      var maybeName = pop ? argument : argument.substring(0, separator);
+      var noValue = separator == -1;
+      var maybeName = noValue ? argument : argument.substring(0, separator);
       // try well-known option first
       if (optionsByName.containsKey(maybeName)) {
         var option = optionsByName.get(maybeName);
         var name = option.name();
         switch (option.type()) {
-          case FLAG -> workspace.put(name, true);
+          case FLAG -> workspace.put(name, noValue || parseBoolean(argument.substring(separator + 1)));
           case KEY_VALUE -> {
             var value =
                 option.nestedSchema() != null
                     ? splitNested(pendingArguments, option)
-                    : pop ? pendingArguments.pop() : argument.substring(separator + 1);
+                    : noValue ? pendingArguments.pop() : argument.substring(separator + 1);
             workspace.put(name, Optional.of(value));
           }
           case REPEATABLE -> {
             var value =
                 option.nestedSchema() != null
                     ? List.of(splitNested(pendingArguments, option))
-                    : pop
+                    : noValue
                         ? List.of(pendingArguments.pop())
                         : List.of(argument.substring(separator + 1).split(","));
             @SuppressWarnings("unchecked")
@@ -248,7 +254,7 @@ public final class ArgumentsSplitter<R extends Record> {
         continue;
       }
       // maybe a combination of single letter flags?
-      if (argument.matches("^-[a-zA-Z]+$")) {
+      if (flagCount > 0 && argument.matches("^-[a-zA-Z]{1,"+flagCount+"}$")) {
         var flags = argument.substring(1).chars().mapToObj(c -> "-" + (char) c).toList();
         if (flags.stream().allMatch(optionsByName::containsKey)) {
           flags.forEach(flag -> workspace.put(optionsByName.get(flag).name(), true));
