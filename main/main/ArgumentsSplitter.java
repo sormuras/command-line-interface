@@ -11,7 +11,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.ParameterizedType;
@@ -34,12 +33,7 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 public final class ArgumentsSplitter<R extends Record> {
-
-  public static <R extends Record> ArgumentsSplitter<R> of(Class<R> schema) {
-    return of(schema, MethodHandles.publicLookup());
-  }
-
-  public static <R extends Record> ArgumentsSplitter<R> of(Class<R> schema, Lookup lookup) {
+  public static <R extends Record> ArgumentsSplitter<R> of(Lookup lookup, Class<R> schema) {
     return new ArgumentsSplitter<>(lookup, schema);
   }
 

@@ -116,7 +116,7 @@ class AssortedTests {
   void conventional() {
     record Options(boolean _flag, Optional<String> _key, List<String> _list, String... more) {
       static Options of(String... args) {
-        return ArgumentsSplitter.of(Options.class, lookup()).split(args);
+        return ArgumentsSplitter.of(lookup(), Options.class).split(args);
       }
     }
     var options = Options.of("-flag", "-key", "value", "-list", "a", "-list=b,o", "1", "2", "3");
@@ -129,14 +129,14 @@ class AssortedTests {
   @Test
   void positional() {
     record Options(boolean a, String first, boolean b, String second, boolean c) {}
-    var objects = ArgumentsSplitter.of(Options.class, lookup()).split("one", "two");
+    var objects = ArgumentsSplitter.of(lookup(), Options.class).split("one", "two");
     assertEquals(new Options(false, "one", false, "two", false), objects);
   }
 
   @Test
   void flags() {
     record Options(boolean _f, boolean _h, boolean _z) {}
-    var parser = ArgumentsSplitter.of(Options.class, lookup());
+    var parser = ArgumentsSplitter.of(lookup(), Options.class);
     var options = parser.split("-zfh");
     assertEquals(true, options._f);
     assertEquals(true, options._h);
@@ -147,7 +147,7 @@ class AssortedTests {
   void nested_keyValue() {
     record SubOptions(String dir, String file) {}
     record MainOptions(boolean __flag, Optional<SubOptions> __release, String... rest) {}
-    var parser = ArgumentsSplitter.of(MainOptions.class, lookup());
+    var parser = ArgumentsSplitter.of(lookup(), MainOptions.class);
     var options = parser.split("--release dirX fileX --flag and the rest".split(" "));
     assertEquals(true, options.__flag);
     assertEquals("dirX", options.__release.orElseThrow().dir());
@@ -159,7 +159,7 @@ class AssortedTests {
   void nested_repeatable() {
     record SubOptions(String dir, String file) {}
     record MainOptions(boolean __flag, List<SubOptions> __release, String... rest) {}
-    var parser = ArgumentsSplitter.of(MainOptions.class, lookup());
+    var parser = ArgumentsSplitter.of(lookup(), MainOptions.class);
     var options =
         parser.split("--release dirX fileX --flag --release dirY fileY and the rest".split(" "));
     assertEquals(true, options.__flag);

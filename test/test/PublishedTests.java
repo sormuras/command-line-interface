@@ -5,6 +5,8 @@ import published.PublishedOptions;
 import test.api.JTest;
 import test.api.JTest.Test;
 
+import java.lang.invoke.MethodHandles;
+
 import static test.api.Assertions.assertFalse;
 import static test.api.Assertions.assertTrue;
 
@@ -15,7 +17,7 @@ class PublishedTests {
 
   @Test
   void checkFlag() {
-    var splitter = ArgumentsSplitter.of(PublishedOptions.class);
+    var splitter = ArgumentsSplitter.of(MethodHandles.publicLookup(), PublishedOptions.class);
     assertFalse(splitter.split().__visible());
     assertTrue(splitter.split("--visible").__visible());
   }

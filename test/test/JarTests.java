@@ -51,7 +51,7 @@ class JarTests {
   }
 
   private static JarOptions parseInput(String line) {
-    return ArgumentsSplitter.of(JarOptions.class, lookup()).split(line.split("\\s+"));
+    return ArgumentsSplitter.of(lookup(), JarOptions.class).split(line.split("\\s+"));
   }
 
   @Test
