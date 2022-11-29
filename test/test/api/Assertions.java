@@ -10,7 +10,7 @@ public final class Assertions {
   }
 
   private static String format(String expected, String actual, String message) {
-    return "expected: `"+expected + "` but was: `" + actual +"` "+ (message.isEmpty() ? "" : ": " + message);
+    return "expected: `" + expected + "` but was: `" + actual + "` " + (message.isEmpty() ? "" : ": " + message);
   }
 
   public static void fail(String message) {
@@ -39,7 +39,7 @@ public final class Assertions {
 
   public static <T> void assertEquals(T expected, T actual, String message) {
     if (Objects.equals(expected, actual)) return;
-    fail(format(String.valueOf(expected), String.valueOf(actual), message ));
+    fail(format(String.valueOf(expected), String.valueOf(actual), message));
   }
 
   public static <T> void assertArrayEquals(T[] expected, T[] actual) {
