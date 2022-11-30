@@ -59,7 +59,7 @@ public final class JTest {
         out.println(className);
         for (var event : events) {
           var status = event.error.isPresent() ? "!!" : "ok";
-          var error = briefError(event.error());
+          var error = event.error().map(Runner::briefError).orElse("");
           out.printf(
               "  [%s] %-" + maxNameLength + "s  %4d ms %s%n",
               status,
@@ -86,18 +86,16 @@ public final class JTest {
               .sum());
     }
 
-    private String briefError(Optional<Throwable> maybeError) {
-      if (maybeError.isEmpty()) return "";
-      Throwable error = maybeError.get();
-      var msg = "  " + error.getMessage();
-      if (msg.indexOf('\n') > 0)
-        msg = msg.substring(0, msg.indexOf('\n'))+"...";
-      var trace = error.getStackTrace();
-      for (StackTraceElement e : trace) {
-        if (!e.getClassName().equals("test.api.Assertions"))
-          return msg + " at " + e;
-      }
-      return msg;
+    private static String briefError(Throwable error) {
+      var message = "  " + error.getMessage();
+      var endOfLine = message.indexOf('\n');
+      var shortMessage = endOfLine != -1 ? message.substring(0, endOfLine) + "..." : message;
+      var location = stream(error.getStackTrace())
+          .filter(element -> !element.getClassName().equals(Assertions.class.getName()))
+          .findFirst()
+          .map(element -> " at " + element)
+          .orElse("");
+      return shortMessage + location;
     }
 
     public void verify() {
