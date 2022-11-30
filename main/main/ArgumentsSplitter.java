@@ -231,14 +231,14 @@ public final class ArgumentsSplitter<R extends Record> {
       if (optionsByName.containsKey(maybeName)) {
         var option = optionsByName.get(maybeName);
         var name = option.name();
-        switch (option.type()) {
-          case FLAG -> workspace.put(name, noValue || parseBoolean(argument.substring(separator + 1)));
+        workspace.put(name, switch (option.type()) {
+          case FLAG -> noValue || parseBoolean(argument.substring(separator + 1));
           case KEY_VALUE -> {
             var value =
                 option.nestedSchema() != null
                     ? splitNested(pendingArguments, option)
                     : noValue ? pendingArguments.pop() : argument.substring(separator + 1);
-            workspace.put(name, Optional.of(value));
+            yield Optional.of(value);
           }
           case REPEATABLE -> {
             var value =
@@ -247,12 +247,11 @@ public final class ArgumentsSplitter<R extends Record> {
                     : noValue
                         ? List.of(pendingArguments.pop())
                         : List.of(argument.substring(separator + 1).split(","));
-            @SuppressWarnings("unchecked")
-            var elements = (List<String>) workspace.get(name);
-            workspace.put(name, Stream.concat(elements.stream(), value.stream()).toList());
+            var elements = (List<?>) workspace.get(name);
+            yield Stream.concat(elements.stream(), value.stream()).toList();
           }
-          default -> throw new IllegalStateException("Programming error");
-        }
+          case VARARGS, REQUIRED -> throw new AssertionError();
+        });
         continue;
       }
       // maybe a combination of single letter flags?
