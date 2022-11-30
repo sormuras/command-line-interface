@@ -251,7 +251,6 @@ public final class ArgumentsSplitter<R extends Record> {
             var elements = (List<String>) workspace.get(name);
             workspace.put(name, Stream.concat(elements.stream(), value.stream()).toList());
           }
-          default -> throw new IllegalStateException("Programming error");
         }
         continue;
       }
