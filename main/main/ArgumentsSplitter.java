@@ -227,31 +227,34 @@ public final class ArgumentsSplitter<R extends Record> {
       int separator = argument.indexOf('=');
       var noValue = separator == -1;
       var maybeName = noValue ? argument : argument.substring(0, separator);
+      var maybeValue = noValue ? "" : argument.substring(separator + 1);
       // try well-known option first
       if (optionsByName.containsKey(maybeName)) {
         var option = optionsByName.get(maybeName);
         var name = option.name();
-        workspace.put(name, switch (option.type()) {
-          case FLAG -> noValue || parseBoolean(argument.substring(separator + 1));
-          case KEY_VALUE -> {
-            var value =
-                option.nestedSchema() != null
-                    ? splitNested(pendingArguments, option)
-                    : noValue ? pendingArguments.pop() : argument.substring(separator + 1);
-            yield Optional.of(value);
-          }
-          case REPEATABLE -> {
-            var value =
-                option.nestedSchema() != null
-                    ? List.of(splitNested(pendingArguments, option))
-                    : noValue
-                        ? List.of(pendingArguments.pop())
-                        : List.of(argument.substring(separator + 1).split(","));
-            var elements = (List<?>) workspace.get(name);
-            yield Stream.concat(elements.stream(), value.stream()).toList();
-          }
-          case VARARGS, REQUIRED -> throw new AssertionError();
-        });
+        workspace.put(
+            name,
+            switch (option.type()) {
+              case FLAG -> noValue || parseBoolean(maybeValue);
+              case KEY_VALUE -> {
+                var value =
+                    option.nestedSchema() != null
+                        ? splitNested(pendingArguments, option)
+                        : noValue ? pendingArguments.pop() : maybeValue;
+                yield Optional.of(value);
+              }
+              case REPEATABLE -> {
+                var value =
+                    option.nestedSchema() != null
+                        ? List.of(splitNested(pendingArguments, option))
+                        : noValue
+                            ? List.of(pendingArguments.pop())
+                            : List.of(maybeValue.split(","));
+                var elements = (List<?>) workspace.get(name);
+                yield Stream.concat(elements.stream(), value.stream()).toList();
+              }
+              case VARARGS, REQUIRED -> throw new AssertionError("Unnamed name? " + name);
+            });
         continue;
       }
       // maybe a combination of single letter flags?
