@@ -50,7 +50,7 @@ public record RecordSplitter<R extends Record>(Lookup lookup, Class<R> schema, A
         var recordComponents = schema.getRecordComponents();
         if (recordComponents == null)
             throw new IllegalArgumentException("the schema is not a record");
-        return new Schema(Arrays.stream(recordComponents).map(RecordSplitter::toOption));
+        return new Schema(Stream.of(recordComponents).map(RecordSplitter::toOption).toArray(Option[]::new));
     }
 
     private static Option toOption(RecordComponent component) {

@@ -1,24 +1,18 @@
 package main;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import static java.util.Arrays.asList;
 import static java.util.stream.Stream.concat;
 
 public final class Schema {
 
     private final List<Option> options;
 
-    public Schema(Stream<Option> options) {
-        this(options.toArray(Option[]::new));
-    }
-
     public Schema(Option...options) {
-        this.options = new ArrayList<>(asList(options));
+        this.options = List.of(options);
     }
 
     public Stream<Option> stream() {
@@ -34,7 +28,7 @@ public final class Schema {
     }
 
     public Schema add(Option option) {
-        return new Schema(concat(options.stream(), Stream.of(option)));
+        return new Schema(concat(options.stream(), Stream.of(option)).toArray(Option[]::new));
     }
 
     public void check() {
