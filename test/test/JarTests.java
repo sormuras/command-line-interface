@@ -1,7 +1,7 @@
 package test;
 
-import main.ArgumentsSplitter;
-import main.ArgumentsSplitter.Name;
+import main.RecordSplitter;
+import main.RecordSplitter.Name;
 import test.JarTests.JarOptions.ChangeDirOptions;
 import test.JarTests.JarOptions.ReleaseOptions;
 import test.api.JTest;
@@ -51,7 +51,7 @@ class JarTests {
   }
 
   private static JarOptions parseInput(String line) {
-    return ArgumentsSplitter.of(lookup(), JarOptions.class).split(line.split("\\s+"));
+    return RecordSplitter.of(lookup(), JarOptions.class).split(line.split("\\s+"));
   }
 
   @Test

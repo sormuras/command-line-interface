@@ -1,11 +1,5 @@
 package test.api;
 
-import static java.lang.System.currentTimeMillis;
-import static java.util.Arrays.asList;
-import static java.util.Arrays.stream;
-import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.groupingBy;
-
 import java.io.PrintStream;
 import java.lang.StackWalker.Option;
 import java.lang.annotation.ElementType;
@@ -21,6 +15,12 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+
+import static java.lang.System.currentTimeMillis;
+import static java.util.Arrays.asList;
+import static java.util.Arrays.stream;
+import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.groupingBy;
 
 /** JUnit on a diet of air and love */
 public final class JTest {
