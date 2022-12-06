@@ -19,7 +19,7 @@ jobs:
       - name: "Setup Java"
         uses: actions/setup-java@main
         with:
-          distribution: 'oracle'
+          distribution: 'microsoft'
           java-version: ${{ matrix.java }}
       - name: "Build"
         run: java build/build.java
