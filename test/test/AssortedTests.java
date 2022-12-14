@@ -1,8 +1,7 @@
 package test;
 
 import main.ArgumentsSplitter;
-import main.RecordSplitter;
-import main.RecordSplitter.Name;
+import main.Name;
 import test.api.JTest;
 import test.api.JTest.Test;
 
@@ -29,10 +28,9 @@ class AssortedTests {
   @Test
   void empty() {
     record Options() {}
-    ArgumentsSplitter<Options> splitter = RecordSplitter.of(lookup(), Options.class);
     IllegalArgumentException ex =
         assertThrows(
-            IllegalArgumentException.class, splitter::split);
+            IllegalArgumentException.class, () -> ArgumentsSplitter.toRecord(Options.class, lookup()));
     assertEquals("At least one option is expected", ex.getMessage());
   }
 
@@ -40,7 +38,7 @@ class AssortedTests {
   void varargs() {
     record Options(String... more) {
       static Options split(String... args) {
-        var splitter = RecordSplitter.of(lookup(), Options.class);
+        var splitter = ArgumentsSplitter.toRecord(Options.class, lookup());
         return splitter.split(args);
       }
     }
@@ -86,8 +84,8 @@ class AssortedTests {
         String... names) {
 
       static final ArgumentsSplitter<Options> PARSER =
-          RecordSplitter.of(lookup(), Options.class)
-                  .with(AssortedTests::expandFileToArgs)
+              ArgumentsSplitter.toRecord(Options.class, lookup())
+                  .withExpand(AssortedTests::expandFileToArgs)
                   .with(String::strip);
 
       Thread.State state() {
@@ -144,7 +142,7 @@ class AssortedTests {
   void conventional() {
     record Options(boolean _flag, Optional<String> _key, List<String> _list, String... more) {
       static Options of(String... args) {
-        return RecordSplitter.of(lookup(), Options.class).split(args);
+        return ArgumentsSplitter.toRecord(Options.class, lookup()).split(args);
       }
     }
     var options = Options.of("-flag", "-key", "value", "-list", "a", "-list=b,o", "1", "2", "3");
@@ -157,14 +155,14 @@ class AssortedTests {
   @Test
   void positional() {
     record Options(boolean a, String first, boolean b, String second, boolean c) {}
-    var objects = RecordSplitter.of(lookup(), Options.class).split("one", "two");
+    var objects = ArgumentsSplitter.toRecord(Options.class, lookup()).split("one", "two");
     assertEquals(new Options(false, "one", false, "two", false), objects);
   }
 
   @Test
   void flags() {
     record Options(boolean _f, boolean _h, boolean _z) {}
-    var parser = RecordSplitter.of(lookup(), Options.class);
+    var parser = ArgumentsSplitter.toRecord(Options.class, lookup());
     var options = parser.split("-zfh");
     assertEquals(true, options._f);
     assertEquals(true, options._h);
@@ -174,7 +172,7 @@ class AssortedTests {
   @Test
   void flags_trueFalse() {
     record Options(boolean __verbose, boolean __brief, boolean __x) {};
-    var parser = RecordSplitter.of(lookup(), Options.class);
+    var parser = ArgumentsSplitter.toRecord(Options.class, lookup());
     var options = parser.split("--verbose=true", "--brief=false", "--x");
     assertTrue(options.__verbose());
     assertFalse( options.__brief());
@@ -185,7 +183,7 @@ class AssortedTests {
   void nested_keyValue() {
     record SubOptions(String dir, String file) {}
     record MainOptions(boolean __flag, Optional<SubOptions> __release, String... rest) {}
-    var parser = RecordSplitter.of(lookup(), MainOptions.class);
+    var parser = ArgumentsSplitter.toRecord(MainOptions.class, lookup());
     var options = parser.split("--release dirX fileX --flag and the rest".split(" "));
     assertEquals(true, options.__flag);
     assertEquals("dirX", options.__release.orElseThrow().dir());
@@ -197,7 +195,7 @@ class AssortedTests {
   void nested_repeatable() {
     record SubOptions(String dir, String file) {}
     record MainOptions(boolean __flag, List<SubOptions> __release, String... rest) {}
-    var parser = RecordSplitter.of(lookup(), MainOptions.class);
+    var parser = ArgumentsSplitter.toRecord(MainOptions.class, lookup());
     var options =
         parser.split("--release dirX fileX --flag --release dirY fileY and the rest".split(" "));
     assertEquals(true, options.__flag);

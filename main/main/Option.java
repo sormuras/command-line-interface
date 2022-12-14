@@ -6,7 +6,7 @@ import java.util.stream.Stream;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
-public record Option(Type type, Set<String> names, String help, Schema nestedSchema) {
+public record Option(Type type, Set<String> names, String help, Schema<?> nestedSchema) {
     public enum Type {
         /**
          * An optional flag, like {@code --verbose}.

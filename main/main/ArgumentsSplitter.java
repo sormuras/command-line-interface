@@ -1,5 +1,6 @@
 package main;
 
+import java.lang.invoke.MethodHandles;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
@@ -13,27 +14,50 @@ import static java.util.stream.Collectors.toCollection;
 @FunctionalInterface
 public interface ArgumentsSplitter<T> {
 
+  static <R extends Record> ArgumentsSplitter<R> toRecord(Class<R> schema, MethodHandles.Lookup lookup) {
+    return of(Records.toSchema(lookup, schema));
+  }
+
+  static ArgumentsSplitter<List<Value>> toValues(Option... options) {
+    return of(Value.toSchema(options));
+  }
+
+  static <X> ArgumentsSplitter<X> of(Schema<X> schema) {
+    return args -> split(schema, args);
+  }
+
   T split(Stream<String> args);
 
   default T split(String... args) {
     return split(Stream.of(args));
   }
 
+  /*
+  Argument preprocessing
+   */
+
   default ArgumentsSplitter<T> with(UnaryOperator<String> preprocessor){
     return args -> split(args.map(preprocessor));
   }
 
-  default ArgumentsSplitter<T> with(Function<String, Stream<String>> preprocessor) {
+  default ArgumentsSplitter<T> withExpand(Function<String, Stream<String>> preprocessor) {
     return args -> split(args.flatMap(preprocessor));
   }
 
-  static Object[] split(Schema schema, Stream<String> args) {
+  default ArgumentsSplitter<T> withAdjust(UnaryOperator<Stream<String>> preprocessor) {
+    return args -> split(preprocessor.apply(args));
+  }
+
+  /*
+  Splitter Implementation
+   */
+
+  private static <X> X split(Schema<X> schema, Stream<String> args) {
     return split(schema, false, args.collect(toCollection(ArrayDeque::new)));
   }
 
-  private static Object[] split(Schema schema, boolean nested, ArrayDeque<String> pendingArguments) {
+  private static <X> X split(Schema<X> schema, boolean nested, ArrayDeque<String> pendingArguments) {
     requireNonNull(schema, "schema is null");
-    schema.check();
     var requiredOptions =
         schema.stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
     var optionsByName = new HashMap<String, Option>();
@@ -49,7 +73,7 @@ public interface ArgumentsSplitter<T> {
 
     while (true) {
       if (pendingArguments.isEmpty()) {
-        if (requiredOptions.isEmpty()) return workspace.values().toArray();
+        if (requiredOptions.isEmpty()) return schema.create( workspace.values() );
         throw new IllegalArgumentException("Required option(s) missing: " + requiredOptions);
       }
       // acquire next argument
@@ -103,12 +127,12 @@ public interface ArgumentsSplitter<T> {
       }
       // restore pending arguments deque
       pendingArguments.addFirst(argument);
-      if (nested) return workspace.values().toArray();
+      if (nested) return schema.create( workspace.values() );
       // try globbing all pending arguments into a varargs collector
       var varargsOption = schema.varargs();
       if (varargsOption.isPresent()) {
         workspace.put(varargsOption.get().name(), pendingArguments.toArray(String[]::new));
-        return workspace.values().toArray();
+        return schema.create( workspace.values() );
       }
       throw new IllegalArgumentException("Unhandled arguments: " + pendingArguments);
     }

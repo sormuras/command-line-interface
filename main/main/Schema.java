@@ -1,18 +1,16 @@
 package main;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static java.util.stream.Stream.concat;
+public record Schema<T>(List<Option> options, Function<Collection<Object>, T> finalizer) {
 
-public final class Schema {
-
-    private final List<Option> options;
-
-    public Schema(Option...options) {
-        this.options = List.of(options);
+    public T create(Collection<Object> values) {
+        return finalizer.apply(values);
     }
 
     public Stream<Option> stream() {
@@ -27,17 +25,13 @@ public final class Schema {
         return options.stream().filter(Option::isVarargs).findFirst();
     }
 
-    public Schema add(Option option) {
-        return new Schema(concat(options.stream(), Stream.of(option)).toArray(Option[]::new));
+    public Schema {
+        checkCardinality(options);
+        checkDuplicates(options);
+        checkVarargs(options);
     }
 
-    public void check() {
-        checkCardinality();
-        checkDuplicates();
-        checkVarargs();
-    }
-
-     void checkDuplicates() {
+    static void checkDuplicates(List<Option> options) {
         var optionsByName = new HashMap<String, Option>();
         for (var option : options) {
             var names = option.names();
@@ -53,17 +47,17 @@ public final class Schema {
         }
     }
 
-     void checkVarargs() {
-         List<Option> varargs = options.stream().filter(Option::isVarargs).toList();
-         if (varargs.isEmpty()) return;
-         if (varargs.size() > 1)
+    static void checkVarargs(List<Option> options) {
+        List<Option> varargs = options.stream().filter(Option::isVarargs).toList();
+        if (varargs.isEmpty()) return;
+        if (varargs.size() > 1)
             throw new IllegalArgumentException("Too many varargs types specified: " + varargs);
-         var positionals = options.stream().filter(Option::isPositional).toList();
-        if (!positionals.get(positionals.size()-1).isVarargs())
+        var positionals = options.stream().filter(Option::isPositional).toList();
+        if (!positionals.get(positionals.size() - 1).isVarargs())
             throw new IllegalArgumentException("varargs is not at last positional option: " + options);
     }
 
-     void checkCardinality() {
+    static void checkCardinality(List<Option> options) {
         if (options.isEmpty()) throw new IllegalArgumentException("At least one option is expected");
     }
 }

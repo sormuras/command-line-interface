@@ -1,6 +1,6 @@
 package test;
 
-import main.RecordSplitter;
+import main.ArgumentsSplitter;
 import published.PublishedOptions;
 import test.api.JTest;
 import test.api.JTest.Test;
@@ -17,7 +17,7 @@ class PublishedTests {
 
   @Test
   void checkFlag() {
-    var splitter = RecordSplitter.of(MethodHandles.publicLookup(), PublishedOptions.class);
+    var splitter = ArgumentsSplitter.toRecord(PublishedOptions.class, MethodHandles.publicLookup());
     assertFalse(splitter.split().__visible());
     assertTrue(splitter.split("--visible").__visible());
   }
