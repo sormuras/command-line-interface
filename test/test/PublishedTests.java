@@ -4,7 +4,7 @@ import static test.api.Assertions.assertFalse;
 import static test.api.Assertions.assertTrue;
 
 import java.lang.invoke.MethodHandles;
-import main.ArgumentsSplitter;
+import main.Splitter;
 import published.PublishedOptions;
 import test.api.JTest;
 import test.api.JTest.Test;
@@ -16,7 +16,7 @@ class PublishedTests {
 
   @Test
   void checkFlag() {
-    var splitter = ArgumentsSplitter.toRecord(PublishedOptions.class, MethodHandles.publicLookup());
+    var splitter = Splitter.of(PublishedOptions.class, MethodHandles.publicLookup());
     assertFalse(splitter.split().__visible());
     assertTrue(splitter.split("--visible").__visible());
   }

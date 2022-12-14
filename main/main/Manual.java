@@ -3,7 +3,7 @@ package main;
 import java.util.Comparator;
 import java.util.StringJoiner;
 
-public class ArgumentManual {
+public class Manual {
 
   static String help(Schema<?> schema) {
     return help(schema, 2);
@@ -18,7 +18,7 @@ public class ArgumentManual {
       var suffix =
           switch (option.type()) {
             case FLAG -> " (flag)";
-            case KEY_VALUE -> " <value>";
+            case SINGLE -> " <value>";
             case REPEATABLE -> " <value> (repeatable)";
             case REQUIRED -> " (required)";
             case VARARGS -> "...";

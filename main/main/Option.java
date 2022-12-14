@@ -3,7 +3,11 @@ package main;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 public record Option(Type type, Set<String> names, String help, Schema<?> nestedSchema) {
@@ -11,7 +15,7 @@ public record Option(Type type, Set<String> names, String help, Schema<?> nested
     /** An optional flag, like {@code --verbose}. */
     FLAG(false),
     /** An optional key-value pair, like {@code --version 47.11}. */
-    KEY_VALUE(Optional.empty()),
+    SINGLE(Optional.empty()),
     /** An optional and repeatable key, like {@code --with alpha --with omega} */
     REPEATABLE(List.of()),
     /** A required positional option */
@@ -31,11 +35,15 @@ public record Option(Type type, Set<String> names, String help, Schema<?> nested
 
     static Type valueOf(Class<?> type) {
       if (type == Boolean.class || type == boolean.class) return FLAG;
-      if (type == Optional.class) return KEY_VALUE;
+      if (type == Optional.class) return SINGLE;
       if (type == List.class) return REPEATABLE;
       if (type == String.class) return REQUIRED;
       if (type == String[].class) return VARARGS;
       throw new IllegalArgumentException("Unsupported value type: " + type);
+    }
+
+    public Option option(String... names) {
+      return new Option(this, names);
     }
   }
 

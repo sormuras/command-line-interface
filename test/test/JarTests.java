@@ -6,8 +6,8 @@ import static test.api.Assertions.assertEqualsOptional;
 
 import java.util.List;
 import java.util.Optional;
-import main.ArgumentsSplitter;
-import main.Name;
+import main.RecordSchemaSupport.Name;
+import main.Splitter;
 import test.JarTests.JarOptions.ChangeDirOptions;
 import test.JarTests.JarOptions.ReleaseOptions;
 import test.api.JTest;
@@ -49,13 +49,13 @@ class JarTests {
     record ReleaseOptions(String version, @Name("-C") List<ChangeDirOptions> Cs) {}
   }
 
-  private static JarOptions parseInput(String line) {
-    return ArgumentsSplitter.toRecord(JarOptions.class, lookup()).split(line.split("\\s+"));
+  private static JarOptions splitInput(String line) {
+    return Splitter.of(JarOptions.class, lookup()).split(line.split("\\s+"));
   }
 
   @Test
   void example1() {
-    var options = parseInput("--create --file classes.jar Foo.class Bar.class");
+    var options = splitInput("--create --file classes.jar Foo.class Bar.class");
     assertEquals(true, options.create());
     assertEqualsOptional("classes.jar", options.file());
     assertEquals(List.of("Foo.class", "Bar.class"), List.of(options.files()));
@@ -64,7 +64,7 @@ class JarTests {
   @Test
   void example2() {
     var options =
-        parseInput(
+        splitInput(
             "--create --date=\"2021-01-06T14:36:00+02:00\" --file=classes.jar Foo.class Bar.class");
     assertEquals(true, options.create());
     assertEqualsOptional("\"2021-01-06T14:36:00+02:00\"", options.date());
@@ -74,7 +74,7 @@ class JarTests {
 
   @Test
   void example3() {
-    var options = parseInput("--create --file classes.jar --manifest mymanifest -C foo/ .");
+    var options = splitInput("--create --file classes.jar --manifest mymanifest -C foo/ .");
     assertEquals(true, options.create());
     assertEqualsOptional("classes.jar", options.file());
     assertEqualsOptional("mymanifest", options.manifest());
@@ -84,7 +84,7 @@ class JarTests {
   @Test
   void example4() {
     var options =
-        parseInput(
+        splitInput(
             "--create --file foo.jar --main-class com.foo.Main --module-version 1.0 -C foo/classes"
                 + " resources");
     assertEquals(true, options.create());
@@ -99,10 +99,10 @@ class JarTests {
   @Test
   void example5() {
     var options =
-        parseInput(
+        splitInput(
             """
-                        --create --file foo.jar --main-class com.foo.Hello -C classes .
-                        --release 10 -C classes-10 .""");
+            --create --file foo.jar --main-class com.foo.Hello -C classes .
+            --release 10 -C classes-10 .""");
     assertEquals(true, options.create());
     assertEqualsOptional("foo.jar", options.file());
     assertEqualsOptional("com.foo.Hello", options.mainClass());

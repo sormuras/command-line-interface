@@ -2,6 +2,10 @@ package main;
 
 import static java.util.Objects.requireNonNull;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
@@ -18,16 +22,28 @@ import java.util.stream.Stream;
  * Uses {@link Record}s to derive a {@link Schema} from the {@link RecordComponent}s as well as
  * container for the result values.
  */
-record Records() {
+public record RecordSchemaSupport() {
 
-  public static <T extends Record> Schema<T> toSchema(Lookup lookup, Class<T> schema) {
-    if (schema == null) return null;
-    return new Schema<>(
-        Stream.of(schema.getRecordComponents()).map(comp -> toOption(lookup, comp)).toList(),
-        components -> createRecord(lookup, schema, components));
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.RECORD_COMPONENT)
+  public @interface Help {
+    String[] value();
   }
 
-  private static Option toOption(Lookup lookup, RecordComponent component) {
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.RECORD_COMPONENT)
+  public @interface Name {
+    String[] value();
+  }
+
+  static <T extends Record> Schema<T> toSchema(Class<T> schema, Lookup lookup) {
+    if (schema == null) return null;
+    return new Schema<>(
+        Stream.of(schema.getRecordComponents()).map(comp -> toOption(comp, lookup)).toList(),
+        components -> createRecord(schema, components, lookup));
+  }
+
+  private static Option toOption(RecordComponent component, Lookup lookup) {
     requireNonNull(component, "component is null");
     var nameAnno = component.getAnnotation(Name.class);
     var helpAnno = component.getAnnotation(Help.class);
@@ -38,7 +54,7 @@ record Records() {
     var type = Option.Type.valueOf(component.getType());
     var help = helpAnno != null ? String.join("\n", helpAnno.value()) : "";
     var nestedSchema = toNestedSchema(component);
-    return new Option(type, names, help, toSchema(lookup, nestedSchema));
+    return new Option(type, names, help, toSchema(nestedSchema, lookup));
   }
 
   private static Class<? extends Record> toNestedSchema(RecordComponent component) {
@@ -49,7 +65,7 @@ record Records() {
         : null;
   }
 
-  private static MethodHandle constructor(Lookup lookup, Class<?> schema) {
+  private static MethodHandle constructor(Class<?> schema, Lookup lookup) {
     var components = schema.getRecordComponents();
     var types = Stream.of(components).map(RecordComponent::getType).toArray(Class[]::new);
     try {
@@ -60,10 +76,10 @@ record Records() {
   }
 
   private static <T extends Record> T createRecord(
-      Lookup lookup, Class<T> schema, Collection<Object> values) {
+          Class<T> schema, Collection<Object> values, Lookup lookup) {
     try {
       return schema.cast(
-          constructor(lookup, schema).asFixedArity().invokeWithArguments(values.toArray()));
+          constructor(schema, lookup).asFixedArity().invokeWithArguments(values.toArray()));
     } catch (RuntimeException | Error e) {
       throw e;
     } catch (Throwable e) {
