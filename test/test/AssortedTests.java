@@ -1,9 +1,7 @@
 package test;
 
-import main.ArgumentsSplitter;
-import main.Name;
-import test.api.JTest;
-import test.api.JTest.Test;
+import static java.lang.invoke.MethodHandles.lookup;
+import static test.api.Assertions.*;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -15,9 +13,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
-
-import static java.lang.invoke.MethodHandles.lookup;
-import static test.api.Assertions.*;
+import main.ArgumentsSplitter;
+import main.Name;
+import test.api.JTest;
+import test.api.JTest.Test;
 
 class AssortedTests {
 
@@ -30,7 +29,8 @@ class AssortedTests {
     record Options() {}
     IllegalArgumentException ex =
         assertThrows(
-            IllegalArgumentException.class, () -> ArgumentsSplitter.toRecord(Options.class, lookup()));
+            IllegalArgumentException.class,
+            () -> ArgumentsSplitter.toRecord(Options.class, lookup()));
     assertEquals("At least one option is expected", ex.getMessage());
   }
 
@@ -50,27 +50,27 @@ class AssortedTests {
   }
 
   static Stream<String> expandFileToArgs(String arg) {
-      if (arg.startsWith("@") && !(arg.startsWith("@@"))) {
-        var file = Path.of(arg.substring(1));
-        List<String> lines;
-        try {
-          lines = Files.readAllLines(file);
-        } catch (IOException e) {
-          throw new UncheckedIOException(e);
-        }
-        List<String> filtered = new ArrayList<>();
-        for (var line : lines) {
-          line = line.strip();
-          if (line.isEmpty()) continue;
-          if (line.startsWith("#")) continue;
-          if (line.startsWith("@") && !line.startsWith("@@")) {
-            throw new IllegalArgumentException("Expand arguments file not allowed: " + line);
-          }
-          filtered.add(line);
-        }
-        return filtered.stream();
+    if (arg.startsWith("@") && !(arg.startsWith("@@"))) {
+      var file = Path.of(arg.substring(1));
+      List<String> lines;
+      try {
+        lines = Files.readAllLines(file);
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
       }
-      return Stream.of(arg);
+      List<String> filtered = new ArrayList<>();
+      for (var line : lines) {
+        line = line.strip();
+        if (line.isEmpty()) continue;
+        if (line.startsWith("#")) continue;
+        if (line.startsWith("@") && !line.startsWith("@@")) {
+          throw new IllegalArgumentException("Expand arguments file not allowed: " + line);
+        }
+        filtered.add(line);
+      }
+      return filtered.stream();
+    }
+    return Stream.of(arg);
   }
 
   @Test
@@ -84,9 +84,9 @@ class AssortedTests {
         String... names) {
 
       static final ArgumentsSplitter<Options> PARSER =
-              ArgumentsSplitter.toRecord(Options.class, lookup())
-                  .withExpand(AssortedTests::expandFileToArgs)
-                  .with(String::strip);
+          ArgumentsSplitter.toRecord(Options.class, lookup())
+              .withExpand(AssortedTests::expandFileToArgs)
+              .with(String::strip);
 
       Thread.State state() {
         return Thread.State.valueOf(thread_state);
@@ -135,7 +135,7 @@ class AssortedTests {
         List.of(RetentionPolicy.RUNTIME, RetentionPolicy.CLASS, RetentionPolicy.SOURCE),
         options.policies());
     assertEquals(List.of("Joe", "Jim"), List.of(options.names));
-    //TODO assertTrue(Options.PARSER.help().isEmpty(), "No @Help, no help()");
+    // TODO assertTrue(Options.PARSER.help().isEmpty(), "No @Help, no help()");
   }
 
   @Test
@@ -171,11 +171,12 @@ class AssortedTests {
 
   @Test
   void flags_trueFalse() {
-    record Options(boolean __verbose, boolean __brief, boolean __x) {};
+    record Options(boolean __verbose, boolean __brief, boolean __x) {}
+    ;
     var parser = ArgumentsSplitter.toRecord(Options.class, lookup());
     var options = parser.split("--verbose=true", "--brief=false", "--x");
     assertTrue(options.__verbose());
-    assertFalse( options.__brief());
+    assertFalse(options.__brief());
     assertTrue(options.__x());
   }
 

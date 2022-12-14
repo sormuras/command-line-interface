@@ -1,18 +1,17 @@
 package test;
 
+import static java.lang.invoke.MethodHandles.lookup;
+import static test.api.Assertions.assertEquals;
+import static test.api.Assertions.assertEqualsOptional;
+
+import java.util.List;
+import java.util.Optional;
 import main.ArgumentsSplitter;
 import main.Name;
 import test.JarTests.JarOptions.ChangeDirOptions;
 import test.JarTests.JarOptions.ReleaseOptions;
 import test.api.JTest;
 import test.api.JTest.Test;
-
-import java.util.List;
-import java.util.Optional;
-
-import static java.lang.invoke.MethodHandles.lookup;
-import static test.api.Assertions.assertEquals;
-import static test.api.Assertions.assertEqualsOptional;
 
 class JarTests {
 

@@ -1,5 +1,9 @@
 package main;
 
+import static java.lang.Boolean.parseBoolean;
+import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.toCollection;
+
 import java.lang.invoke.MethodHandles;
 import java.util.*;
 import java.util.function.Function;
@@ -7,14 +11,11 @@ import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import static java.lang.Boolean.parseBoolean;
-import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.toCollection;
-
 @FunctionalInterface
 public interface ArgumentsSplitter<T> {
 
-  static <R extends Record> ArgumentsSplitter<R> toRecord(Class<R> schema, MethodHandles.Lookup lookup) {
+  static <R extends Record> ArgumentsSplitter<R> toRecord(
+      Class<R> schema, MethodHandles.Lookup lookup) {
     return of(Records.toSchema(lookup, schema));
   }
 
@@ -36,7 +37,7 @@ public interface ArgumentsSplitter<T> {
   Argument preprocessing
    */
 
-  default ArgumentsSplitter<T> with(UnaryOperator<String> preprocessor){
+  default ArgumentsSplitter<T> with(UnaryOperator<String> preprocessor) {
     return args -> split(args.map(preprocessor));
   }
 
@@ -56,7 +57,8 @@ public interface ArgumentsSplitter<T> {
     return split(schema, false, args.collect(toCollection(ArrayDeque::new)));
   }
 
-  private static <X> X split(Schema<X> schema, boolean nested, ArrayDeque<String> pendingArguments) {
+  private static <X> X split(
+      Schema<X> schema, boolean nested, ArrayDeque<String> pendingArguments) {
     requireNonNull(schema, "schema is null");
     var requiredOptions =
         schema.stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
@@ -73,7 +75,7 @@ public interface ArgumentsSplitter<T> {
 
     while (true) {
       if (pendingArguments.isEmpty()) {
-        if (requiredOptions.isEmpty()) return schema.create( workspace.values() );
+        if (requiredOptions.isEmpty()) return schema.create(workspace.values());
         throw new IllegalArgumentException("Required option(s) missing: " + requiredOptions);
       }
       // acquire next argument
@@ -127,12 +129,12 @@ public interface ArgumentsSplitter<T> {
       }
       // restore pending arguments deque
       pendingArguments.addFirst(argument);
-      if (nested) return schema.create( workspace.values() );
+      if (nested) return schema.create(workspace.values());
       // try globbing all pending arguments into a varargs collector
       var varargsOption = schema.varargs();
       if (varargsOption.isPresent()) {
         workspace.put(varargsOption.get().name(), pendingArguments.toArray(String[]::new));
-        return schema.create( workspace.values() );
+        return schema.create(workspace.values());
       }
       throw new IllegalArgumentException("Unhandled arguments: " + pendingArguments);
     }
@@ -141,5 +143,4 @@ public interface ArgumentsSplitter<T> {
   private static Object splitNested(ArrayDeque<String> pendingArguments, Option option) {
     return split(option.nestedSchema(), true, pendingArguments);
   }
-
 }
