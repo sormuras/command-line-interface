@@ -1,7 +1,5 @@
 package main;
 
-import static java.util.Objects.requireNonNull;
-
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
@@ -30,7 +28,6 @@ class RecordSchemaSupport {
   }
 
   private static Option toOption(RecordComponent component, Lookup lookup) {
-    requireNonNull(component, "component is null");
     var nameAnno = component.getAnnotation(Name.class);
     var helpAnno = component.getAnnotation(Help.class);
     var names =
