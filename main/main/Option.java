@@ -7,7 +7,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Stream;
 
 public record Option(Type type, Set<String> names, String help, Schema<?> nestedSchema) {
   public enum Type {
