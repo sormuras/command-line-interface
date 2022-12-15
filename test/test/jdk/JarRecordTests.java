@@ -8,15 +8,15 @@ import java.util.List;
 import java.util.Optional;
 import main.RecordSchemaSupport.Name;
 import main.Splitter;
-import test.jdk.JarTests.JarOptions.ChangeDirOptions;
-import test.jdk.JarTests.JarOptions.ReleaseOptions;
 import test.api.JTest;
 import test.api.JTest.Test;
+import test.jdk.JarRecordTests.JarOptions.ChangeDirOptions;
+import test.jdk.JarRecordTests.JarOptions.ReleaseOptions;
 
-public class JarTests {
+public class JarRecordTests {
 
   public static void main(String... args) {
-    JTest.runTests(new JarTests(), args);
+    JTest.runTests(new JarRecordTests(), args);
   }
 
   record JarOptions(

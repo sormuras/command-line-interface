@@ -1,44 +1,68 @@
 package main;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 public sealed interface Value {
 
-  record FlagValue(boolean value) implements Value {}
+  Option option();
 
-  record SingleValue(Optional<String> value) implements Value {}
+  record FlagValue(Option option, boolean value) implements Value {}
 
-  record RepeatableValue(List<String> value) implements Value {}
+  record SingleValue(Option option, Optional<String> value) implements Value {}
 
-  record RequiredValue(String value) implements Value {}
+  record RepeatableValue(Option option, List<String> value) implements Value {}
 
-  record VarargsValue(String... value) implements Value {}
+  record RequiredValue(Option option, String value) implements Value {}
 
-  @SuppressWarnings("unchecked")
-  static Value toValue(Object rawValue) {
-    if (rawValue instanceof String value) return new RequiredValue(value);
-    if (rawValue instanceof List<?> value) return new RepeatableValue((List<String>) value);
-    if (rawValue instanceof Optional<?> value) return new SingleValue((Optional<String>) value);
-    if (rawValue instanceof Boolean value) return new FlagValue(value);
-    if (rawValue instanceof String[] value) return new VarargsValue(value);
-    throw new IllegalArgumentException();
+  record VarargsValue(Option option, String... value) implements Value {
+    @Override
+    public boolean equals(Object obj) {
+      return obj instanceof VarargsValue other
+          && option.equals(other.option)
+          && Arrays.equals(value, other.value);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(option, Arrays.hashCode(value));
+    }
   }
 
   static Schema<List<Value>> toSchema(boolean pruned, Option... options) {
-    return new Schema<>(
-        List.of(options),
-        values -> {
-          var plain = values.stream().map(Value::toValue);
-          return !pruned
-              ? plain.toList()
-              : plain
-                  .filter(value -> !new FlagValue(false).equals(value))
-                  .filter(value -> !new SingleValue(Optional.empty()).equals(value))
-                  .filter(value -> !new RepeatableValue(List.of()).equals(value))
-                  // do not filter required
-                  .filter(value -> !new VarargsValue().equals(value))
-                  .toList();
-        });
+    var list = List.of(options);
+    return new Schema<>(list, values -> evaluate(list, values, pruned));
+  }
+
+  static List<Value> evaluate(List<Option> options, Collection<Object> collection, boolean pruned) {
+    assert options.size() != collection.size() : "size mismatch";
+    var objects = List.copyOf(collection);
+    var values = new ArrayList<Value>();
+    for (int i = 0; i < options.size(); i++) {
+      var option = options.get(i);
+      var object = objects.get(i);
+      var value = evaluate(option, object, !pruned);
+      if (value == null) continue;
+      values.add(value);
+    }
+    return List.copyOf(values);
+  }
+
+  @SuppressWarnings("unchecked")
+  static Value evaluate(Option option, Object object, boolean always) {
+    if (object instanceof Boolean value)
+      return always || value /* == true */ ? new FlagValue(option, value) : null;
+    if (object instanceof Optional<?> value)
+      return always || value.isPresent() ? new SingleValue(option, (Optional<String>) value) : null;
+    if (object instanceof List<?> value)
+      return always || !value.isEmpty() ? new RepeatableValue(option, (List<String>) value) : null;
+    if (object instanceof String value) return new RequiredValue(option, value); // always!
+    if (object instanceof String[] value)
+      return always || value.length > 0 ? new VarargsValue(option, value) : null;
+    throw new Error("option type not handled: " + option.getClass());
   }
 }

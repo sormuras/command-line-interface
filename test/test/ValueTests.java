@@ -7,7 +7,6 @@ import static test.api.Assertions.assertEquals;
 
 import java.util.List;
 import java.util.Optional;
-
 import main.Splitter;
 import main.Value;
 import test.api.JTest;
@@ -20,12 +19,22 @@ class ValueTests {
 
   @Test
   void test() {
-    var splitter =
-        Splitter.of(
-            FLAG.option("-f", "--flag"), SINGLE.option("-t", "--text"), REQUIRED.option("-r"));
+    var flag = FLAG.option("-f", "--flag");
+    var text = SINGLE.option("-t", "--text");
+    var required = REQUIRED.option("-r");
 
     assertEquals(
-        List.of(new Value.FlagValue(true), new Value.RequiredValue("value")),
-        splitter.split("-f", "value"));
+        List.of(
+            new Value.FlagValue(flag, true),
+            new Value.SingleValue(text, Optional.empty()),
+            new Value.RequiredValue(required, "value")),
+        Splitter.of(false, flag, text, required).split("-f", "value"));
+
+    assertEquals(
+        List.of(
+            new Value.FlagValue(flag, true),
+            // pruned
+            new Value.RequiredValue(required, "value")),
+        Splitter.of(true, flag, text, required).split("-f", "value"));
   }
 }
