@@ -7,6 +7,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
@@ -25,7 +26,8 @@ public interface Splitter<T> {
   }
 
   static <X> Splitter<X> of(Schema<X> schema) {
-    return args -> schema.split(schema, false, args.collect(toCollection(ArrayDeque::new)));
+    Objects.requireNonNull(schema, "schema is null");
+    return args -> schema.split(false, args.collect(toCollection(ArrayDeque::new)));
   }
 
   T split(Stream<String> args);

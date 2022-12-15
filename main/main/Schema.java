@@ -53,15 +53,14 @@ public record Schema<T>(List<Option> options, Function<? super List<Object>, ? e
       throw new IllegalArgumentException("varargs is not at last positional option: " + options);
   }
 
-  static <X> X split(Schema<X> schema, boolean nested, ArrayDeque<String> pendingArguments) {
-    requireNonNull(schema, "schema is null");
+  T split(boolean nested, ArrayDeque<String> pendingArguments) {
     var requiredOptions =
-        schema.options().stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
+        options.stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
     var optionsByName = new HashMap<String, Option>();
     var workspace = new LinkedHashMap<String, Object>();
-    var flagCount = schema.options().stream().filter(Option::isFlag).count();
+    var flagCount = options.stream().filter(Option::isFlag).count();
     var flagPattern = flagCount == 0 ? null : Pattern.compile("^-[a-zA-Z]{1," + flagCount + "}$");
-    for (var option : schema.options()) {
+    for (var option : options) {
       for (var name : option.names()) {
         optionsByName.put(name, option);
       }
@@ -70,7 +69,7 @@ public record Schema<T>(List<Option> options, Function<? super List<Object>, ? e
 
     while (true) {
       if (pendingArguments.isEmpty()) {
-        if (requiredOptions.isEmpty()) return schema.create(workspace.values());
+        if (requiredOptions.isEmpty()) return create(workspace.values());
         throw new IllegalArgumentException("Required option(s) missing: " + requiredOptions);
       }
       // acquire next argument
@@ -124,19 +123,19 @@ public record Schema<T>(List<Option> options, Function<? super List<Object>, ? e
       }
       // restore pending arguments deque
       pendingArguments.addFirst(argument);
-      if (nested) return schema.create(workspace.values());
+      if (nested) return create(workspace.values());
       // try globbing all pending arguments into a varargs collector
-      var varargsOption = schema.options.stream().filter(Option::isVarargs).findFirst();
+      var varargsOption = options.stream().filter(Option::isVarargs).findFirst();
       if (varargsOption.isPresent()) {
         workspace.put(varargsOption.get().name(), pendingArguments.toArray(String[]::new));
-        return schema.create(workspace.values());
+        return create(workspace.values());
       }
       throw new IllegalArgumentException("Unhandled arguments: " + pendingArguments);
     }
   }
 
-  private static Object splitNested(ArrayDeque<String> pendingArguments, Option option) {
-    return split(option.nestedSchema(), true, pendingArguments);
+  private Object splitNested(ArrayDeque<String> pendingArguments, Option option) {
+    return option.nestedSchema().split(true, pendingArguments);
   }
 
   private T create(Collection<Object> values) {
