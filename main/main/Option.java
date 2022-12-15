@@ -69,8 +69,9 @@ public record Option(Type type, Set<String> names, String help, Schema<?> nested
     return set;
   }
 
-  public Option withHelp(String text) {
-    return new Option(type, names, text, nestedSchema);
+  public Option withHelp(String helpText) {
+    requireNonNull(names, "helpText is null");
+    return new Option(type, names, helpText, nestedSchema);
   }
 
   String name() {
