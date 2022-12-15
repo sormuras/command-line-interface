@@ -18,6 +18,7 @@ public record Schema<T>(List<Option> options, Function<? super List<Object>, ? e
   public Schema {
     requireNonNull(options, "options is null");
     requireNonNull(finalizer, "finalizer is null");
+    options = List.copyOf(options);
     checkCardinality(options);
     checkDuplicates(options);
     checkVarargs(options);
