@@ -38,7 +38,7 @@ public sealed interface Value {
     return new Schema<>(list, values -> evaluate(list, values, pruned));
   }
 
-  static List<Value> evaluate(List<Option> options, Collection<Object> collection, boolean pruned) {
+  private static List<Value> evaluate(List<Option> options, Collection<Object> collection, boolean pruned) {
     assert options.size() != collection.size() : "size mismatch";
     var objects = List.copyOf(collection);
     var values = new ArrayList<Value>();
@@ -53,7 +53,7 @@ public sealed interface Value {
   }
 
   @SuppressWarnings("unchecked")
-  static Value evaluate(Option option, Object object, boolean always) {
+  private static Value evaluate(Option option, Object object, boolean always) {
     if (object instanceof Boolean value)
       return always || value /* == true */ ? new FlagValue(option, value) : null;
     if (object instanceof Optional<?> value)
@@ -63,6 +63,6 @@ public sealed interface Value {
     if (object instanceof String value) return new RequiredValue(option, value); // always!
     if (object instanceof String[] value)
       return always || value.length > 0 ? new VarargsValue(option, value) : null;
-    throw new Error("option type not handled: " + option.getClass());
+    throw new AssertionError("option type not handled: " + option.getClass().getName());
   }
 }
