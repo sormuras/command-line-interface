@@ -1,7 +1,6 @@
 package main;
 
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -49,14 +48,25 @@ public record Option(Type type, Set<String> names, String help, Schema<?> nested
 
   public Option {
     requireNonNull(type, "type is null");
-    requireNonNull(names, "named is null");
+    requireNonNull(names, "names is null");
     requireNonNull(help, "help is null");
     names = Collections.unmodifiableSet(new LinkedHashSet<>(names));
     if (names.isEmpty()) throw new IllegalArgumentException("no name defined");
   }
 
   public Option(Type type, String... names) {
-    this(type, Stream.of(names).collect(toUnmodifiableSet()), "", null);
+    this(type, checkDuplicates(names), "", null);
+  }
+
+  private static Set<String> checkDuplicates(String... names) {
+    requireNonNull(names, "names is null");
+    var set = new LinkedHashSet<String>();
+    for(var name: names) {
+      if (!set.add(name)) {
+        throw new IllegalArgumentException("duplicate names " + name);
+      }
+    }
+    return set;
   }
 
   public Option withHelp(String text) {
