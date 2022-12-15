@@ -71,6 +71,9 @@ public record Option(Type type, Set<String> names, String help, Schema<?> nested
 
   public Option withHelp(String helpText) {
     requireNonNull(names, "helpText is null");
+    if (!help.isEmpty()) {
+      throw new IllegalStateException("option already has an help text");
+    }
     return new Option(type, names, helpText, nestedSchema);
   }
 
