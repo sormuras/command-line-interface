@@ -10,7 +10,12 @@ public final class Assertions {
   }
 
   private static String format(String expected, String actual, String message) {
-    return "expected: `" + expected + "` but was: `" + actual + "` " + (message.isEmpty() ? "" : ": " + message);
+    return "expected: `"
+        + expected
+        + "` but was: `"
+        + actual
+        + "` "
+        + (message.isEmpty() ? "" : ": " + message);
   }
 
   public static void fail(String message) {
@@ -47,7 +52,8 @@ public final class Assertions {
     fail(format(Arrays.toString(expected), Arrays.toString(actual), ""));
   }
 
-  public static <E extends RuntimeException> E assertThrows(Class<? extends E> expected, Runnable test) {
+  public static <E extends RuntimeException> E assertThrows(
+      Class<? extends E> expected, Runnable test) {
     try {
       test.run();
       fail("Expected a " + expected.getSimpleName() + " exception but nothing was thrown.");

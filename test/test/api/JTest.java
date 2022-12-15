@@ -54,21 +54,23 @@ public final class JTest {
       requireNonNull(out);
       int maxNameLength =
           events.stream().mapToInt(ev -> ev.test.getName().length()).max().orElse(0);
-      var map = events.stream().collect(groupingBy(e -> e.test.getDeclaringClass().getSimpleName()));
-      map.forEach((className, events) -> {
-        out.println(className);
-        for (var event : events) {
-          var status = event.error.isPresent() ? "!!" : "ok";
-          var error = event.error().map(Runner::briefError).orElse("");
-          out.printf(
-              "  [%s] %-" + maxNameLength + "s  %4d ms %s%n",
-              status,
-              event.test.getName(),
-              event.executionTime.toMillis(),
-              error);
-        }
-        out.println();
-      });
+      var map =
+          events.stream().collect(groupingBy(e -> e.test.getDeclaringClass().getSimpleName()));
+      map.forEach(
+          (className, events) -> {
+            out.println(className);
+            for (var event : events) {
+              var status = event.error.isPresent() ? "!!" : "ok";
+              var error = event.error().map(Runner::briefError).orElse("");
+              out.printf(
+                  "  [%s] %-" + maxNameLength + "s  %4d ms %s%n",
+                  status,
+                  event.test.getName(),
+                  event.executionTime.toMillis(),
+                  error);
+            }
+            out.println();
+          });
       out.println("=".repeat(maxNameLength + 16));
       out.printf(
           "  [ok] %3d   %" + maxNameLength + "d ms%n",
@@ -90,17 +92,18 @@ public final class JTest {
       var message = "  " + error.getMessage();
       var endOfLine = message.indexOf('\n');
       var shortMessage = endOfLine != -1 ? message.substring(0, endOfLine) + "..." : message;
-      var location = stream(error.getStackTrace())
-          .filter(element -> !element.getClassName().equals(Assertions.class.getName()))
-          .findFirst()
-          .map(element -> " at " + element)
-          .orElse("");
+      var location =
+          stream(error.getStackTrace())
+              .filter(element -> !element.getClassName().equals(Assertions.class.getName()))
+              .findFirst()
+              .map(element -> " at " + element)
+              .orElse("");
       return shortMessage + location;
     }
 
     public void verify() {
       var verifyError = new AssertionError();
-      for(var event: events) {
+      for (var event : events) {
         event.error.ifPresent(verifyError::addSuppressed);
       }
       if (verifyError.getSuppressed().length != 0) {
@@ -110,7 +113,8 @@ public final class JTest {
   }
 
   private static class LookupAccess {
-    private static final StackWalker STACK_WALKER = StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE);
+    private static final StackWalker STACK_WALKER =
+        StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE);
 
     static Lookup privateLookup(Class<?> callerClass) {
       try {
