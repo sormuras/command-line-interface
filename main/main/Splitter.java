@@ -31,7 +31,7 @@ public interface Splitter<T> {
     return of(Value.toSchema(pruned, options));
   }
 
-  static <X> Splitter<X> of(Schema<X> schema) {
+  static <T> Splitter<T> of(Schema<T> schema) {
     Objects.requireNonNull(schema, "schema is null");
     return args -> {
       requireNonNull(args, "args is null");
