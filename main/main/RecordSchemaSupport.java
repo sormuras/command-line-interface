@@ -33,11 +33,11 @@ class RecordSchemaSupport {
 
   static <T extends Record> Schema<T> toSchema(Lookup lookup, Class<T> schema) {
     return new Schema<>(
-        Stream.of(schema.getRecordComponents()).map(comp -> toOption(comp, lookup)).toList(),
+        Stream.of(schema.getRecordComponents()).map(comp -> toOption(lookup, comp)).toList(),
         components -> createRecord(schema, components, lookup));
   }
 
-  private static Option toOption(RecordComponent component, Lookup lookup) {
+  private static Option toOption(Lookup lookup, RecordComponent component) {
     var nameAnno = component.getAnnotation(Name.class);
     var helpAnno = component.getAnnotation(Help.class);
     var names =
@@ -67,7 +67,7 @@ class RecordSchemaSupport {
         : null;
   }
 
-  private static MethodHandle constructor(Class<?> schema, Lookup lookup) {
+  private static MethodHandle constructor(Lookup lookup, Class<?> schema) {
     var components = schema.getRecordComponents();
     var types = Stream.of(components).map(RecordComponent::getType).toArray(Class[]::new);
     try {
@@ -81,7 +81,7 @@ class RecordSchemaSupport {
           Class<T> schema, Collection<Object> values, Lookup lookup) {
     try {
       return schema.cast(
-          constructor(schema, lookup).asFixedArity().invokeWithArguments(values.toArray()));
+          constructor(lookup, schema).asFixedArity().invokeWithArguments(values.toArray()));
     } catch (RuntimeException | Error e) {
       throw e;
     } catch (Throwable e) {
