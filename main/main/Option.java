@@ -31,15 +31,6 @@ public record Option(Type type, Set<String> names, String help, Schema<?> nested
       return defaultValue;
     }
 
-    static Type valueOf(Class<?> type) {
-      if (type == Boolean.class || type == boolean.class) return FLAG;
-      if (type == Optional.class) return SINGLE;
-      if (type == List.class) return REPEATABLE;
-      if (type == String.class) return REQUIRED;
-      if (type == String[].class) return VARARGS;
-      throw new IllegalArgumentException("Unsupported value type: " + type);
-    }
-
     public Option option(String... names) {
       return new Option(this, names);
     }
