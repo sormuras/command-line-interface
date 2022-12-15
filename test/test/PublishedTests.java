@@ -16,7 +16,7 @@ class PublishedTests {
 
   @Test
   void checkFlag() {
-    var splitter = Splitter.of(PublishedOptions.class, MethodHandles.publicLookup());
+    var splitter = Splitter.of(MethodHandles.publicLookup(), PublishedOptions.class);
     assertFalse(splitter.split().__visible());
     assertTrue(splitter.split("--visible").__visible());
   }

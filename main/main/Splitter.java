@@ -3,11 +3,9 @@ package main;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toCollection;
 
-import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.util.ArrayDeque;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
@@ -17,10 +15,10 @@ import java.util.stream.Stream;
 @FunctionalInterface
 public interface Splitter<T> {
 
-  static <R extends Record> Splitter<R> of(Class<R> schema, Lookup lookup) {
+  static <R extends Record> Splitter<R> of(Lookup lookup, Class<R> schema) {
     requireNonNull(schema, "schema is null");
     requireNonNull(lookup, "lookup is null");
-    return of(RecordSchemaSupport.toSchema(schema, lookup));
+    return of(RecordSchemaSupport.toSchema(lookup, schema));
   }
   static Splitter<List<Value>> of(Option... options) {
     requireNonNull(options, "options is null");

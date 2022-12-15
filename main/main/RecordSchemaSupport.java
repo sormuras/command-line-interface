@@ -31,7 +31,7 @@ class RecordSchemaSupport {
     throw new AssertionError();
   }
 
-  static <T extends Record> Schema<T> toSchema(Class<T> schema, Lookup lookup) {
+  static <T extends Record> Schema<T> toSchema(Lookup lookup, Class<T> schema) {
     return new Schema<>(
         Stream.of(schema.getRecordComponents()).map(comp -> toOption(comp, lookup)).toList(),
         components -> createRecord(schema, components, lookup));
@@ -47,7 +47,7 @@ class RecordSchemaSupport {
     var type = optionTypeFrom(component.getType());
     var help = helpAnno != null ? String.join("\n", helpAnno.value()) : "";
     var nestedSchema = toNestedSchema(component);
-    return new Option(type, names, help, nestedSchema == null ? null: toSchema(nestedSchema, lookup));
+    return new Option(type, names, help, nestedSchema == null ? null: toSchema(lookup, nestedSchema));
   }
 
   private static Type optionTypeFrom(Class<?> type) {
