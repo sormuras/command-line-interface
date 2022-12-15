@@ -24,7 +24,6 @@ class RecordSchemaSupport {
   }
 
   static <T extends Record> Schema<T> toSchema(Class<T> schema, Lookup lookup) {
-    if (schema == null) return null;
     return new Schema<>(
         Stream.of(schema.getRecordComponents()).map(comp -> toOption(comp, lookup)).toList(),
         components -> createRecord(schema, components, lookup));
@@ -41,7 +40,7 @@ class RecordSchemaSupport {
     var type = Option.Type.valueOf(component.getType());
     var help = helpAnno != null ? String.join("\n", helpAnno.value()) : "";
     var nestedSchema = toNestedSchema(component);
-    return new Option(type, names, help, toSchema(nestedSchema, lookup));
+    return new Option(type, names, help, nestedSchema == null ? null: toSchema(nestedSchema, lookup));
   }
 
   private static Class<? extends Record> toNestedSchema(RecordComponent component) {
