@@ -5,30 +5,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
-import java.util.stream.Stream;
 
 public record Schema<T>(List<Option> options, Function<Collection<Object>, T> finalizer) {
-
-  public T create(Collection<Object> values) {
-    return finalizer.apply(values);
-  }
-
-  public Stream<Option> stream() {
-    return options.stream();
-  }
-
-  public Iterable<Option> iterable() {
-    return options;
-  }
-
-  Optional<Option> varargs() {
-    return options.stream().filter(Option::isVarargs).findFirst();
-  }
-
   public Schema {
     checkCardinality(options);
     checkDuplicates(options);
     checkVarargs(options);
+  }
+
+  T create(Collection<Object> values) {
+    return finalizer.apply(values);
+  }
+
+  Optional<Option> varargs() {
+    return options.stream().filter(Option::isVarargs).findFirst();
   }
 
   static void checkDuplicates(List<Option> options) {

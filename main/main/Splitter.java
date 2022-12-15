@@ -71,12 +71,12 @@ public interface Splitter<T> {
       Schema<X> schema, boolean nested, ArrayDeque<String> pendingArguments) {
     requireNonNull(schema, "schema is null");
     var requiredOptions =
-        schema.stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
+        schema.options().stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
     var optionsByName = new HashMap<String, Option>();
     var workspace = new LinkedHashMap<String, Object>();
-    var flagCount = schema.stream().filter(Option::isFlag).count();
+    var flagCount = schema.options().stream().filter(Option::isFlag).count();
     var flagPattern = flagCount == 0 ? null : Pattern.compile("^-[a-zA-Z]{1," + flagCount + "}$");
-    for (var option : schema.iterable()) {
+    for (var option : schema.options()) {
       for (var name : option.names()) {
         optionsByName.put(name, option);
       }
