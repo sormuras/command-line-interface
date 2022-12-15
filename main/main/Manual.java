@@ -3,13 +3,16 @@ package main;
 import java.util.Comparator;
 import java.util.StringJoiner;
 
+import static java.util.Objects.requireNonNull;
+
 public class Manual {
 
-  static String help(Schema<?> schema) {
+  public static String help(Schema<?> schema) {
     return help(schema, 2);
   }
 
-  static String help(Schema<?> schema, int indent) {
+  public static String help(Schema<?> schema, int indent) {
+    requireNonNull(schema, "schema is null");
     if (indent < 0) throw new IllegalArgumentException("invalid indent " + indent);
     var joiner = new StringJoiner("\n");
     for (var option : schema.stream().sorted(Comparator.comparing(Option::name)).toList()) {
