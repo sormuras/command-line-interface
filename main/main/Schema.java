@@ -14,14 +14,19 @@ import static java.lang.Boolean.parseBoolean;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toCollection;
 
-public record Schema<T>(List<Option> options, Function<? super List<Object>, ? extends T> finalizer) {
-  public Schema {
+public class Schema<T> {
+  final List<Option> options;
+  private final Function<? super List<Object>, ? extends T> finalizer;
+
+  public Schema(List<? extends Option> options, Function<? super List<Object>, ? extends T> finalizer) {
     requireNonNull(options, "options is null");
     requireNonNull(finalizer, "finalizer is null");
-    options = List.copyOf(options);
-    checkCardinality(options);
-    checkDuplicates(options);
-    checkVarargs(options);
+    var opts = List.<Option>copyOf(options);
+    checkCardinality(opts);
+    checkDuplicates(opts);
+    checkVarargs(opts);
+    this.options = opts;
+    this.finalizer = finalizer;
   }
 
   private static void checkCardinality(List<Option> options) {
