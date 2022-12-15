@@ -2,10 +2,6 @@ package main;
 
 import static java.util.Objects.requireNonNull;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
@@ -22,18 +18,9 @@ import java.util.stream.Stream;
  * Uses {@link Record}s to derive a {@link Schema} from the {@link RecordComponent}s as well as
  * container for the result values.
  */
-public record RecordSchemaSupport() {
-
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target(ElementType.RECORD_COMPONENT)
-  public @interface Help {
-    String[] value();
-  }
-
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target(ElementType.RECORD_COMPONENT)
-  public @interface Name {
-    String[] value();
+class RecordSchemaSupport {
+  private RecordSchemaSupport() {
+    throw new AssertionError();
   }
 
   static <T extends Record> Schema<T> toSchema(Class<T> schema, Lookup lookup) {

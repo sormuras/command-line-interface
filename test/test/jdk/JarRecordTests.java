@@ -6,7 +6,7 @@ import static test.api.Assertions.assertEqualsOptional;
 
 import java.util.List;
 import java.util.Optional;
-import main.RecordSchemaSupport.Name;
+import main.Name;
 import main.Splitter;
 import test.api.JTest;
 import test.api.JTest.Test;

@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
-import main.RecordSchemaSupport.Name;
+import main.Name;
 import main.Splitter;
 import test.api.JTest;
 import test.api.JTest.Test;
