@@ -9,7 +9,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -34,7 +33,7 @@ class RecordSchemaSupport {
   static <T extends Record> Schema<T> toSchema(Lookup lookup, Class<T> schema) {
     return new Schema<>(
         Stream.of(schema.getRecordComponents()).map(comp -> toOption(lookup, comp)).toList(),
-        components -> createRecord(schema, components, lookup));
+        values -> createRecord(schema, values, lookup));
   }
 
   private static Option toOption(Lookup lookup, RecordComponent component) {
@@ -78,7 +77,7 @@ class RecordSchemaSupport {
   }
 
   private static <T extends Record> T createRecord(
-          Class<T> schema, Collection<Object> values, Lookup lookup) {
+          Class<T> schema, List<Object> values, Lookup lookup) {
     try {
       return schema.cast(
           constructor(lookup, schema).asFixedArity().invokeWithArguments(values.toArray()));
