@@ -1,4 +1,4 @@
-package test;
+package test.jdk;
 
 import static java.lang.invoke.MethodHandles.lookup;
 import static test.api.Assertions.assertEquals;
@@ -8,12 +8,12 @@ import java.util.List;
 import java.util.Optional;
 import main.RecordSchemaSupport.Name;
 import main.Splitter;
-import test.JarTests.JarOptions.ChangeDirOptions;
-import test.JarTests.JarOptions.ReleaseOptions;
+import test.jdk.JarTests.JarOptions.ChangeDirOptions;
+import test.jdk.JarTests.JarOptions.ReleaseOptions;
 import test.api.JTest;
 import test.api.JTest.Test;
 
-class JarTests {
+public class JarTests {
 
   public static void main(String... args) {
     JTest.runTests(new JarTests(), args);

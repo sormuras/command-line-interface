@@ -15,6 +15,7 @@ import java.lang.annotation.Target;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -166,8 +167,9 @@ public final class JTest {
             method -> {
               MethodHandle mh;
               try {
+                method.setAccessible(true);
                 mh = lookup.unreflect(method);
-              } catch (IllegalAccessException e) {
+              } catch (IllegalAccessException | InaccessibleObjectException e) {
                 throw (IllegalAccessError) new IllegalAccessError().initCause(e);
               }
               var start = currentTimeMillis();
