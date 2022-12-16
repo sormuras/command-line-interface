@@ -225,15 +225,9 @@ class EnumTests {
         .with("r", REQUIRED.option("-r")));
     var resultMap = Splitter.of(schema).split("-f", "value");
 
-    var result = new Object() {
-      boolean flag = resultMap.get("flag").flag();
-      String text = resultMap.get("text").single().orElse("");
-      String r = resultMap.get("r").required();
-    };
-
-    assertTrue(result.flag);
-    assertEquals("", result.text);
-    assertEquals("value", result.r);
+    assertTrue(resultMap.get("flag").flag());
+    assertTrue(resultMap.get("text").single().isEmpty());
+    assertEquals("value", resultMap.get("r").required());
   }
 
   @Test
@@ -246,15 +240,9 @@ class EnumTests {
         .with(Value.R, REQUIRED.option("-r")));
     var argumentBag = Splitter.of(schema).split("-f", "value");
 
-    var result = new Object() {
-      boolean flag = argumentBag.flag(Value.F);
-      String text = argumentBag.single(Value.TEXT).orElse("");
-      String r = argumentBag.required(Value.R);
-    };
-
-    assertTrue(result.flag);
-    assertEquals("", result.text);
-    assertEquals("value", result.r);
+    assertTrue(argumentBag.flag(Value.F));
+    assertTrue(argumentBag.single(Value.TEXT).isEmpty());
+    assertEquals("value", argumentBag.required(Value.R));
   }
 
   @Test
@@ -265,14 +253,8 @@ class EnumTests {
         .with("r", REQUIRED.option("-r")));
     var argumentBag = Splitter.of(schema).split("-f", "value");
 
-    var result = new Object() {
-      boolean flag = argumentBag.flag("flag");
-      String text = argumentBag.single("text").orElse("");
-      String r = argumentBag.required("r");
-    };
-
-    assertTrue(result.flag);
-    assertEquals("", result.text);
-    assertEquals("value", result.r);
+    assertTrue(argumentBag.flag("flag"));
+    assertTrue(argumentBag.single("text").isEmpty());
+    assertEquals("value", argumentBag.required("r"));
   }
 }
