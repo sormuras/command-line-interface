@@ -1,9 +1,10 @@
 package main;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -33,36 +34,36 @@ public sealed interface Value {
     }
   }
 
-  static Schema<List<Value>> toSchema(boolean pruned, Option... options) {
+  static Schema<Map<String, Value>> toSchema(Option... options) {
     var list = List.of(options);
-    return new Schema<>(list, values -> evaluate(list, values, pruned));
+    return new Schema<>(list, values -> evaluate(list, values));
   }
 
-  private static List<Value> evaluate(List<Option> options, Collection<Object> collection, boolean pruned) {
+  private static Map<String, Value> evaluate(List<Option> options, Collection<Object> collection) {
     assert options.size() != collection.size() : "size mismatch";
     var objects = List.copyOf(collection);
-    var values = new ArrayList<Value>();
+    var values = new LinkedHashMap<String, Value>();
     for (int i = 0; i < options.size(); i++) {
       var option = options.get(i);
       var object = objects.get(i);
-      var value = evaluate(option, object, !pruned);
+      var value = evaluate(option, object);
       if (value == null) continue;
-      values.add(value);
+      option.names().forEach(name -> values.put(name, value));
     }
-    return List.copyOf(values);
+    return values;
   }
 
   @SuppressWarnings("unchecked")
-  private static Value evaluate(Option option, Object object, boolean always) {
+  private static Value evaluate(Option option, Object object) {
     if (object instanceof Boolean value)
-      return always || value /* == true */ ? new FlagValue(option, value) : null;
+      return value /* == true */ ? new FlagValue(option, value) : null;
     if (object instanceof Optional<?> value)
-      return always || value.isPresent() ? new SingleValue(option, (Optional<String>) value) : null;
+      return value.isPresent() ? new SingleValue(option, (Optional<String>) value) : null;
     if (object instanceof List<?> value)
-      return always || !value.isEmpty() ? new RepeatableValue(option, (List<String>) value) : null;
+      return !value.isEmpty() ? new RepeatableValue(option, (List<String>) value) : null;
     if (object instanceof String value) return new RequiredValue(option, value); // always!
     if (object instanceof String[] value)
-      return always || value.length > 0 ? new VarargsValue(option, value) : null;
+      return value.length > 0 ? new VarargsValue(option, value) : null;
     throw new AssertionError("option type not handled: " + option.getClass().getName());
   }
 }

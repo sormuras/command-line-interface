@@ -7,6 +7,7 @@ import java.lang.invoke.MethodHandles.Lookup;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
@@ -20,13 +21,10 @@ public interface Splitter<T> {
     requireNonNull(lookup, "lookup is null");
     return of(RecordSchemaSupport.toSchema(lookup, schema));
   }
-  static Splitter<List<Value>> of(Option... options) {
+
+  static Splitter<Map<String, Value>> of(Option... options) {
     requireNonNull(options, "options is null");
-    return of(true, options);
-  }
-  static Splitter<List<Value>> of(boolean pruned, Option... options) {
-    requireNonNull(options, "options is null");
-    return of(Value.toSchema(pruned, options));
+    return of(Value.toSchema(options));
   }
 
   static <T> Splitter<T> of(Schema<T> schema) {

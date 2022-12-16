@@ -5,8 +5,7 @@ import static main.Option.Type.REQUIRED;
 import static main.Option.Type.SINGLE;
 import static test.api.Assertions.assertEquals;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import main.Splitter;
 import main.Value;
 import test.api.JTest;
@@ -23,18 +22,11 @@ class ValueTests {
     var text = SINGLE.option("-t", "--text");
     var required = REQUIRED.option("-r");
 
-    assertEquals(
-        List.of(
-            new Value.FlagValue(flag, true),
-            new Value.SingleValue(text, Optional.empty()),
-            new Value.RequiredValue(required, "value")),
-        Splitter.of(false, flag, text, required).split("-f", "value"));
-
-    assertEquals(
-        List.of(
-            new Value.FlagValue(flag, true),
-            // pruned
-            new Value.RequiredValue(required, "value")),
-        Splitter.of(true, flag, text, required).split("-f", "value"));
+    Map<String, Value> values = Splitter.of(flag, text, required).split("-f", "value");
+    assertEquals(new Value.FlagValue(flag, true), values.get("-f"));
+    assertEquals(new Value.FlagValue(flag, true), values.get("--flag"));
+    assertEquals(null, values.get("-t"));
+    assertEquals(null, values.get("--text"));
+    assertEquals(new Value.RequiredValue(required, "value"), values.get("-r"));
   }
 }
