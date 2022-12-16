@@ -9,9 +9,12 @@ import test.api.JTest.Test;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Spliterator;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static java.util.Collections.unmodifiableMap;
 import static java.util.Objects.requireNonNull;
@@ -180,6 +183,100 @@ class EnumTests {
   }
 
 
+  public static final class ValueBag {
+    private final List<Option> options;
+    private final List<Object> data;
+    private LinkedHashMap<String, Integer> indexMap;  // lazy
+
+    private ValueBag(List<Option> options, List<Object> data) {
+      this.options = options;
+      this.data = data;
+    }
+
+    private Object rawValue(int index, Option.Type expectedType) {
+      var option = options.get(index);
+      if (option.type() != expectedType) {
+        throw new IllegalStateException(option.type() + " is not a " + expectedType);
+      }
+      return data.get(index);
+    }
+
+    public boolean flag(int index) {
+      return (boolean) rawValue(index, FLAG);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Optional<String> single(int index) {
+      return (Optional<String>) rawValue(index, SINGLE);
+    }
+
+    public String required(int index) {
+      return (String) rawValue(index, REQUIRED);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<String> repeatable(int index) {
+      return (List<String>) rawValue(index, REPEATABLE);
+    }
+
+    public String[] varargs(int index) {
+      return (String[]) rawValue(index, VARARGS);
+    }
+
+    private LinkedHashMap<String, Integer> indexMap() {
+      if (indexMap != null) {
+        return indexMap;
+      }
+      return indexMap = range(0, options.size())
+          .boxed()
+          .collect(toMap(i -> options.get(i).names().iterator().next(), i -> i, (_1, _2) -> { throw null; }, LinkedHashMap::new));
+    }
+
+    private Object rawValue(String name, Option.Type expectedType) {
+      var index = indexMap().get(name);
+      if (index == null) {
+        throw new IllegalStateException(name + " is not a valid name");
+      }
+      return rawValue(index, expectedType);
+    }
+
+    public boolean flag(String name) {
+      return (boolean) rawValue(name, FLAG);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Optional<String> single(String name) {
+      return (Optional<String>) rawValue(name, SINGLE);
+    }
+
+    public String required(String name) {
+      return (String) rawValue(name, REQUIRED);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<String> repeatable(String name) {
+      return (List<String>) rawValue(name, REPEATABLE);
+    }
+
+    public String[] varargs(String name) {
+      return (String[]) rawValue(name, VARARGS);
+    }
+
+    @Override
+    public String toString() {
+      return range(0, options.size())
+          .mapToObj(i -> options.get(i).names().iterator().next() + ": " + data.get(i))
+          .collect(Collectors.joining(", ", "{", "}"));
+    }
+  }
+
+  static Schema<ValueBag> schemaValue(Option... options) {
+    requireNonNull(options, "options is null");
+    var opt = List.of(options);
+    return new Schema<>(opt, data -> new ValueBag(opt, data));
+  }
+
+
   // ---
 
   @Test
@@ -256,5 +353,22 @@ class EnumTests {
     assertTrue(argumentBag.flag("flag"));
     assertTrue(argumentBag.single("text").isEmpty());
     assertEquals("value", argumentBag.required("r"));
+  }
+
+  @Test
+  void stringValue() {
+    var schema = EnumTests.schemaValue(
+        FLAG.option("-f", "--flag"),
+        SINGLE.option("-t", "--text"),
+        REQUIRED.option("-r"));
+    var valueBag = Splitter.of(schema).split("-f", "value");
+
+    assertTrue(valueBag.flag(0));
+    assertTrue(valueBag.single(1).isEmpty());
+    assertEquals("value", valueBag.required(2));
+
+    assertTrue(valueBag.flag("-f"));
+    assertTrue(valueBag.single("-t").isEmpty());
+    assertEquals("value", valueBag.required("-r"));
   }
 }
