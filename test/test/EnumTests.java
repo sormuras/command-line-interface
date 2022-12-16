@@ -6,15 +6,16 @@ import main.Splitter;
 import test.api.JTest;
 import test.api.JTest.Test;
 
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Spliterator;
 import java.util.function.Consumer;
 
+import static java.util.Collections.unmodifiableMap;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.toUnmodifiableMap;
+import static java.util.stream.Collectors.toMap;
 import static java.util.stream.IntStream.range;
 import static main.Option.Type.FLAG;
 import static main.Option.Type.REPEATABLE;
@@ -73,35 +74,39 @@ class EnumTests {
 
   static <K> Schema<Map<K, Result>> schemaMap(Consumer<? super Configuration<K>> consumer)  {
     requireNonNull(consumer);
-    var entryList = new ArrayList<Map.Entry<K, Option>>();
+    var map = new LinkedHashMap<K, Option>();
     consumer.accept(new Configuration<>() {
       @Override
       public Configuration<K> with(K key, Option option) {
-        entryList.add(Map.entry(key, option));
+        var result = map.putIfAbsent(key, option);
+        if (result != null) {
+          throw new IllegalStateException("duplicate key " + key);
+        }
         return this;
       }
     });
-    @SuppressWarnings("unchecked")
-    var entries = (Entry<K, Option>[]) entryList.toArray(Entry<?,?>[]::new);
-    return schemaMap(Map.ofEntries(entries));
+    return schemaMap(map);
   }
 
   static <T> Schema<Map<T, Result>> schemaMap(Map<? extends T, Option> optionMap)  {
     requireNonNull(optionMap, "optionMap is null");
+    if (!optionMap.entrySet().spliterator().hasCharacteristics(Spliterator.ORDERED)) {
+      throw new IllegalArgumentException("the optionMap is not ordered");
+    }
     var keys = optionMap.keySet().stream().toList();
     var options = optionMap.values().stream().toList();
     return new Schema<>(options, data ->
-        range(0, options.size())
+        unmodifiableMap(range(0, options.size())
             .boxed()
-            .collect(toUnmodifiableMap(keys::get, i -> new Result(options.get(i).type(), data.get(i)))));
+            .collect(toMap(keys::get, i -> new Result(options.get(i).type(), data.get(i)), (_1, _2) -> { throw null;}, LinkedHashMap::new))));
   }
 
   public static final class ArgumentBag<K> {
     private record Argument(Option option, Object rawValue) { }
 
-    private final Map<K, Argument> argumentMap;
+    private final LinkedHashMap<K, Argument> argumentMap;
 
-    private ArgumentBag(Map<K, Argument> argumentMap) {
+    private ArgumentBag(LinkedHashMap<K, Argument> argumentMap) {
       this.argumentMap = argumentMap;
     }
 
@@ -147,27 +152,31 @@ class EnumTests {
 
   static <K> Schema<ArgumentBag<K>> schemaBag(Consumer<? super Configuration<K>> consumer)  {
     requireNonNull(consumer);
-    var entryList = new ArrayList<Map.Entry<K, Option>>();
+    var map = new LinkedHashMap<K, Option>();
     consumer.accept(new Configuration<>() {
       @Override
       public Configuration<K> with(K key, Option option) {
-        entryList.add(Map.entry(key, option));
+        var result = map.putIfAbsent(key, option);
+        if (result != null) {
+          throw new IllegalStateException("duplicate key " + key);
+        }
         return this;
       }
     });
-    @SuppressWarnings("unchecked")
-    var entries = (Entry<K, Option>[]) entryList.toArray(Entry<?,?>[]::new);
-    return schemaBag(Map.ofEntries(entries));
+    return schemaBag(map);
   }
 
   static <K> Schema<ArgumentBag<K>> schemaBag(Map<? extends K, Option> optionMap) {
     requireNonNull(optionMap, "optionMap is null");
+    if (!optionMap.entrySet().spliterator().hasCharacteristics(Spliterator.ORDERED)) {
+      throw new IllegalArgumentException("the optionMap is not ordered");
+    }
     var keys = optionMap.keySet().stream().toList();
     var options = optionMap.values().stream().toList();
     return new Schema<>(options, data ->
         new ArgumentBag<>(range(0, options.size())
             .boxed()
-            .collect(toUnmodifiableMap(keys::get, i -> new ArgumentBag.Argument(options.get(i), data.get(i))))));
+            .collect(toMap(keys::get, i -> new ArgumentBag.Argument(options.get(i), data.get(i)), (_1, _2) -> { throw null;}, LinkedHashMap::new))));
   }
 
 
@@ -177,11 +186,11 @@ class EnumTests {
   void enumMap() {
     enum Value { F, TEXT, R }
 
-    var optionMap = Map.of(
-        Value.F, FLAG.option("-f", "--flag"),
-        Value.TEXT, SINGLE.option("-t", "--text"),
-        Value.R, REQUIRED.option("-r")
-    );
+    var optionMap = new LinkedHashMap<Value, Option>() {{
+        put(Value.F, FLAG.option("-f", "--flag"));
+        put(Value.TEXT, SINGLE.option("-t", "--text"));
+        put(Value.R, REQUIRED.option("-r"));
+    }};
 
     var schema = schemaMap(optionMap);
     var resultMap = Splitter.of(schema).split("-f", "value");
