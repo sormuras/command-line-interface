@@ -6,15 +6,14 @@ import main.Splitter;
 import test.api.JTest;
 import test.api.JTest.Test;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Spliterator;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static java.util.Collections.unmodifiableMap;
 import static java.util.Objects.requireNonNull;
@@ -186,7 +185,7 @@ class EnumTests {
   public static final class ValueBag {
     private final List<Option> options;
     private final List<Object> data;
-    private LinkedHashMap<String, Integer> indexMap;  // lazy
+    private HashMap<String, Integer> indexMap;  // lazy
 
     private ValueBag(List<Option> options, List<Object> data) {
       this.options = options;
@@ -223,7 +222,7 @@ class EnumTests {
       return (String[]) rawValue(index, VARARGS);
     }
 
-    private LinkedHashMap<String, Integer> indexMap() {
+    private HashMap<String, Integer> indexMap() {
       if (indexMap != null) {
         return indexMap;
       }
