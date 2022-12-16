@@ -18,7 +18,7 @@ public class Schema<T> {
   final List<Option> options;
   private final Function<? super List<Object>, ? extends T> finalizer;
 
-  public Schema(List<? extends Option> options, Function<? super List<Object>, ? extends T> finalizer) {
+  public Schema(List<Option> options, Function<? super List<Object>, ? extends T> finalizer) {
     requireNonNull(options, "options is null");
     requireNonNull(finalizer, "finalizer is null");
     var opts = List.<Option>copyOf(options);
