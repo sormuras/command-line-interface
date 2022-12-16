@@ -10,6 +10,8 @@ class AllTests {
         new AssortedTests(),
         new PublishedTests(),
         new ValueTests(),
+        new BranchTests(),
+        new EnumTests(),
         // jdk examples
         new JarRecordTests(),
         new JarValueTests());

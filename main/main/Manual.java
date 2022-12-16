@@ -20,6 +20,7 @@ public class Manual {
       if (text.isEmpty()) continue;
       var suffix =
           switch (option.type()) {
+            case BRANCH -> " (branch)";
             case FLAG -> " (flag)";
             case SINGLE -> " <value>";
             case REPEATABLE -> " <value> (repeatable)";

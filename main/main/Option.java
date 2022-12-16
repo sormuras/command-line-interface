@@ -10,6 +10,7 @@ import java.util.Set;
 
 public record Option(Type type, Set<String> names, String help, Schema<?> nestedSchema) {
   public enum Type {
+    BRANCH(null),
     /** An optional flag, like {@code --verbose}. */
     FLAG(false),
     /** An optional key-value pair, like {@code --version 47.11}. */

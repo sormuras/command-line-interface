@@ -1,6 +1,7 @@
 package main;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -88,9 +89,17 @@ public class Schema<T> {
       if (optionsByName.containsKey(maybeName)) {
         var option = optionsByName.get(maybeName);
         var name = option.name();
+        boolean branched = false;
         workspace.put(
             name,
             switch (option.type()) {
+              case BRANCH -> {
+                var value = splitNested(pendingArguments, option);
+                if (!pendingArguments.isEmpty())
+                  throw new IllegalArgumentException("Too many arguments: " + pendingArguments);
+                branched = true;
+                yield value;
+              }
               case FLAG -> noValue || parseBoolean(maybeValue);
               case SINGLE -> {
                 var value =
@@ -111,7 +120,9 @@ public class Schema<T> {
               }
               case VARARGS, REQUIRED -> throw new AssertionError("Unnamed name? " + name);
             });
-        continue;
+        // when branched handled splitting is over!
+        if (branched) return create(workspace.values());
+        continue; // with next argument
       }
       // maybe a combination of single letter flags?
       if (flagPattern != null && flagPattern.matcher(argument).matches()) {
@@ -145,6 +156,6 @@ public class Schema<T> {
   }
 
   private T create(Collection<Object> values) {
-    return finalizer.apply(List.copyOf(values));
+    return finalizer.apply(new ArrayList<>(values));
   }
 }

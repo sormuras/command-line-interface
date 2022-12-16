@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import static main.Option.Type.BRANCH;
 import static main.Option.Type.FLAG;
 import static main.Option.Type.REPEATABLE;
 import static main.Option.Type.REQUIRED;
@@ -50,6 +51,7 @@ class RecordSchemaSupport {
   }
 
   private static Type optionTypeFrom(Class<?> type) {
+    if (type.isRecord()) return BRANCH;
     if (type == Boolean.class || type == boolean.class) return FLAG;
     if (type == Optional.class) return SINGLE;
     if (type == List.class) return REPEATABLE;
@@ -59,6 +61,8 @@ class RecordSchemaSupport {
   }
 
   private static Class<? extends Record> toNestedSchema(RecordComponent component) {
+    if (component.getType().isRecord())
+      return component.getType().asSubclass(Record.class);
     return (component.getGenericType() instanceof ParameterizedType paramType
             && paramType.getActualTypeArguments()[0] instanceof Class<?> nestedType
             && nestedType.isRecord())
