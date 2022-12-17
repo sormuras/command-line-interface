@@ -95,16 +95,14 @@ public class Schema<T> {
       if (!doubleDashMode && optionsByName.containsKey(maybeName)) {
         var option = optionsByName.get(maybeName);
         var name = option.name();
-        boolean branched = false;
+        if (option.type() == Option.Type.BRANCH) {
+          workspace.put(name, splitNested(pendingArguments, option));
+          if (!pendingArguments.isEmpty())
+            throw new IllegalArgumentException("Too many arguments: " + pendingArguments);
+          return create(workspace.values());
+        }
         var optionValue =
             switch (option.type()) {
-              case BRANCH -> {
-                var value = splitNested(pendingArguments, option);
-                if (!pendingArguments.isEmpty())
-                  throw new IllegalArgumentException("Too many arguments: " + pendingArguments);
-                branched = true;
-                yield value;
-              }
               case FLAG -> noValue || parseBoolean(maybeValue);
               case SINGLE -> {
                 var value =
@@ -123,11 +121,9 @@ public class Schema<T> {
                 var elements = (List<?>) workspace.get(name);
                 yield Stream.concat(elements.stream(), value.stream()).toList();
               }
-              case VARARGS, REQUIRED -> throw new AssertionError("Unnamed name? " + name);
+              case BRANCH, VARARGS, REQUIRED -> throw new AssertionError("Unnamed name? " + name);
             };
         workspace.put( name, optionValue);
-        // when branched handled splitting is over!
-        if (branched) return create(workspace.values());
         continue; // with next argument
       }
       // maybe a combination of single letter flags?
