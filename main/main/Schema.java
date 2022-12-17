@@ -1,5 +1,6 @@
 package main;
 
+import java.lang.reflect.Array;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,10 +17,10 @@ import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toCollection;
 
 public class Schema<T> {
-  final List<Option> options;
+  final List<? extends Option<?>> options;
   private final Function<? super List<Object>, ? extends T> finalizer;
 
-  public Schema(List<Option> options, Function<? super List<Object>, ? extends T> finalizer) {
+  public Schema(List<? extends Option<?>> options, Function<? super List<Object>, ? extends T> finalizer) {
     requireNonNull(options, "options is null");
     requireNonNull(finalizer, "finalizer is null");
     var opts = List.copyOf(options);
@@ -30,12 +31,12 @@ public class Schema<T> {
     this.finalizer = finalizer;
   }
 
-  private static void checkCardinality(List<Option> options) {
+  private static void checkCardinality(List<? extends Option<?>> options) {
     if (options.isEmpty()) throw new IllegalArgumentException("At least one option is expected");
   }
 
-  private static void checkDuplicates(List<Option> options) {
-    var optionsByName = new HashMap<String, Option>();
+  private static void checkDuplicates(List<? extends Option<?>> options) {
+    var optionsByName = new HashMap<String, Option<?>>();
     for (var option : options) {
       var names = option.names();
       for (var name : names) {
@@ -50,8 +51,8 @@ public class Schema<T> {
     }
   }
 
-  private static void checkVarargs(List<Option> options) {
-    List<Option> varargs = options.stream().filter(Option::isVarargs).toList();
+  private static void checkVarargs(List<? extends Option<?>> options) {
+    List<? extends Option<?>> varargs = options.stream().filter(Option::isVarargs).toList();
     if (varargs.isEmpty()) return;
     if (varargs.size() > 1)
       throw new IllegalArgumentException("Too many varargs types specified: " + varargs);
@@ -63,7 +64,7 @@ public class Schema<T> {
   T split(boolean nested, ArrayDeque<String> pendingArguments) {
     var requiredOptions =
         options.stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
-    var optionsByName = new HashMap<String, Option>();
+    var optionsByName = new HashMap<String, Option<?>>();
     var workspace = new LinkedHashMap<String, Object>();
     var flagCount = options.stream().filter(Option::isFlag).count();
     var flagPattern = flagCount == 0 ? null : Pattern.compile("^-[a-zA-Z]{1," + flagCount + "}$");
@@ -84,14 +85,13 @@ public class Schema<T> {
       int separator = argument.indexOf('=');
       var noValue = separator == -1;
       var maybeName = noValue ? argument : argument.substring(0, separator);
-      var maybeValue = noValue ? "" : argument.substring(separator + 1);
+      var maybeValue = noValue ? "" : unQuote(argument.substring(separator + 1));
       // try well-known option first
       if (optionsByName.containsKey(maybeName)) {
         var option = optionsByName.get(maybeName);
         var name = option.name();
         boolean branched = false;
-        workspace.put(
-            name,
+        var optionValue =
             switch (option.type()) {
               case BRANCH -> {
                 var value = splitNested(pendingArguments, option);
@@ -105,7 +105,7 @@ public class Schema<T> {
                 var value =
                     option.nestedSchema() != null
                         ? splitNested(pendingArguments, option)
-                        : noValue ? pendingArguments.pop() : maybeValue;
+                        : option.create(noValue ? pendingArguments.pop() : maybeValue);
                 yield Optional.of(value);
               }
               case REPEATABLE -> {
@@ -113,13 +113,14 @@ public class Schema<T> {
                     option.nestedSchema() != null
                         ? List.of(splitNested(pendingArguments, option))
                         : noValue
-                        ? List.of(pendingArguments.pop())
-                        : List.of(maybeValue.split(","));
+                        ? List.of(option.create(pendingArguments.pop()))
+                        : Stream.of(maybeValue.split(",")).map(option::create).toList();
                 var elements = (List<?>) workspace.get(name);
                 yield Stream.concat(elements.stream(), value.stream()).toList();
               }
               case VARARGS, REQUIRED -> throw new AssertionError("Unnamed name? " + name);
-            });
+            };
+        workspace.put( name, optionValue);
         // when branched handled splitting is over!
         if (branched) return create(workspace.values());
         continue; // with next argument
@@ -135,23 +136,29 @@ public class Schema<T> {
       // try required option
       if (!requiredOptions.isEmpty()) {
         var requiredOption = requiredOptions.pop();
-        workspace.put(requiredOption.name(), argument);
+        workspace.put(requiredOption.name(), requiredOption.create(argument));
         continue;
       }
       // restore pending arguments deque
       pendingArguments.addFirst(argument);
       if (nested) return create(workspace.values());
       // try globbing all pending arguments into a varargs collector
-      var varargsOption = options.stream().filter(Option::isVarargs).findFirst();
-      if (varargsOption.isPresent()) {
-        workspace.put(varargsOption.get().name(), pendingArguments.toArray(String[]::new));
+      var varargsOption = options.stream().filter(Option::isVarargs).findFirst().orElse(null);
+      if (varargsOption != null) {
+        workspace.put(varargsOption.name(), pendingArguments.stream()
+                .map(varargsOption::create)
+                .toArray(size -> (Object[]) Array.newInstance(varargsOption.valueType(), size)));
         return create(workspace.values());
       }
       throw new IllegalArgumentException("Unhandled arguments: " + pendingArguments);
     }
   }
 
-  private Object splitNested(ArrayDeque<String> pendingArguments, Option option) {
+  private static String unQuote(String str) {
+    return str.charAt(0) == '"' && str.charAt(str.length()-1) == '"' ? str.substring(1, str.length()-1) : str;
+  }
+
+  private Object splitNested(ArrayDeque<String> pendingArguments, Option<?> option) {
     return option.nestedSchema().split(true, pendingArguments);
   }
 

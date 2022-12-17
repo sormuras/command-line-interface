@@ -7,8 +7,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
-public record Option(Type type, Set<String> names, String help, Schema<?> nestedSchema) {
+public record Option<T>(Type type, Set<String> names, Class<T> valueType, Function<String, T> toValue, String help, Schema<?> nestedSchema) {
   public enum Type {
     BRANCH(null),
     /** An optional flag, like {@code --verbose}. */
@@ -33,20 +34,26 @@ public record Option(Type type, Set<String> names, String help, Schema<?> nested
     }
 
     public Option option(String... names) {
-      return new Option(this, names);
+      return Option.of(this, names);
     }
   }
 
   public Option {
     requireNonNull(type, "type is null");
     requireNonNull(names, "names is null");
+    requireNonNull(valueType, "valueType is null");
+    requireNonNull(toValue, "toValue is null");
     requireNonNull(help, "help is null");
     names = Collections.unmodifiableSet(new LinkedHashSet<>(names));
     if (names.isEmpty()) throw new IllegalArgumentException("no name defined");
   }
 
-  public Option(Type type, String... names) {
-    this(type, checkDuplicates(names), "", null);
+  public static Option<String> of(Type type, String... names) {
+    return new Option<>(type, checkDuplicates(names), String.class, Function.identity(), "", null);
+  }
+
+  public T create(String value) {
+    return toValue().apply(value);
   }
 
   private static Set<String> checkDuplicates(String... names) {
@@ -65,7 +72,7 @@ public record Option(Type type, Set<String> names, String help, Schema<?> nested
     if (!help.isEmpty()) {
       throw new IllegalStateException("option already has an help text");
     }
-    return new Option(type, names, helpText, nestedSchema);
+    return new Option(type, names, valueType, toValue, helpText, nestedSchema);
   }
 
   String name() {

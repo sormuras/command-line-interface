@@ -36,12 +36,12 @@ class EnumTests {
   // ---
 
   public static final class ArgumentBag<K> {
-    private final List<Option> options;
+    private final List<? extends Option<?>> options;
     private final List<Object> data;
-    private final Function<List<Option>, Map<K, Integer>> indexMapFactory;
+    private final Function<List<? extends Option<?>>, Map<K, Integer>> indexMapFactory;
     private Map<K, Integer> indexMap;  // lazy
 
-    private ArgumentBag(List<Option> options, List<Object> data, Function<List<Option>, Map<K, Integer>> indexMapFactory) {
+    private ArgumentBag(List<? extends Option<?>> options, List<Object> data, Function<List<? extends Option<?>>, Map<K, Integer>> indexMapFactory) {
       this.options = options;
       this.data = data;
       this.indexMapFactory = indexMapFactory;
@@ -127,7 +127,7 @@ class EnumTests {
     }
   }
 
-  public static Schema<ArgumentBag<String>> schemaArgument(Option... options) {
+  public static Schema<ArgumentBag<String>> schemaArgument(Option<?>... options) {
     requireNonNull(options, "options is null");
     var opt = List.of(options);
     return new Schema<>(opt, data -> new ArgumentBag<>(opt, data,
@@ -135,16 +135,16 @@ class EnumTests {
   }
 
   public interface Configuration<K> {
-    Configuration<K> with(K key, Option option);
+    Configuration<K> with(K key, Option<?> option);
   }
 
   public static <K> Schema<ArgumentBag<K>> schemaKeyed(Consumer<? super Configuration<K>> consumer)  {
     requireNonNull(consumer, "consumer is null");
     var keys = new ArrayList<K>();
-    var options = new ArrayList<Option>();
+    var options = new ArrayList<Option<?>>();
     consumer.accept(new Configuration<>() {
       @Override
-      public Configuration<K> with(K key, Option option) {
+      public Configuration<K> with(K key, Option<?> option) {
         requireNonNull(key, "key is null");
         requireNonNull(option, "option is null");
         keys.add(key);
