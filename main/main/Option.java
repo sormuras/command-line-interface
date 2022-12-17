@@ -32,17 +32,16 @@ public class Option<T> {
   }
 
   private final Type type;
-  private final Set<String> names;
+  private final LinkedHashSet<String> names;
   private final Function<Object, T> toValue;
   private final String help;
   private final Schema<?> nestedSchema;
 
-  Option(Type type, Set<String> names,  Function<Object, T> toValue, String help, Schema<?> nestedSchema) {
+  private Option(Type type, LinkedHashSet<String> names,  Function<Object, T> toValue, String help, Schema<?> nestedSchema) {
     requireNonNull(type, "type is null");
     requireNonNull(names, "names is null");
     requireNonNull(toValue, "toValue is null");
     requireNonNull(help, "help is null");
-    names = Collections.unmodifiableSet(new LinkedHashSet<>(names));
     if (names.isEmpty()) throw new IllegalArgumentException("no name defined");
     this.type = type;
     this.names = names;
@@ -51,12 +50,27 @@ public class Option<T> {
     this.nestedSchema = nestedSchema;
   }
 
+  Option(Type type, String[] names,  Function<Object, T> toValue, String help, Schema<?> nestedSchema) {
+    this(type, checkDuplicates(names), toValue, help, nestedSchema);
+  }
+
+  private static LinkedHashSet<String> checkDuplicates(String... names) {
+    requireNonNull(names, "names is null");
+    var set = new LinkedHashSet<String>();
+    for(var name: names) {
+      if (!set.add(name)) {
+        throw new IllegalArgumentException("duplicate names " + name);
+      }
+    }
+    return set;
+  }
+
   public Type type() {
     return type;
   }
 
   public Set<String> names() {
-    return names;
+    return Collections.unmodifiableSet(names);
   }
 
   public String help() {
@@ -68,36 +82,25 @@ public class Option<T> {
   }
 
   public static Option<Boolean> flag(String... names) {
-    return new Option<>(Type.FLAG, checkDuplicates(names), object -> (Boolean) object, "", null);
+    return new Option<>(Type.FLAG, names, object -> (Boolean) object, "", null);
   }
 
   @SuppressWarnings("unchecked")
   public static Option<Optional<String>> single(String... names) {
-    return new Option<>(Type.SINGLE, checkDuplicates(names), object -> (Optional<String>) object, "", null);
+    return new Option<>(Type.SINGLE, names, object -> (Optional<String>) object, "", null);
   }
 
   public static Option<String> required(String... names) {
-    return new Option<>(Type.REQUIRED, checkDuplicates(names), object -> (String) object, "", null);
+    return new Option<>(Type.REQUIRED, names, object -> (String) object, "", null);
   }
 
   @SuppressWarnings("unchecked")
   public static Option<List<String>> repeatable(String... names) {
-    return new Option<>(Type.REPEATABLE, checkDuplicates(names), object -> (List<String>) object, "", null);
+    return new Option<>(Type.REPEATABLE, names, object -> (List<String>) object, "", null);
   }
 
   public static Option<String[]> varargs(String... names) {
-    return new Option<>(Type.VARARGS, checkDuplicates(names), object -> (String[]) object, "", null);
-  }
-
-  private static Set<String> checkDuplicates(String... names) {
-    requireNonNull(names, "names is null");
-    var set = new LinkedHashSet<String>();
-    for(var name: names) {
-      if (!set.add(name)) {
-        throw new IllegalArgumentException("duplicate names " + name);
-      }
-    }
-    return set;
+    return new Option<>(Type.VARARGS, names, object -> (String[]) object, "", null);
   }
 
   // the return type must be an equivalent type (Boolean -> Boolean, Optional -> Optional, etc)
@@ -125,6 +128,14 @@ public class Option<T> {
       throw new IllegalStateException("option already has an help text");
     }
     return new Option<>(type, names, toValue, helpText, nestedSchema);
+  }
+
+  public Option<T> nestedSchema(Schema<?> nestedSchema) {
+    requireNonNull(nestedSchema, "nestedSchema is null");
+    if (this.nestedSchema != null) {
+      throw new IllegalStateException("a nested schema is already specified");
+    }
+    return new Option<>(type, names, toValue, help, nestedSchema);
   }
 
   public T argument(ArgumentMap argumentMap) {

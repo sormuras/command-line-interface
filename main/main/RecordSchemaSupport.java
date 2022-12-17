@@ -10,10 +10,8 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Arrays;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -44,8 +42,8 @@ class RecordSchemaSupport {
     var helpAnno = component.getAnnotation(Help.class);
     var names =
         nameAnno != null
-            ? new LinkedHashSet<>(Arrays.asList(nameAnno.value()))
-            : Set.of(component.getName().replace('_', '-'));
+            ? nameAnno.value()
+            : new String[] { component.getName().replace('_', '-') };
     var type = optionTypeFrom(component.getType());
     var help = helpAnno != null ? String.join("\n", helpAnno.value()) : "";
     var nestedSchema = toNestedSchema(component);
