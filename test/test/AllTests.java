@@ -11,7 +11,7 @@ class AllTests {
         new PublishedTests(),
         new ValueTests(),
         new BranchTests(),
-        new EnumTests(),
+        new ArgumentMapTests(),
         new DoubleDashTests(),
         // jdk examples
         new JarRecordTests(),

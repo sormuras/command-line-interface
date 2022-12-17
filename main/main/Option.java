@@ -112,6 +112,11 @@ public class Option<T> {
     return new Option<>(type, names, toValue, helpText, nestedSchema);
   }
 
+  public T argument(ArgumentMap argumentMap) {
+    requireNonNull(argumentMap, "dataMap is null");
+    return argumentMap.argument(this);
+  }
+
   T defaultValue() {
     // a required option should not trigger a call to toValue()
     var value = type.defaultValue;

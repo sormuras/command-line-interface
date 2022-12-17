@@ -27,6 +27,11 @@ public interface Splitter<T> {
     return of(Value.toSchema(options));
   }
 
+  static Splitter<ArgumentMap> ofArgument(Option<?>... options)  {
+    requireNonNull(options, "options is null");
+    return of(ArgumentMap.toSchema(options));
+  }
+
   static <T> Splitter<T> of(Schema<T> schema) {
     Objects.requireNonNull(schema, "schema is null");
     return args -> {
