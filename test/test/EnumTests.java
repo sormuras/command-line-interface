@@ -7,6 +7,7 @@ import test.api.JTest;
 import test.api.JTest.Test;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -22,6 +23,7 @@ import static main.Option.Type.REPEATABLE;
 import static main.Option.Type.REQUIRED;
 import static main.Option.Type.SINGLE;
 import static main.Option.Type.VARARGS;
+
 import static test.api.Assertions.assertEquals;
 import static test.api.Assertions.assertTrue;
 
@@ -155,6 +157,66 @@ class EnumTests {
   }
 
 
+  public static final class Parameter<T> {
+    private final Option option;
+
+    private Parameter(Option option) {
+      this.option = option;
+    }
+
+    public static Parameter<Boolean> flag(String... names) {
+      return new Parameter<>(FLAG.option(names));
+    }
+
+    public static Parameter<Optional<String>> single(String... names) {
+      return new Parameter<>(SINGLE.option(names));
+    }
+
+    public static Parameter<String> required(String... names) {
+      return new Parameter<>(REQUIRED.option(names));
+    }
+
+    public static Parameter<List<String>> repeatable(String... names) {
+      return new Parameter<>(REPEATABLE.option(names));
+    }
+
+    public static Parameter<String[]> varargs(String... names) {
+      return new Parameter<>(VARARGS.option(names));
+    }
+
+    public Parameter<T> help(String helpText) {
+      return new Parameter<>(option.withHelp(helpText));
+    }
+
+    @SuppressWarnings("unchecked")
+    public T arg(DataMap dataMap) {
+      requireNonNull(dataMap, "dataMap is null");
+      return (T) dataMap.dataMap.get(this);
+    }
+  }
+
+  public static final class DataMap {
+    private final Map<Parameter<?>, Object> dataMap;
+
+    private DataMap(Map<Parameter<?>, Object> dataMap) {
+      this.dataMap = dataMap;
+    }
+
+    @Override
+    public String toString() {
+      return dataMap.toString();
+    }
+  }
+
+  public static <K> Schema<DataMap> schemaParameter(Parameter<?>... parameters)  {
+    requireNonNull(parameters, "parameters is null");
+    var params = List.of(parameters);
+    var options = params.stream().map(p -> p.option).toList();
+    return new Schema<>(options, data -> new DataMap(range(0, params.size())
+        .boxed()
+        .collect(toMap(params::get, data::get))));
+  }
+
 
   // ---
 
@@ -202,5 +264,18 @@ class EnumTests {
     assertTrue(argumentBag.flag("-f"));
     assertTrue(argumentBag.single("-t").isEmpty());
     assertEquals("value", argumentBag.required("-r"));
+  }
+
+  @Test
+  void parameters() {
+    var flag = Parameter.flag("-f", "--flag");
+    var text = Parameter.single("-t", "--text");
+    var r = Parameter.required("-r");
+    var schema = EnumTests.schemaParameter(flag, text, r);
+    var dataMap = Splitter.of(schema).split("-f", "value");
+
+    assertTrue(flag.arg(dataMap));
+    assertTrue(text.arg(dataMap).isEmpty());
+    assertEquals("value", r.arg(dataMap));
   }
 }
