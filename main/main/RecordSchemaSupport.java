@@ -13,8 +13,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static java.lang.String.format;
 import static main.Option.Type.BRANCH;
 import static main.Option.Type.FLAG;
 import static main.Option.Type.REPEATABLE;
@@ -37,7 +39,7 @@ class RecordSchemaSupport {
         values -> createRecord(schema, values, lookup));
   }
 
-  private static Option toOption(Lookup lookup, RecordComponent component) {
+  private static Option<?> toOption(Lookup lookup, RecordComponent component) {
     var nameAnno = component.getAnnotation(Name.class);
     var helpAnno = component.getAnnotation(Help.class);
     var names =
@@ -47,7 +49,14 @@ class RecordSchemaSupport {
     var type = optionTypeFrom(component.getType());
     var help = helpAnno != null ? String.join("\n", helpAnno.value()) : "";
     var nestedSchema = toNestedSchema(component);
-    return new Option(type, names, help, nestedSchema == null ? null: toSchema(lookup, nestedSchema));
+    var valueType = valueTypeFrom(component);
+    return toOption(lookup, type, names, valueType, help, nestedSchema);
+  }
+
+  private static <T> Option<T> toOption(Lookup lookup, Type type, Set<String> names, Class<T> valueType, String help, Class<? extends Record> nestedSchema) {
+    var valueConverter = valueConverter(lookup, valueType);
+    var optionSchema = nestedSchema == null ? null: toSchema(lookup, nestedSchema);
+    return new Option<>(type, names, valueType, valueConverter, help, optionSchema);
   }
 
   private static Type optionTypeFrom(Class<?> type) {
@@ -55,9 +64,18 @@ class RecordSchemaSupport {
     if (type == Boolean.class || type == boolean.class) return FLAG;
     if (type == Optional.class) return SINGLE;
     if (type == List.class) return REPEATABLE;
-    if (type == String.class) return REQUIRED;
-    if (type == String[].class) return VARARGS;
-    throw new IllegalArgumentException("Unsupported value type: " + type);
+    if (type.isArray()) return VARARGS;
+    return REQUIRED;
+  }
+
+  private static Class<?> valueTypeFrom(RecordComponent component) {
+    Class<?> type = component.getType();
+    if (type.isRecord()) return type;
+    if (type == Boolean.class || type == boolean.class) return Boolean.class;
+    if (type.isArray()) return type.getComponentType();
+    if (type == List.class || type == Optional.class)
+      return (Class<?>) ((ParameterizedType) component.getGenericType()).getActualTypeArguments()[0];
+    return type;
   }
 
   private static Class<? extends Record> toNestedSchema(RecordComponent component) {
@@ -68,6 +86,38 @@ class RecordSchemaSupport {
             && nestedType.isRecord())
         ? nestedType.asSubclass(Record.class)
         : null;
+  }
+
+  private static <T> Function<String, T> valueConverter(Lookup lookup, Class<T> valueType) {
+    if (valueType == String.class || valueType.isRecord())
+      return (Function) Function.identity();
+    MethodHandle mh = valueOfMethod(lookup, valueType);
+    return arg -> {
+      try {
+        return valueType.cast(mh.invoke(arg));
+      } catch (Throwable e) {
+        throw new IllegalArgumentException(format("Not a valid value for type %s: %s", valueType.getSimpleName(), arg), e);
+      }
+    };
+  }
+
+  private static <T> MethodHandle valueOfMethod(Lookup lookup, Class<T> valueType) {
+    record Factory (String name, MethodType method) {};
+    List<Factory> factories = List.of( //
+            new Factory("valueOf", MethodType.methodType(valueType, String.class)), //
+            new Factory("of", MethodType.methodType(valueType, String.class)), //
+            new Factory("of", MethodType.methodType(valueType, String.class, String[].class)), //
+            new Factory("parse", MethodType.methodType(valueType, String.class)),
+            new Factory("parse", MethodType.methodType(valueType, CharSequence.class))
+    );
+    for (Factory factory : factories) {
+      try {
+        return lookup.findStatic(valueType, factory.name(), factory.method());
+      } catch (NoSuchMethodException | IllegalAccessException e) {
+        // try next
+      }
+    }
+    throw new UnsupportedOperationException("Unsupported conversion from String to " + valueType);
   }
 
   private static MethodHandle constructor(Lookup lookup, Class<?> schema) {

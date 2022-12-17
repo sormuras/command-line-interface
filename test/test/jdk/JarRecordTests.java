@@ -4,6 +4,9 @@ import static java.lang.invoke.MethodHandles.lookup;
 import static test.api.Assertions.assertEquals;
 import static test.api.Assertions.assertEqualsOptional;
 
+import java.nio.file.Path;
+import java.time.ZonedDateTime;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import main.Name;
@@ -37,16 +40,16 @@ public class JarRecordTests {
       @Name("--hash-modules") Optional<String> hashModules,
       @Name({"-p", "--module-path"}) Optional<String> modulePath,
       @Name({"-0", "--no-compress"}) boolean noCompress,
-      @Name("--date") Optional<String> date,
+      @Name("--date") Optional<ZonedDateTime> date,
       @Name({"-?", "-h", "--help"}) boolean help,
       @Name("--help:compat") boolean helpCompat,
       @Name("--help-extra") boolean helpExtra,
       @Name("--version") boolean version,
       String... files) {
 
-    record ChangeDirOptions(String dir, String file) {}
+    record ChangeDirOptions(String dir, Path file) {}
 
-    record ReleaseOptions(String version, @Name("-C") List<ChangeDirOptions> Cs) {}
+    record ReleaseOptions(Integer version, @Name("-C") List<ChangeDirOptions> Cs) {}
   }
 
   private static JarOptions splitInput(String line) {
@@ -67,7 +70,7 @@ public class JarRecordTests {
         splitInput(
             "--create --date=\"2021-01-06T14:36:00+02:00\" --file=classes.jar Foo.class Bar.class");
     assertEquals(true, options.create());
-    assertEqualsOptional("\"2021-01-06T14:36:00+02:00\"", options.date());
+    assertEqualsOptional(ZonedDateTime.parse("2021-01-06T14:36:00+02:00"), options.date());
     assertEqualsOptional("classes.jar", options.file());
     assertEquals(List.of("Foo.class", "Bar.class"), List.of(options.files()));
   }
@@ -78,7 +81,7 @@ public class JarRecordTests {
     assertEquals(true, options.create());
     assertEqualsOptional("classes.jar", options.file());
     assertEqualsOptional("mymanifest", options.manifest());
-    assertEqualsOptional(new ChangeDirOptions("foo/", "."), options.changeDir());
+    assertEqualsOptional(new ChangeDirOptions("foo/", Path.of(".")), options.changeDir());
   }
 
   @Test
@@ -93,7 +96,7 @@ public class JarRecordTests {
     assertEqualsOptional("1.0", options.moduleVersion());
     var cOptions = options.changeDir().orElseThrow();
     assertEquals("foo/classes", cOptions.dir());
-    assertEquals("resources", cOptions.file());
+    assertEquals(Path.of("resources"), cOptions.file());
   }
 
   @Test
@@ -106,9 +109,9 @@ public class JarRecordTests {
     assertEquals(true, options.create());
     assertEqualsOptional("foo.jar", options.file());
     assertEqualsOptional("com.foo.Hello", options.mainClass());
-    assertEqualsOptional(new ChangeDirOptions("classes", "."), options.changeDir());
+    assertEqualsOptional(new ChangeDirOptions("classes", Path.of(".")), options.changeDir());
     assertEqualsOptional(
-        new ReleaseOptions("10", List.of(new ChangeDirOptions("classes-10", "."))),
+        new ReleaseOptions(10, List.of(new ChangeDirOptions("classes-10", Path.of(".")))),
         options.release());
   }
 }

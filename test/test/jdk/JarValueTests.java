@@ -20,9 +20,9 @@ public class JarValueTests {
     JTest.runTests(new JarValueTests(), args);
   }
 
-  static final Option CREATE_FLAG = FLAG.option("-c", "--create").withHelp("Create an archive");
-  static final Option FILE_OPTION = SINGLE.option("-f", "--file").withHelp("The archive file");
-  static final Option[] OPTIONS = {CREATE_FLAG, FILE_OPTION, VARARGS.option("files...")};
+  static final Option<?> CREATE_FLAG = FLAG.option("-c", "--create").withHelp("Create an archive");
+  static final Option<?> FILE_OPTION = SINGLE.option("-f", "--file").withHelp("The archive file");
+  static final Option<?>[] OPTIONS = {CREATE_FLAG, FILE_OPTION, VARARGS.option("files...")};
 
   private static Map<String, Value> splitInput(String line) {
     return Splitter.of(OPTIONS).split(line.split("\\s+"));

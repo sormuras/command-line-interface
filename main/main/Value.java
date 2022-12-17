@@ -10,17 +10,17 @@ import java.util.Optional;
 
 public sealed interface Value {
 
-  Option option();
+  Option<?> option();
 
-  record FlagValue(Option option, boolean value) implements Value {}
+  record FlagValue(Option<?> option, boolean value) implements Value {}
 
-  record SingleValue(Option option, Optional<String> value) implements Value {}
+  record SingleValue(Option<?> option, Optional<String> value) implements Value {}
 
-  record RepeatableValue(Option option, List<String> value) implements Value {}
+  record RepeatableValue(Option<?> option, List<String> value) implements Value {}
 
-  record RequiredValue(Option option, String value) implements Value {}
+  record RequiredValue(Option<?> option, String value) implements Value {}
 
-  record VarargsValue(Option option, String... value) implements Value {
+  record VarargsValue(Option<?> option, String... value) implements Value {
     @Override
     public boolean equals(Object obj) {
       return obj instanceof VarargsValue other
@@ -34,12 +34,12 @@ public sealed interface Value {
     }
   }
 
-  static Schema<Map<String, Value>> toSchema(Option... options) {
+  static Schema<Map<String, Value>> toSchema(Option<?>... options) {
     var list = List.of(options);
     return new Schema<>(list, values -> evaluate(list, values));
   }
 
-  private static Map<String, Value> evaluate(List<Option> options, Collection<Object> collection) {
+  private static Map<String, Value> evaluate(List<? extends Option<?>> options, Collection<Object> collection) {
     assert options.size() != collection.size() : "size mismatch";
     var objects = List.copyOf(collection);
     var values = new LinkedHashMap<String, Value>();
@@ -54,7 +54,7 @@ public sealed interface Value {
   }
 
   @SuppressWarnings("unchecked")
-  private static Value evaluate(Option option, Object object) {
+  private static Value evaluate(Option<?> option, Object object) {
     if (object instanceof Boolean value)
       return value /* == true */ ? new FlagValue(option, value) : null;
     if (object instanceof Optional<?> value)
