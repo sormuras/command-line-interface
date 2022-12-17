@@ -48,7 +48,7 @@ A splitter is created for the `WordCountOptions` definition and command-line arg
 ```java
 class Program {
   public static void main(String[] args) {
-    var splitter = ArgumentsSplitter.of(WordCountOptions.class, MethodHandles.lookup());
+    var splitter = Splitter.of(MethodHandles.lookup(), WordCountOptions.class);
     WordCountOptions options = splitter.split(args);
     // use options instance...
   }
