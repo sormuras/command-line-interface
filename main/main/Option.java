@@ -5,6 +5,7 @@ import static java.util.Objects.requireNonNull;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -99,9 +100,23 @@ public class Option<T> {
     return set;
   }
 
+  // the return type must be an equivalent type (Boolean -> Boolean, Optional -> Optional, etc)
   public <U> Option<U> map(Function<? super T, ? extends U> mapper) {
     requireNonNull(mapper, "mapper is null");
-    return new Option<>(type, names, toValue.andThen(mapper), help, nestedSchema);
+    return new Option<>(type, names, toValue.andThen(v -> requireEquivalentType(mapper.apply(v))), help, nestedSchema);
+  }
+
+  @SuppressWarnings("unchecked")
+  private <V> V requireEquivalentType(V value) {
+    Objects.requireNonNull(value, "value is null");
+    return (V) switch (type) {
+      case BRANCH -> (Record) value;
+      case FLAG -> (Boolean) value;
+      case SINGLE -> (Optional<?>) value;
+      case REPEATABLE -> (List<?>) value;
+      case REQUIRED -> value;
+      case VARARGS -> (Object[]) value;
+    };
   }
 
   public Option<T> withHelp(String helpText) {
