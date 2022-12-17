@@ -21,10 +21,10 @@ class BranchTests {
     var splitter = Splitter.of(MethodHandles.lookup(), Main.class);
 
     assertEquals(
-        new Main(false, new Help("hello", new Detail("world")), "", ""),
+        new Main(false, new Help("hello", new Detail("world")), null, null),
         splitter.split("help", "hello", "detail", "world"));
 
-    assertEquals(new Main(false, new Help("hello", null), "", ""), //
+    assertEquals(new Main(false, new Help("hello", null), null, null), //
             splitter.split("help", "hello"));
 
     assertEquals(

@@ -2,7 +2,6 @@ package main;
 
 import static java.util.Objects.requireNonNull;
 
-import java.lang.reflect.Array;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -10,7 +9,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
-public record Option<T>(Type type, Set<String> names, Class<T> valueType, Function<String, T> toValue, String help, Schema<?> nestedSchema) {
+public class Option<T> {
   public enum Type {
     BRANCH(null),
     /** An optional flag, like {@code --verbose}. */
@@ -20,7 +19,7 @@ public record Option<T>(Type type, Set<String> names, Class<T> valueType, Functi
     /** An optional and repeatable key, like {@code --with alpha --with omega} */
     REPEATABLE(List.of()),
     /** A required positional option */
-    REQUIRED(""),
+    REQUIRED(null),
     /** A collection of all unhandled arguments. */
     VARARGS(new String[0]);
 
@@ -31,58 +30,62 @@ public record Option<T>(Type type, Set<String> names, Class<T> valueType, Functi
     }
   }
 
-  public Option {
+  private final Type type;
+  private final Set<String> names;
+  private final Function<Object, T> toValue;
+  private final String help;
+  private final Schema<?> nestedSchema;
+
+  Option(Type type, Set<String> names,  Function<Object, T> toValue, String help, Schema<?> nestedSchema) {
     requireNonNull(type, "type is null");
     requireNonNull(names, "names is null");
-    requireNonNull(valueType, "valueType is null");
     requireNonNull(toValue, "toValue is null");
     requireNonNull(help, "help is null");
     names = Collections.unmodifiableSet(new LinkedHashSet<>(names));
     if (names.isEmpty()) throw new IllegalArgumentException("no name defined");
+    this.type = type;
+    this.names = names;
+    this.toValue = toValue;
+    this.help = help;
+    this.nestedSchema = nestedSchema;
   }
 
-  public static Option<String> of(Type type, String... names) {
-    return new Option<>(type, checkDuplicates(names), String.class, Function.identity(), "", null);
+  public Type type() {
+    return type;
+  }
+
+  public Set<String> names() {
+    return names;
+  }
+
+  public String help() {
+    return help;
+  }
+
+  public Schema<?> nestedSchema() {
+    return nestedSchema;
   }
 
   public static Option<Boolean> ofFlag(String... names) {
-    return new Option<>(Type.FLAG, checkDuplicates(names), Boolean.class, Boolean::valueOf, "", null);
+    return new Option<>(Type.FLAG, checkDuplicates(names), object -> (Boolean) object, "", null);
   }
 
-  public static Option<String> ofSingle(String... names) {
-    return ofSingle(String.class, Function.identity(), names);
-  }
-  public static <T> Option<T> ofSingle(Class<T> valueType, Function<String, T> toValue, String... names) {
-    return new Option<>(Type.SINGLE, checkDuplicates(names), valueType, toValue, "", null);
+  @SuppressWarnings("unchecked")
+  public static Option<Optional<String>> ofSingle(String... names) {
+    return new Option<>(Type.SINGLE, checkDuplicates(names), object -> (Optional<String>) object, "", null);
   }
 
   public static Option<String> ofRequired(String... names) {
-    return ofRequired(String.class, Function.identity(), names);
-  }
-  public static <T> Option<T> ofRequired(Class<T> valueType, Function<String, T> toValue, String... names) {
-    return new Option<>(Type.REQUIRED, checkDuplicates(names), valueType, toValue, "", null);
+    return new Option<>(Type.REQUIRED, checkDuplicates(names), object -> (String) object, "", null);
   }
 
-  public static Option<String> ofRepeatable(String... names) {
-    return ofRepeatable(String.class, Function.identity(), names);
-  }
-  public static <T> Option<T> ofRepeatable(Class<T> valueType, Function<String, T> toValue, String... names) {
-    return new Option<>(Type.REPEATABLE, checkDuplicates(names), valueType, toValue, "", null);
+  @SuppressWarnings("unchecked")
+  public static Option<List<String>> ofRepeatable(String... names) {
+    return new Option<>(Type.REPEATABLE, checkDuplicates(names), object -> (List<String>) object, "", null);
   }
 
-  public static Option<String> ofVarargs(String... names) {
-    return ofVarargs(String.class, Function.identity(), names);
-  }
-  public static <T> Option<T> ofVarargs(Class<T> valueType, Function<String, T> toValue, String... names) {
-    return new Option<>(Type.VARARGS, checkDuplicates(names), valueType, toValue, "", null);
-  }
-
-  public T create(String value) {
-    return toValue().apply(value);
-  }
-
-  Object defaultValue() {
-    return type() == Type.VARARGS ? (Object[]) Array.newInstance(valueType(), 0) : type().defaultValue;
+  public static Option<String[]> ofVarargs(String... names) {
+    return new Option<>(Type.VARARGS, checkDuplicates(names), object -> (String[]) object, "", null);
   }
 
   private static Set<String> checkDuplicates(String... names) {
@@ -96,12 +99,27 @@ public record Option<T>(Type type, Set<String> names, Class<T> valueType, Functi
     return set;
   }
 
-  public Option<?> withHelp(String helpText) {
+  public <U> Option<U> map(Function<? super T, ? extends U> mapper) {
+    requireNonNull(mapper, "mapper is null");
+    return new Option<>(type, names, toValue.andThen(mapper), help, nestedSchema);
+  }
+
+  public Option<T> withHelp(String helpText) {
     requireNonNull(names, "helpText is null");
     if (!help.isEmpty()) {
       throw new IllegalStateException("option already has an help text");
     }
-    return new Option<>(type, names, valueType, toValue, helpText, nestedSchema);
+    return new Option<>(type, names, toValue, helpText, nestedSchema);
+  }
+
+  T defaultValue() {
+    // a required option should not trigger a call to toValue()
+    var value = type.defaultValue;
+    return value == null? null: toValue.apply(value);
+  }
+
+  T apply(Object arg) {
+    return toValue.apply(arg);
   }
 
   String name() {

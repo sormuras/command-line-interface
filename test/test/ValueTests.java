@@ -1,13 +1,9 @@
 package test;
 
-import static main.Option.Type.FLAG;
-import static main.Option.Type.REQUIRED;
-import static main.Option.Type.SINGLE;
 import static test.api.Assertions.assertEquals;
 
 import java.nio.file.Path;
 import java.util.Map;
-import java.util.function.Function;
 
 import main.Option;
 import main.Splitter;
@@ -24,13 +20,13 @@ class ValueTests {
   void test() {
     var flag = Option.ofFlag("-f", "--flag");
     var text = Option.ofSingle( "-t", "--text");
-    var required = Option.ofRequired(Path.class, Path::of, "-r");
+    var required = Option.ofRequired("-r").map(Path::of);
 
     Map<String, Value<?>> values = Splitter.of(flag, text, required).split("-f", "value");
     assertEquals(new Value.FlagValue(flag, true), values.get("-f"));
     assertEquals(new Value.FlagValue(flag, true), values.get("--flag"));
     assertEquals(null, values.get("-t"));
     assertEquals(null, values.get("--text"));
-    assertEquals(new Value.RequiredValue(required, Path.of("value")), values.get("-r"));
+    assertEquals(new Value.RequiredValue<>(required, Path.of("value")), values.get("-r"));
   }
 }

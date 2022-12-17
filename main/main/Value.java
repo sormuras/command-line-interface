@@ -27,7 +27,7 @@ public sealed interface Value<T> {
 
     @Override
     public boolean equals(Object obj) {
-      return obj instanceof VarargsValue other
+      return obj instanceof VarargsValue<?> other
           && option.equals(other.option)
           && Arrays.equals(value, other.value);
     }

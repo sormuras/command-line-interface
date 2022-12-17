@@ -108,7 +108,7 @@ public class Schema<T> {
                 var value =
                     option.nestedSchema() != null
                         ? splitNested(pendingArguments, option)
-                        : option.create(noValue ? pendingArguments.pop() : maybeValue);
+                        : noValue ? pendingArguments.pop() : maybeValue;
                 yield Optional.of(value);
               }
               case REPEATABLE -> {
@@ -116,28 +116,31 @@ public class Schema<T> {
                     option.nestedSchema() != null
                         ? List.of(splitNested(pendingArguments, option))
                         : noValue
-                        ? List.of(option.create(pendingArguments.pop()))
-                        : Stream.of(maybeValue.split(",")).map(option::create).toList();
+                        ? List.of(pendingArguments.pop())
+                        : Stream.of(maybeValue.split(",")).toList();
                 var elements = (List<?>) workspace.get(name);
                 yield Stream.concat(elements.stream(), value.stream()).toList();
               }
               case BRANCH, VARARGS, REQUIRED -> throw new AssertionError("Unnamed name? " + name);
             };
-        workspace.put( name, optionValue);
+        workspace.put( name, option.apply(optionValue));
         continue; // with next argument
       }
       // maybe a combination of single letter flags?
       if (!doubleDashMode && flagPattern != null && flagPattern.matcher(argument).matches()) {
         var flags = argument.substring(1).chars().mapToObj(c -> "-" + (char) c).toList();
         if (flags.stream().allMatch(optionsByName::containsKey)) {
-          flags.forEach(flag -> workspace.put(optionsByName.get(flag).name(), true));
+          flags.forEach(flag -> {
+            var option = optionsByName.get(flag);
+            workspace.put(option.name(), option.apply(true));
+          });
           continue;
         }
       }
       // try required option
       if (!requiredOptions.isEmpty()) {
         var requiredOption = requiredOptions.pop();
-        workspace.put(requiredOption.name(), requiredOption.create(argument));
+        workspace.put(requiredOption.name(), requiredOption.apply(argument));
         continue;
       }
       // restore pending arguments deque
@@ -146,9 +149,7 @@ public class Schema<T> {
       // try globbing all pending arguments into a varargs collector
       var varargsOption = options.stream().filter(Option::isVarargs).findFirst().orElse(null);
       if (varargsOption != null) {
-        workspace.put(varargsOption.name(), pendingArguments.stream()
-                .map(varargsOption::create)
-                .toArray(size -> (Object[]) Array.newInstance(varargsOption.valueType(), size)));
+        workspace.put(varargsOption.name(), varargsOption.apply(pendingArguments.toArray(String[]::new)));
         return create(workspace.values());
       }
       throw new IllegalArgumentException("Unhandled arguments: " + pendingArguments);

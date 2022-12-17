@@ -4,6 +4,7 @@ import static test.api.Assertions.assertEquals;
 import static test.api.Assertions.assertEqualsOptional;
 
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import main.Option;
@@ -21,7 +22,8 @@ public class JarValueTests {
   static final Option<?> CREATE_FLAG =
       Option.ofFlag("-c", "--create").withHelp("Create an archive");
   static final Option<?> FILE_OPTION = Option.ofSingle("-f", "--file").withHelp("The archive file");
-  static final Option<Path> FILES_OPTION = Option.ofVarargs(Path.class, Path::of, "files...");
+  static final Option<Path[]> FILES_OPTION = Option.ofVarargs("files...")
+      .map(filenames -> Arrays.stream(filenames).map(Path::of).toArray(Path[]::new));
 
   private static Map<String, Value<?>> splitInput(String line) {
     return Splitter.of(CREATE_FLAG, FILE_OPTION, FILES_OPTION).split(line.split("\\s+"));
