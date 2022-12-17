@@ -158,9 +158,9 @@ class EnumTests {
 
 
   public static final class Parameter<T> {
-    private final Option option;
+    private final Option<?> option;
 
-    private Parameter(Option option) {
+    private Parameter(Option<?> option) {
       this.option = option;
     }
 
