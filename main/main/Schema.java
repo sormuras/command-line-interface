@@ -72,7 +72,7 @@ public class Schema<T> {
       for (var name : option.names()) {
         optionsByName.put(name, option);
       }
-      workspace.put(option.name(), option.type().defaultValue());
+      workspace.put(option.name(), option.type().defaultValue(option));
     }
 
     while (true) {

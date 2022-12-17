@@ -165,23 +165,23 @@ class EnumTests {
     }
 
     public static Parameter<Boolean> flag(String... names) {
-      return new Parameter<>(FLAG.option(names));
+      return new Parameter<>(Option.ofFlag(names));
     }
 
     public static Parameter<Optional<String>> single(String... names) {
-      return new Parameter<>(SINGLE.option(names));
+      return new Parameter<>(Option.ofSingle(names));
     }
 
     public static Parameter<String> required(String... names) {
-      return new Parameter<>(REQUIRED.option(names));
+      return new Parameter<>(Option.ofRequired(names));
     }
 
     public static Parameter<List<String>> repeatable(String... names) {
-      return new Parameter<>(REPEATABLE.option(names));
+      return new Parameter<>(Option.ofRepeatable(names));
     }
 
     public static Parameter<String[]> varargs(String... names) {
-      return new Parameter<>(VARARGS.option(names));
+      return new Parameter<>(Option.ofVarargs(names));
     }
 
     @Override
@@ -233,9 +233,9 @@ class EnumTests {
   @Test
   void stringArguments() {
     var schema = EnumTests.schemaKeyed(conf -> conf
-        .with("optionFlag", FLAG.option("-f", "--flag"))
-        .with("optionText", SINGLE.option("-t", "--text"))
-        .with("optionR", REQUIRED.option("-r")));
+        .with("optionFlag", Option.ofFlag("-f", "--flag"))
+        .with("optionText", Option.ofSingle("-t", "--text"))
+        .with("optionR", Option.ofRequired("-r")));
     var argumentBag = Splitter.of(schema).split("-f", "value");
 
     assertTrue(argumentBag.flag("optionFlag"));
@@ -248,9 +248,9 @@ class EnumTests {
     enum Value { F, TEXT, R }
 
     var schema = schemaKeyed(conf -> conf
-        .with(Value.F, FLAG.option("-f", "--flag"))
-        .with(Value.TEXT, SINGLE.option("-t", "--text"))
-        .with(Value.R, REQUIRED.option("-r")));
+        .with(Value.F, Option.ofFlag("-f", "--flag"))
+        .with(Value.TEXT, Option.ofSingle("-t", "--text"))
+        .with(Value.R, Option.ofRequired("-r")));
     var argumentBag = Splitter.of(schema).split("-f", "value");
 
     assertTrue(argumentBag.flag(Value.F));
@@ -261,9 +261,9 @@ class EnumTests {
   @Test
   void optionsArgument() {
     var schema = EnumTests.schemaArgument(
-        FLAG.option("-f", "--flag"),
-        SINGLE.option("-t", "--text"),
-        REQUIRED.option("-r"));
+            Option.ofFlag("-f", "--flag"),
+            Option.ofSingle("-t", "--text"),
+            Option.ofRequired("-r"));
     var argumentBag = Splitter.of(schema).split("-f", "value");
 
     assertTrue(argumentBag.flagAt(0));

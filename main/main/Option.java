@@ -2,6 +2,7 @@ package main;
 
 import static java.util.Objects.requireNonNull;
 
+import java.lang.reflect.Array;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -29,12 +30,8 @@ public record Option<T>(Type type, Set<String> names, Class<T> valueType, Functi
       this.defaultValue = defaultValue;
     }
 
-    Object defaultValue() {
-      return defaultValue;
-    }
-
-    public Option option(String... names) {
-      return Option.of(this, names);
+    Object defaultValue(Option<?> of) {
+      return this == VARARGS ? (Object[]) Array.newInstance(of.valueType(), 0) : defaultValue;
     }
   }
 
@@ -52,6 +49,38 @@ public record Option<T>(Type type, Set<String> names, Class<T> valueType, Functi
     return new Option<>(type, checkDuplicates(names), String.class, Function.identity(), "", null);
   }
 
+  public static Option<Boolean> ofFlag(String... names) {
+    return new Option<>(Type.FLAG, checkDuplicates(names), Boolean.class, Boolean::valueOf, "", null);
+  }
+
+  public static Option<String> ofSingle(String... names) {
+    return ofSingle(String.class, Function.identity(), names);
+  }
+  public static <T> Option<T> ofSingle(Class<T> valueType, Function<String, T> toValue, String... names) {
+    return new Option<>(Type.SINGLE, checkDuplicates(names), valueType, toValue, "", null);
+  }
+
+  public static Option<String> ofRequired(String... names) {
+    return ofRequired(String.class, Function.identity(), names);
+  }
+  public static <T> Option<T> ofRequired(Class<T> valueType, Function<String, T> toValue, String... names) {
+    return new Option<>(Type.REQUIRED, checkDuplicates(names), valueType, toValue, "", null);
+  }
+
+  public static Option<String> ofRepeatable(String... names) {
+    return ofRepeatable(String.class, Function.identity(), names);
+  }
+  public static <T> Option<T> ofRepeatable(Class<T> valueType, Function<String, T> toValue, String... names) {
+    return new Option<>(Type.REPEATABLE, checkDuplicates(names), valueType, toValue, "", null);
+  }
+
+  public static Option<String> ofVarargs(String... names) {
+    return ofVarargs(String.class, Function.identity(), names);
+  }
+  public static <T> Option<T> ofVarargs(Class<T> valueType, Function<String, T> toValue, String... names) {
+    return new Option<>(Type.VARARGS, checkDuplicates(names), valueType, toValue, "", null);
+  }
+
   public T create(String value) {
     return toValue().apply(value);
   }
@@ -67,12 +96,12 @@ public record Option<T>(Type type, Set<String> names, Class<T> valueType, Functi
     return set;
   }
 
-  public Option withHelp(String helpText) {
+  public Option<?> withHelp(String helpText) {
     requireNonNull(names, "helpText is null");
     if (!help.isEmpty()) {
       throw new IllegalStateException("option already has an help text");
     }
-    return new Option(type, names, valueType, toValue, helpText, nestedSchema);
+    return new Option<>(type, names, valueType, toValue, helpText, nestedSchema);
   }
 
   String name() {

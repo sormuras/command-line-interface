@@ -45,7 +45,7 @@ public class JarRecordTests {
       @Name("--help:compat") boolean helpCompat,
       @Name("--help-extra") boolean helpExtra,
       @Name("--version") boolean version,
-      String... files) {
+      Path... files) {
 
     record ChangeDirOptions(String dir, Path file) {}
 
@@ -61,7 +61,7 @@ public class JarRecordTests {
     var options = splitInput("--create --file classes.jar Foo.class Bar.class");
     assertEquals(true, options.create());
     assertEqualsOptional("classes.jar", options.file());
-    assertEquals(List.of("Foo.class", "Bar.class"), List.of(options.files()));
+    assertEquals(List.of(Path.of("Foo.class"), Path.of( "Bar.class")), List.of(options.files()));
   }
 
   @Test
@@ -72,7 +72,7 @@ public class JarRecordTests {
     assertEquals(true, options.create());
     assertEqualsOptional(ZonedDateTime.parse("2021-01-06T14:36:00+02:00"), options.date());
     assertEqualsOptional("classes.jar", options.file());
-    assertEquals(List.of("Foo.class", "Bar.class"), List.of(options.files()));
+    assertEquals(List.of(Path.of("Foo.class"), Path.of("Bar.class")), List.of(options.files()));
   }
 
   @Test

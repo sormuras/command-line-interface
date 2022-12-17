@@ -22,7 +22,7 @@ public interface Splitter<T> {
     return of(RecordSchemaSupport.toSchema(lookup, schema));
   }
 
-  static Splitter<Map<String, Value>> of(Option... options) {
+  static Splitter<Map<String, Value<?>>> of(Option<?>... options) {
     requireNonNull(options, "options is null");
     return of(Value.toSchema(options));
   }
