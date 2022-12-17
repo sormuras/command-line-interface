@@ -57,25 +57,25 @@ class EnumTests {
       return data.get(index);
     }
 
-    public boolean flag(int index) {
+    public boolean flagAt(int index) {
       return (boolean) rawValue(index, FLAG);
     }
 
     @SuppressWarnings("unchecked")
-    public Optional<String> single(int index) {
+    public Optional<String> singleAt(int index) {
       return (Optional<String>) rawValue(index, SINGLE);
     }
 
-    public String required(int index) {
+    public String requiredAt(int index) {
       return (String) rawValue(index, REQUIRED);
     }
 
     @SuppressWarnings("unchecked")
-    public List<String> repeatable(int index) {
+    public List<String> repeatableAt(int index) {
       return (List<String>) rawValue(index, REPEATABLE);
     }
 
-    public String[] varargs(int index) {
+    public String[] varargsAt(int index) {
       return (String[]) rawValue(index, VARARGS);
     }
 
@@ -86,34 +86,35 @@ class EnumTests {
       return indexMap = indexMapFactory.apply(options);
     }
 
-    private Object rawValue(K name, Option.Type expectedType) {
-      var index = indexMap().get(name);
+    private Object rawValue(K key, Option.Type expectedType) {
+      requireNonNull(key, "key is null");
+      var index = indexMap().get(key);
       if (index == null) {
-        throw new IllegalStateException(name + " is not a valid name");
+        throw new IllegalStateException(key + " is not a valid key");
       }
       return rawValue(index, expectedType);
     }
 
-    public boolean flag(K name) {
-      return (boolean) rawValue(name, FLAG);
+    public boolean flag(K key) {
+      return (boolean) rawValue(key, FLAG);
     }
 
     @SuppressWarnings("unchecked")
-    public Optional<String> single(K name) {
-      return (Optional<String>) rawValue(name, SINGLE);
+    public Optional<String> single(K key) {
+      return (Optional<String>) rawValue(key, SINGLE);
     }
 
-    public String required(K name) {
-      return (String) rawValue(name, REQUIRED);
+    public String required(K key) {
+      return (String) rawValue(key, REQUIRED);
     }
 
     @SuppressWarnings("unchecked")
-    public List<String> repeatable(K name) {
-      return (List<String>) rawValue(name, REPEATABLE);
+    public List<String> repeatable(K key) {
+      return (List<String>) rawValue(key, REPEATABLE);
     }
 
-    public String[] varargs(K name) {
-      return (String[]) rawValue(name, VARARGS);
+    public String[] varargs(K key) {
+      return (String[]) rawValue(key, VARARGS);
     }
 
     @Override
@@ -194,9 +195,9 @@ class EnumTests {
         REQUIRED.option("-r"));
     var argumentBag = Splitter.of(schema).split("-f", "value");
 
-    assertTrue(argumentBag.flag(0));
-    assertTrue(argumentBag.single(1).isEmpty());
-    assertEquals("value", argumentBag.required(2));
+    assertTrue(argumentBag.flagAt(0));
+    assertTrue(argumentBag.singleAt(1).isEmpty());
+    assertEquals("value", argumentBag.requiredAt(2));
 
     assertTrue(argumentBag.flag("-f"));
     assertTrue(argumentBag.single("-t").isEmpty());
