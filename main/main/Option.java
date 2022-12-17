@@ -37,7 +37,7 @@ public class Option<T> {
   private final String help;
   private final Schema<?> nestedSchema;
 
-  public Option(Type type, Set<String> names,  Function<Object, T> toValue, String help, Schema<?> nestedSchema) {
+  Option(Type type, Set<String> names,  Function<Object, T> toValue, String help, Schema<?> nestedSchema) {
     requireNonNull(type, "type is null");
     requireNonNull(names, "names is null");
     requireNonNull(toValue, "toValue is null");
@@ -103,11 +103,11 @@ public class Option<T> {
   // the return type must be an equivalent type (Boolean -> Boolean, Optional -> Optional, etc)
   public <U> Option<U> map(Function<? super T, ? extends U> mapper) {
     requireNonNull(mapper, "mapper is null");
-    return new Option<>(type, names, toValue.andThen(v -> requireEquivalentType(mapper.apply(v))), help, nestedSchema);
+    return new Option<>(type, names, toValue.andThen(v -> requireEquivalentType(type, mapper.apply(v))), help, nestedSchema);
   }
 
   @SuppressWarnings("unchecked")
-  private <V> V requireEquivalentType(V value) {
+  private static <V> V requireEquivalentType(Type type, V value) {
     Objects.requireNonNull(value, "value is null");
     return (V) switch (type) {
       case BRANCH -> (Record) value;
