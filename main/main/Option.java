@@ -29,10 +29,6 @@ public record Option<T>(Type type, Set<String> names, Class<T> valueType, Functi
     Type(Object defaultValue) {
       this.defaultValue = defaultValue;
     }
-
-    Object defaultValue(Option<?> of) {
-      return this == VARARGS ? (Object[]) Array.newInstance(of.valueType(), 0) : defaultValue;
-    }
   }
 
   public Option {
@@ -83,6 +79,10 @@ public record Option<T>(Type type, Set<String> names, Class<T> valueType, Functi
 
   public T create(String value) {
     return toValue().apply(value);
+  }
+
+  Object defaultValue() {
+    return type() == Type.VARARGS ? (Object[]) Array.newInstance(valueType(), 0) : type().defaultValue;
   }
 
   private static Set<String> checkDuplicates(String... names) {
