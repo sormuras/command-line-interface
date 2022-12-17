@@ -75,6 +75,7 @@ public class Schema<T> {
       workspace.put(option.name(), option.defaultValue());
     }
 
+    boolean doubleDashMode = false;
     while (true) {
       if (pendingArguments.isEmpty()) {
         if (requiredOptions.isEmpty()) return create(workspace.values());
@@ -85,9 +86,13 @@ public class Schema<T> {
       int separator = argument.indexOf('=');
       var noValue = separator == -1;
       var maybeName = noValue ? argument : argument.substring(0, separator);
+      if ("--".equals(maybeName)) {
+        doubleDashMode = true;
+        continue;
+      }
       var maybeValue = noValue ? "" : unQuote(argument.substring(separator + 1));
       // try well-known option first
-      if (optionsByName.containsKey(maybeName)) {
+      if (!doubleDashMode && optionsByName.containsKey(maybeName)) {
         var option = optionsByName.get(maybeName);
         var name = option.name();
         boolean branched = false;
@@ -126,7 +131,7 @@ public class Schema<T> {
         continue; // with next argument
       }
       // maybe a combination of single letter flags?
-      if (flagPattern != null && flagPattern.matcher(argument).matches()) {
+      if (!doubleDashMode && flagPattern != null && flagPattern.matcher(argument).matches()) {
         var flags = argument.substring(1).chars().mapToObj(c -> "-" + (char) c).toList();
         if (flags.stream().allMatch(optionsByName::containsKey)) {
           flags.forEach(flag -> workspace.put(optionsByName.get(flag).name(), true));

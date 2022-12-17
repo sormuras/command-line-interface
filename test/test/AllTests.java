@@ -12,6 +12,7 @@ class AllTests {
         new ValueTests(),
         new BranchTests(),
         new EnumTests(),
+        new DoubleDashTests(),
         // jdk examples
         new JarRecordTests(),
         new JarValueTests());
