@@ -8,19 +8,23 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-public sealed interface Value {
+public sealed interface Value<T> {
 
-  Option<?> option();
+  Option<T> option();
 
-  record FlagValue(Option<?> option, boolean value) implements Value {}
+  record FlagValue(Option<Boolean> option, boolean value) implements Value<Boolean> {}
 
-  record SingleValue(Option<?> option, Optional<String> value) implements Value {}
+  record SingleValue<T>(Option<T> option, Optional<T> value) implements Value<T> {}
 
-  record RepeatableValue(Option<?> option, List<String> value) implements Value {}
+  record RepeatableValue<T>(Option<T> option, List<T> value) implements Value<T> {}
 
-  record RequiredValue(Option<?> option, String value) implements Value {}
+  record RequiredValue<T>(Option<T> option, T value) implements Value<T> {}
 
-  record VarargsValue(Option<?> option, String... value) implements Value {
+  record VarargsValue<T>(Option<T> option, T... value) implements Value<T> {
+    @SafeVarargs
+    public VarargsValue {
+    }
+
     @Override
     public boolean equals(Object obj) {
       return obj instanceof VarargsValue other
@@ -34,15 +38,15 @@ public sealed interface Value {
     }
   }
 
-  static Schema<Map<String, Value>> toSchema(Option<?>... options) {
+  static Schema<Map<String, Value<?>>> toSchema(Option<?>... options) {
     var list = List.of(options);
     return new Schema<>(list, values -> evaluate(list, values));
   }
 
-  private static Map<String, Value> evaluate(List<? extends Option<?>> options, Collection<Object> collection) {
+  private static Map<String, Value<?>> evaluate(List<? extends Option<?>> options, Collection<Object> collection) {
     assert options.size() != collection.size() : "size mismatch";
     var objects = List.copyOf(collection);
-    var values = new LinkedHashMap<String, Value>();
+    var values = new LinkedHashMap<String, Value<?>>();
     for (int i = 0; i < options.size(); i++) {
       var option = options.get(i);
       var object = objects.get(i);
@@ -54,16 +58,15 @@ public sealed interface Value {
   }
 
   @SuppressWarnings("unchecked")
-  private static Value evaluate(Option<?> option, Object object) {
+  private static <T> Value<T> evaluate(Option<T> option, Object object) {
     if (object instanceof Boolean value)
-      return value /* == true */ ? new FlagValue(option, value) : null;
+      return value /* == true */ ? (Value<T>) new FlagValue((Option<Boolean>)option, value) : null;
     if (object instanceof Optional<?> value)
-      return value.isPresent() ? new SingleValue(option, (Optional<String>) value) : null;
+      return value.isPresent() ? new SingleValue<>(option, (Optional<T>) value) : null;
     if (object instanceof List<?> value)
-      return !value.isEmpty() ? new RepeatableValue(option, (List<String>) value) : null;
-    if (object instanceof String value) return new RequiredValue(option, value); // always!
-    if (object instanceof String[] value)
-      return value.length > 0 ? new VarargsValue(option, value) : null;
-    throw new AssertionError("option type not handled: " + option.getClass().getName());
+      return !value.isEmpty() ? new RepeatableValue<>(option, (List<T>) value) : null;
+    if (object instanceof Object[] value)
+      return value.length > 0 ? new VarargsValue<>(option, (T[]) value) : null;
+    return new RequiredValue<>(option, (T) object);
   }
 }

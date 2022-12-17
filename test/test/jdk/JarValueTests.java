@@ -1,11 +1,9 @@
 package test.jdk;
 
-import static main.Option.Type.FLAG;
-import static main.Option.Type.SINGLE;
-import static main.Option.Type.VARARGS;
 import static test.api.Assertions.assertEquals;
 import static test.api.Assertions.assertEqualsOptional;
 
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
 import main.Option;
@@ -20,12 +18,13 @@ public class JarValueTests {
     JTest.runTests(new JarValueTests(), args);
   }
 
-  static final Option<?> CREATE_FLAG = FLAG.option("-c", "--create").withHelp("Create an archive");
-  static final Option<?> FILE_OPTION = SINGLE.option("-f", "--file").withHelp("The archive file");
-  static final Option<?>[] OPTIONS = {CREATE_FLAG, FILE_OPTION, VARARGS.option("files...")};
+  static final Option<?> CREATE_FLAG =
+      Option.ofFlag("-c", "--create").withHelp("Create an archive");
+  static final Option<?> FILE_OPTION = Option.ofSingle("-f", "--file").withHelp("The archive file");
+  static final Option<Path> FILES_OPTION = Option.ofVarargs(Path.class, Path::of, "files...");
 
-  private static Map<String, Value> splitInput(String line) {
-    return Splitter.of(OPTIONS).split(line.split("\\s+"));
+  private static Map<String, Value<?>> splitInput(String line) {
+    return Splitter.of(CREATE_FLAG, FILE_OPTION, FILES_OPTION).split(line.split("\\s+"));
   }
 
   @Test
@@ -34,6 +33,7 @@ public class JarValueTests {
     assertEquals(Set.of("-c", "--create", "-f", "--file", "files..."), values.keySet());
     assertEqualsOptional("classes.jar", ((Value.SingleValue) values.get("-f")).value());
     assertEquals(
-        new Value.VarargsValue(OPTIONS[2], "Foo.class", "Bar.class"), values.get("files..."));
+        new Value.VarargsValue(FILES_OPTION, Path.of("Foo.class"), Path.of("Bar.class")),
+        values.get("files..."));
   }
 }
