@@ -22,7 +22,7 @@ public class Schema<T> {
   public Schema(List<Option> options, Function<? super List<Object>, ? extends T> finalizer) {
     requireNonNull(options, "options is null");
     requireNonNull(finalizer, "finalizer is null");
-    var opts = List.<Option>copyOf(options);
+    var opts = List.copyOf(options);
     checkCardinality(opts);
     checkDuplicates(opts);
     checkVarargs(opts);
