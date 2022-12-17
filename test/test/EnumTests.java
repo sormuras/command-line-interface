@@ -6,16 +6,12 @@ import main.Splitter;
 import test.api.JTest;
 import test.api.JTest.Test;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.IntStream.range;
 import static main.Option.Type.FLAG;
@@ -34,127 +30,6 @@ class EnumTests {
 
 
   // ---
-
-  public static final class ArgumentBag<K> {
-    private final List<? extends Option<?>> options;
-    private final List<Object> data;
-    private final Function<List<? extends Option<?>>, Map<K, Integer>> indexMapFactory;
-    private Map<K, Integer> indexMap;  // lazy
-
-    private ArgumentBag(List<? extends Option<?>> options, List<Object> data, Function<List<? extends Option<?>>, Map<K, Integer>> indexMapFactory) {
-      this.options = options;
-      this.data = data;
-      this.indexMapFactory = indexMapFactory;
-    }
-
-    public int size() {
-      return options.size();
-    }
-
-    private Object rawValue(int index, Option.Type expectedType) {
-      var option = options.get(index);
-      if (option.type() != expectedType) {
-        throw new IllegalStateException(option.type() + " is not a " + expectedType);
-      }
-      return data.get(index);
-    }
-
-    public boolean flagAt(int index) {
-      return (boolean) rawValue(index, FLAG);
-    }
-
-    @SuppressWarnings("unchecked")
-    public Optional<String> singleAt(int index) {
-      return (Optional<String>) rawValue(index, SINGLE);
-    }
-
-    public String requiredAt(int index) {
-      return (String) rawValue(index, REQUIRED);
-    }
-
-    @SuppressWarnings("unchecked")
-    public List<String> repeatableAt(int index) {
-      return (List<String>) rawValue(index, REPEATABLE);
-    }
-
-    public String[] varargsAt(int index) {
-      return (String[]) rawValue(index, VARARGS);
-    }
-
-    private Map<K, Integer> indexMap() {
-      if (indexMap != null) {
-        return indexMap;
-      }
-      return indexMap = indexMapFactory.apply(options);
-    }
-
-    private Object rawValue(K key, Option.Type expectedType) {
-      requireNonNull(key, "key is null");
-      var index = indexMap().get(key);
-      if (index == null) {
-        throw new IllegalStateException(key + " is not a valid key");
-      }
-      return rawValue(index, expectedType);
-    }
-
-    public boolean flag(K key) {
-      return (boolean) rawValue(key, FLAG);
-    }
-
-    @SuppressWarnings("unchecked")
-    public Optional<String> single(K key) {
-      return (Optional<String>) rawValue(key, SINGLE);
-    }
-
-    public String required(K key) {
-      return (String) rawValue(key, REQUIRED);
-    }
-
-    @SuppressWarnings("unchecked")
-    public List<String> repeatable(K key) {
-      return (List<String>) rawValue(key, REPEATABLE);
-    }
-
-    public String[] varargs(K key) {
-      return (String[]) rawValue(key, VARARGS);
-    }
-
-    @Override
-    public String toString() {
-      return range(0, options.size())
-          .mapToObj(i -> options.get(i).names().iterator().next() + ": " + data.get(i))
-          .collect(Collectors.joining(", ", "{", "}"));
-    }
-  }
-
-  public static Schema<ArgumentBag<String>> schemaArgument(Option<?>... options) {
-    requireNonNull(options, "options is null");
-    var opt = List.of(options);
-    return new Schema<>(opt, data -> new ArgumentBag<>(opt, data,
-        optionList -> range(0, optionList.size()).boxed().collect(toMap(i -> optionList.get(i).names().iterator().next(), i -> i))));
-  }
-
-  public interface Configuration<K> {
-    Configuration<K> with(K key, Option<?> option);
-  }
-
-  public static <K> Schema<ArgumentBag<K>> schemaKeyed(Consumer<? super Configuration<K>> consumer)  {
-    requireNonNull(consumer, "consumer is null");
-    var keys = new ArrayList<K>();
-    var options = new ArrayList<Option<?>>();
-    consumer.accept(new Configuration<>() {
-      @Override
-      public Configuration<K> with(K key, Option<?> option) {
-        requireNonNull(key, "key is null");
-        requireNonNull(option, "option is null");
-        keys.add(key);
-        options.add(option);
-        return this;
-      }
-    });
-    return new Schema<>(options, data -> new ArgumentBag<>(options, data,
-        optionList -> range(0, optionList.size()).boxed().collect(toMap(keys::get, i -> i))));
-  }
 
 
   public static final class Parameter<T> {
@@ -196,84 +71,74 @@ class EnumTests {
     @SuppressWarnings("unchecked")
     public T arg(DataMap dataMap) {
       requireNonNull(dataMap, "dataMap is null");
-      var value = dataMap.dataMap.get(this);
-      if (value == null) {
+      var index = dataMap.indexMap.get(this);
+      if (index == null) {
         throw new IllegalStateException("no data for parameter " + this);
       }
-      return (T) value;
+      return (T) dataMap.data.get(index);
     }
   }
 
   public static final class DataMap {
-    private final Map<Parameter<?>, Object> dataMap;
+    private final List<Object> data;
+    private final List<Parameter<?>> parameters;
+    private final Map<Parameter<?>, Integer> indexMap;
 
-    private DataMap(Map<Parameter<?>, Object> dataMap) {
-      this.dataMap = dataMap;
+    private DataMap(List<Object> data, List<Parameter<?>> parameters, Map<Parameter<?>, Integer> indexMap) {
+      this.data = data;
+      this.parameters = parameters;
+      this.indexMap = indexMap;
+    }
+
+    private Object rawValue(int index, Option.Type expectedType) {
+      var parameter = parameters.get(index);
+      if (parameter.option.type() != expectedType) {
+        throw new IllegalStateException(parameter.option.type() + " is not a " + expectedType);
+      }
+      return data.get(index);
+    }
+
+    public boolean flagAt(int index) {
+      return (boolean) rawValue(index, FLAG);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Optional<String> singleAt(int index) {
+      return (Optional<String>) rawValue(index, SINGLE);
+    }
+
+    public String requiredAt(int index) {
+      return (String) rawValue(index, REQUIRED);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<String> repeatableAt(int index) {
+      return (List<String>) rawValue(index, REPEATABLE);
+    }
+
+    public String[] varargsAt(int index) {
+      return (String[]) rawValue(index, VARARGS);
     }
 
     @Override
     public String toString() {
-      return dataMap.toString();
+      return indexMap.entrySet().stream()
+          .map(entry -> entry.getKey().option.names().iterator().next() + ": " + data.get(entry.getValue()))
+          .collect(joining(", ", "{", "}"));
     }
   }
 
-  public static <K> Schema<DataMap> schemaParameter(Parameter<?>... parameters)  {
+  public static Schema<DataMap> schemaParameter(Parameter<?>... parameters)  {
     requireNonNull(parameters, "parameters is null");
     var params = List.of(parameters);
     var options = params.stream().map(p -> p.option).toList();
-    return new Schema<>(options, data -> new DataMap(range(0, params.size())
+    return new Schema<>(options, data -> new DataMap(data, params, range(0, params.size())
         .boxed()
-        .collect(toMap(params::get, data::get))));
+        .collect(toMap(params::get, i -> i))));
   }
 
 
   // ---
-
-
-  @Test
-  void stringArguments() {
-    var schema = EnumTests.schemaKeyed(conf -> conf
-        .with("optionFlag", Option.ofFlag("-f", "--flag"))
-        .with("optionText", Option.ofSingle("-t", "--text"))
-        .with("optionR", Option.ofRequired("-r")));
-    var argumentBag = Splitter.of(schema).split("-f", "value");
-
-    assertTrue(argumentBag.flag("optionFlag"));
-    assertTrue(argumentBag.single("optionText").isEmpty());
-    assertEquals("value", argumentBag.required("optionR"));
-  }
-
-  @Test
-  void enumArguments() {
-    enum Value { F, TEXT, R }
-
-    var schema = schemaKeyed(conf -> conf
-        .with(Value.F, Option.ofFlag("-f", "--flag"))
-        .with(Value.TEXT, Option.ofSingle("-t", "--text"))
-        .with(Value.R, Option.ofRequired("-r")));
-    var argumentBag = Splitter.of(schema).split("-f", "value");
-
-    assertTrue(argumentBag.flag(Value.F));
-    assertTrue(argumentBag.single(Value.TEXT).isEmpty());
-    assertEquals("value", argumentBag.required(Value.R));
-  }
-
-  @Test
-  void optionsArgument() {
-    var schema = EnumTests.schemaArgument(
-            Option.ofFlag("-f", "--flag"),
-            Option.ofSingle("-t", "--text"),
-            Option.ofRequired("-r"));
-    var argumentBag = Splitter.of(schema).split("-f", "value");
-
-    assertTrue(argumentBag.flagAt(0));
-    assertTrue(argumentBag.singleAt(1).isEmpty());
-    assertEquals("value", argumentBag.requiredAt(2));
-
-    assertTrue(argumentBag.flag("-f"));
-    assertTrue(argumentBag.single("-t").isEmpty());
-    assertEquals("value", argumentBag.required("-r"));
-  }
 
   @Test
   void parameters() {
@@ -282,6 +147,10 @@ class EnumTests {
     var r = Parameter.required("-r");
     var schema = EnumTests.schemaParameter(flag, text, r);
     var dataMap = Splitter.of(schema).split("-f", "value");
+
+    assertTrue(dataMap.flagAt(0));
+    assertTrue(dataMap.singleAt(1).isEmpty());
+    assertEquals("value", dataMap.requiredAt(2));
 
     assertTrue(flag.arg(dataMap));
     assertTrue(text.arg(dataMap).isEmpty());
