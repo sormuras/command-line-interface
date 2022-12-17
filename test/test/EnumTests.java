@@ -120,7 +120,7 @@ class EnumTests {
     }
   }
 
-  static Schema<ArgumentBag<String>> schemaArgument(Option... options) {
+  public static Schema<ArgumentBag<String>> schemaArgument(Option... options) {
     requireNonNull(options, "options is null");
     var opt = List.of(options);
     return new Schema<>(opt, data -> new ArgumentBag<>(opt, data,
@@ -131,7 +131,7 @@ class EnumTests {
     Configuration<K> with(K key, Option option);
   }
 
-  static <K> Schema<ArgumentBag<K>> schemaKeyed(Consumer<? super Configuration<K>> consumer)  {
+  public static <K> Schema<ArgumentBag<K>> schemaKeyed(Consumer<? super Configuration<K>> consumer)  {
     requireNonNull(consumer);
     var keys = new ArrayList<K>();
     var options = new ArrayList<Option>();
