@@ -16,13 +16,13 @@ import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toCollection;
 
 public class Schema<T> {
-  final List<? extends Option<?>> options;
+  final List<Option<?>> options;
   private final Function<? super List<Object>, ? extends T> finalizer;
 
   public Schema(List<? extends Option<?>> options, Function<? super List<Object>, ? extends T> finalizer) {
     requireNonNull(options, "options is null");
     requireNonNull(finalizer, "finalizer is null");
-    var opts = List.copyOf(options);
+    var opts = List.<Option<?>>copyOf(options);
     checkCardinality(opts);
     checkDuplicates(opts);
     checkVarargs(opts);
@@ -30,11 +30,11 @@ public class Schema<T> {
     this.finalizer = finalizer;
   }
 
-  private static void checkCardinality(List<? extends Option<?>> options) {
+  private static void checkCardinality(List<Option<?>> options) {
     if (options.isEmpty()) throw new IllegalArgumentException("At least one option is expected");
   }
 
-  private static void checkDuplicates(List<? extends Option<?>> options) {
+  private static void checkDuplicates(List<Option<?>> options) {
     var optionsByName = new HashMap<String, Option<?>>();
     for (var option : options) {
       var names = option.names();
@@ -50,8 +50,8 @@ public class Schema<T> {
     }
   }
 
-  private static void checkVarargs(List<? extends Option<?>> options) {
-    List<? extends Option<?>> varargs = options.stream().filter(Option::isVarargs).toList();
+  private static void checkVarargs(List<Option<?>> options) {
+    var varargs = options.stream().filter(Option::isVarargs).toList();
     if (varargs.isEmpty()) return;
     if (varargs.size() > 1)
       throw new IllegalArgumentException("Too many varargs types specified: " + varargs);
