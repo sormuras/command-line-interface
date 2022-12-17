@@ -26,6 +26,8 @@ public final class ArgumentMap {
   }
 
   // TODO add more methods
+  // because we ask in Option.map() to produce a value of an equivalent type
+  // we know that we have records, boolean, Optional, List, array or any other values
 
   @Override
   public String toString() {
