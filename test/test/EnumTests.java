@@ -45,6 +45,10 @@ class EnumTests {
       this.indexMapFactory = indexMapFactory;
     }
 
+    public int size() {
+      return options.size();
+    }
+
     private Object rawValue(int index, Option.Type expectedType) {
       var option = options.get(index);
       if (option.type() != expectedType) {
@@ -132,7 +136,7 @@ class EnumTests {
   }
 
   public static <K> Schema<ArgumentBag<K>> schemaKeyed(Consumer<? super Configuration<K>> consumer)  {
-    requireNonNull(consumer);
+    requireNonNull(consumer, "consumer is null");
     var keys = new ArrayList<K>();
     var options = new ArrayList<Option>();
     consumer.accept(new Configuration<>() {
