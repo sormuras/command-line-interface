@@ -184,6 +184,11 @@ class EnumTests {
       return new Parameter<>(VARARGS.option(names));
     }
 
+    @Override
+    public String toString() {
+      return "Parameter { type: " + option.type() + ", name: " +  option.names().iterator().next() + " }";
+    }
+
     public Parameter<T> help(String helpText) {
       return new Parameter<>(option.withHelp(helpText));
     }
@@ -191,7 +196,11 @@ class EnumTests {
     @SuppressWarnings("unchecked")
     public T arg(DataMap dataMap) {
       requireNonNull(dataMap, "dataMap is null");
-      return (T) dataMap.dataMap.get(this);
+      var value = dataMap.dataMap.get(this);
+      if (value == null) {
+        throw new IllegalStateException("no data for parameter " + this);
+      }
+      return (T) value;
     }
   }
 
