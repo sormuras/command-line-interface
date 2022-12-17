@@ -36,7 +36,7 @@ public class Option<T> {
   private final String help;
   private final Schema<?> nestedSchema;
 
-  Option(Type type, Set<String> names,  Function<Object, T> toValue, String help, Schema<?> nestedSchema) {
+  public Option(Type type, Set<String> names,  Function<Object, T> toValue, String help, Schema<?> nestedSchema) {
     requireNonNull(type, "type is null");
     requireNonNull(names, "names is null");
     requireNonNull(toValue, "toValue is null");
