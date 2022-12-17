@@ -18,9 +18,9 @@ class ValueTests {
 
   @Test
   void test() {
-    var flag = Option.ofFlag("-f", "--flag");
-    var text = Option.ofSingle( "-t", "--text");
-    var required = Option.ofRequired("-r").map(Path::of);
+    var flag = Option.flag("-f", "--flag");
+    var text = Option.single( "-t", "--text");
+    var required = Option.required("-r").map(Path::of);
 
     Map<String, Value<?>> values = Splitter.of(flag, text, required).split("-f", "value");
     assertEquals(new Value.FlagValue(flag, true), values.get("-f"));

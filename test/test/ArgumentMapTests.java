@@ -16,9 +16,9 @@ class ArgumentMapTests {
 
   @Test
   void argumentMap() {
-    var flag = Option.ofFlag("-f", "--flag");
-    var text = Option.ofSingle("-t", "--text");
-    var r = Option.ofRequired("-r");
+    var flag = Option.flag("-f", "--flag");
+    var text = Option.single("-t", "--text");
+    var r = Option.required("-r");
     var argMap = Splitter.ofArgument(flag, text, r).split("-f", "value");
 
     assertTrue(flag.argument(argMap));

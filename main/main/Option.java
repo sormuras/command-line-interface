@@ -67,25 +67,25 @@ public class Option<T> {
     return nestedSchema;
   }
 
-  public static Option<Boolean> ofFlag(String... names) {
+  public static Option<Boolean> flag(String... names) {
     return new Option<>(Type.FLAG, checkDuplicates(names), object -> (Boolean) object, "", null);
   }
 
   @SuppressWarnings("unchecked")
-  public static Option<Optional<String>> ofSingle(String... names) {
+  public static Option<Optional<String>> single(String... names) {
     return new Option<>(Type.SINGLE, checkDuplicates(names), object -> (Optional<String>) object, "", null);
   }
 
-  public static Option<String> ofRequired(String... names) {
+  public static Option<String> required(String... names) {
     return new Option<>(Type.REQUIRED, checkDuplicates(names), object -> (String) object, "", null);
   }
 
   @SuppressWarnings("unchecked")
-  public static Option<List<String>> ofRepeatable(String... names) {
+  public static Option<List<String>> repeatable(String... names) {
     return new Option<>(Type.REPEATABLE, checkDuplicates(names), object -> (List<String>) object, "", null);
   }
 
-  public static Option<String[]> ofVarargs(String... names) {
+  public static Option<String[]> varargs(String... names) {
     return new Option<>(Type.VARARGS, checkDuplicates(names), object -> (String[]) object, "", null);
   }
 
@@ -119,7 +119,7 @@ public class Option<T> {
     };
   }
 
-  public Option<T> withHelp(String helpText) {
+  public Option<T> help(String helpText) {
     requireNonNull(names, "helpText is null");
     if (!help.isEmpty()) {
       throw new IllegalStateException("option already has an help text");

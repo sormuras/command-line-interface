@@ -20,9 +20,9 @@ public class JarValueTests {
   }
 
   static final Option<?> CREATE_FLAG =
-      Option.ofFlag("-c", "--create").withHelp("Create an archive");
-  static final Option<?> FILE_OPTION = Option.ofSingle("-f", "--file").withHelp("The archive file");
-  static final Option<Path[]> FILES_OPTION = Option.ofVarargs("files...")
+      Option.flag("-c", "--create").help("Create an archive");
+  static final Option<?> FILE_OPTION = Option.single("-f", "--file").help("The archive file");
+  static final Option<Path[]> FILES_OPTION = Option.varargs("files...")
       .map(filenames -> Arrays.stream(filenames).map(Path::of).toArray(Path[]::new));
 
   private static Map<String, Value<?>> splitInput(String line) {
