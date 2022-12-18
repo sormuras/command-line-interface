@@ -14,35 +14,35 @@ import java.util.function.Function;
 import static java.util.Objects.requireNonNull;
 
 @FunctionalInterface
-public interface ValueConverterResolver {
-  Optional<Function<Object, ?>> valueConverter(Lookup lookup, Type valueType);
+public interface ConverterResolver {
+  Optional<Function<Object, ?>> converter(Lookup lookup, Type valueType);
 
-  default ValueConverterResolver or(ValueConverterResolver resolver) {
+  default ConverterResolver or(ConverterResolver resolver) {
     requireNonNull(resolver, "resolver is null");
-    return (lookup, valueType) -> valueConverter(lookup, valueType)
-        .or(() -> resolver.valueConverter(lookup, valueType));
+    return (lookup, valueType) -> converter(lookup, valueType)
+        .or(() -> resolver.converter(lookup, valueType));
   }
 
-  default ValueConverterResolver unwrap() {
+  default ConverterResolver unwrap() {
     return (lookup, valueType) -> unwrap(lookup, valueType, this);
   }
 
-  static ValueConverterResolver of(ValueConverterResolver resolver) {
+  static ConverterResolver of(ConverterResolver resolver) {
     requireNonNull(resolver, "resolver is null");
     return resolver;
   }
 
-  static ValueConverterResolver defaultResolver() {
+  static ConverterResolver defaultResolver() {
     final class Default {
-      private static final ValueConverterResolver DEFAULT_RESOLVER =
-          of(ValueConverterResolver::base)
-              .or(ValueConverterResolver::reflected)
+      private static final ConverterResolver DEFAULT_RESOLVER =
+          of(ConverterResolver::base)
+              .or(ConverterResolver::reflected)
               .unwrap();
     }
     return Default.DEFAULT_RESOLVER;
   }
 
-  private static Optional<Function<Object, ?>> unwrap(Lookup lookup, Type valueType, ValueConverterResolver resolver) {
+  private static Optional<Function<Object, ?>> unwrap(Lookup lookup, Type valueType, ConverterResolver resolver) {
     requireNonNull(lookup, "lookup is null");
     requireNonNull(valueType, "valueType is null");
     requireNonNull(resolver, "resolver is null");
@@ -50,22 +50,22 @@ public interface ValueConverterResolver {
       var raw = (Class<?>) parameterizedType.getRawType();
       if (raw == Optional.class) {
         var actualTypeArgument = parameterizedType.getActualTypeArguments()[0];
-        return resolver.valueConverter(lookup, actualTypeArgument).map(f -> arg -> ((Optional<?>) arg).map(f));
+        return resolver.converter(lookup, actualTypeArgument).map(f -> arg -> ((Optional<?>) arg).map(f));
       }
       if (raw == List.class) {
         var actualTypeArgument = parameterizedType.getActualTypeArguments()[0];
-        return resolver.valueConverter(lookup, actualTypeArgument).map(f -> arg -> ((List<?>) arg).stream().map(f).toList());
+        return resolver.converter(lookup, actualTypeArgument).map(f -> arg -> ((List<?>) arg).stream().map(f).toList());
       }
     }
     if (valueType instanceof Class<?> clazz && Object[].class.isAssignableFrom(clazz)) {
       var componentType = clazz.getComponentType();
-      return resolver.valueConverter(lookup, componentType)
+      return resolver.converter(lookup, componentType)
           .map(f -> arg ->
               Arrays.stream(((Object[]) arg))
                   .map(f)
                   .toArray(size -> (Object[]) Array.newInstance(componentType, size)));
     }
-    return resolver.valueConverter(lookup, valueType);
+    return resolver.converter(lookup, valueType);
   }
 
   static Optional<Function<Object, ?>> base(Lookup lookup, Type valueType) {
