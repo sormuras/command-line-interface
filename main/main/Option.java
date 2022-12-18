@@ -109,16 +109,23 @@ public class Option<T> {
     return new Option<>(type, names, toValue.andThen(v -> requireEquivalentType(type, mapper.apply(v))), help, nestedSchema);
   }
 
-  @SuppressWarnings("unchecked")
   private static <V> V requireEquivalentType(Type type, V value) {
     Objects.requireNonNull(value, "value is null");
-    return (V) switch (type) {
-      case BRANCH -> (Record) value;
-      case FLAG -> (Boolean) value;
-      case SINGLE -> (Optional<?>) value;
-      case REPEATABLE -> (List<?>) value;
-      case REQUIRED -> value;
-      case VARARGS -> (Object[]) value;
+    var valueClass = valueClass(type);
+    if (!valueClass.isInstance(value)) {
+      throw new IllegalArgumentException(value + " type is not equivalent to " + valueClass.getName());
+    }
+    return value;
+  }
+
+  private static Class<?> valueClass(Type type) {
+    return switch (type) {
+      case BRANCH -> Record.class;
+      case FLAG -> Boolean.class;
+      case SINGLE -> Optional.class;
+      case REPEATABLE -> List.class;
+      case REQUIRED -> Object.class;
+      case VARARGS -> Object[].class;
     };
   }
 
