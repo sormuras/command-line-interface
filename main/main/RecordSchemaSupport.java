@@ -47,9 +47,14 @@ class RecordSchemaSupport {
     var type = optionTypeFrom(component.getType());
     var help = helpAnno != null ? String.join("\n", helpAnno.value()) : "";
     var nestedSchema = toNestedSchema(component);
-    var valueConverter = valueConverter(lookup, component.getGenericType());
+    var valueConverter = resolveValueConverter(lookup, component);
     var optionSchema = nestedSchema == null ? null: toSchema(lookup, nestedSchema);
     return new Option<>(type, names, valueConverter, help, optionSchema);
+  }
+
+  private static Function<Object, ?> resolveValueConverter(Lookup lookup, RecordComponent component) {
+     return ValueConverterResolver.defaultValueConverter().valueConverter(lookup, component.getGenericType())
+         .orElseThrow(() -> new UnsupportedOperationException("no converter for component " + component));
   }
 
   private static Type optionTypeFrom(Class<?> type) {
@@ -69,58 +74,6 @@ class RecordSchemaSupport {
             && nestedType.isRecord())
         ? nestedType.asSubclass(Record.class)
         : null;
-  }
-
-  private static Function<Object, ?> valueConverter(Lookup lookup, java.lang.reflect.Type valueType) {
-    if (valueType instanceof ParameterizedType parameterizedType) {
-      var raw = (Class<?>) parameterizedType.getRawType();
-      if (raw == Optional.class) {
-        var f = valueConverter(lookup, parameterizedType.getActualTypeArguments()[0]);
-        return arg -> ((Optional<?>) arg).map(f);
-      }
-      if (raw == List.class) {
-        var f = valueConverter(lookup, parameterizedType.getActualTypeArguments()[0]);
-        return arg -> ((List<?>) arg).stream().map(f).toList();
-      }
-    } else if (valueType instanceof Class<?> clazz) {
-      if (Object[].class.isAssignableFrom(clazz)) {
-        var componentType = clazz.getComponentType();
-        var f = valueConverter(lookup, componentType);
-        return arg -> Arrays.stream(((Object[]) arg)).map(f).toArray(size -> (Object[]) Array.newInstance(componentType, size));
-      }
-      if (clazz == String.class || clazz == Boolean.class || clazz == boolean.class || clazz.isRecord()) {
-        return Function.identity();
-      }
-      MethodHandle mh = valueOfMethod(lookup, clazz);
-      return arg -> {
-        try {
-          return clazz.cast(mh.invoke(arg));
-        } catch (Throwable e) {
-          throw new IllegalArgumentException(
-              "Not a valid value for type " + clazz.getName() + ": " + arg + " (" + arg.getClass().getName() + ")", e);
-        }
-      };
-    }
-    throw new UnsupportedOperationException("unsupported value type " + valueType);
-  }
-
-  private static <T> MethodHandle valueOfMethod(Lookup lookup, Class<T> valueType) {
-    record Factory (String name, MethodType method) {}
-    List<Factory> factories = List.of( //
-            new Factory("valueOf", MethodType.methodType(valueType, String.class)), //
-            new Factory("of", MethodType.methodType(valueType, String.class)), //
-            new Factory("of", MethodType.methodType(valueType, String.class, String[].class)), //
-            new Factory("parse", MethodType.methodType(valueType, String.class)),
-            new Factory("parse", MethodType.methodType(valueType, CharSequence.class))
-    );
-    for (Factory factory : factories) {
-      try {
-        return lookup.findStatic(valueType, factory.name(), factory.method());
-      } catch (NoSuchMethodException | IllegalAccessException e) {
-        continue;  // try next
-      }
-    }
-    throw new UnsupportedOperationException("Unsupported conversion from String to " + valueType);
   }
 
   private static MethodHandle constructor(Lookup lookup, Class<?> schema) {
