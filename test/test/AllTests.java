@@ -13,6 +13,7 @@ class AllTests {
         new BranchTests(),
         new ArgumentMapTests(),
         new DoubleDashTests(),
+        new ConverterTests(),
         // jdk examples
         new JarRecordTests(),
         new JarValueTests());
