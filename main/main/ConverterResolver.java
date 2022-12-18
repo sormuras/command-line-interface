@@ -174,19 +174,12 @@ public interface ConverterResolver {
         });
   }
 
+  @SuppressWarnings({"rawtypes", "unchecked"})
   static Optional<Function<Object, ?>> enumerated(Lookup lookup, Type valueType) {
     requireNonNull(lookup, "lookup is null");
     requireNonNull(valueType, "valueType is null");
     if (valueType instanceof Class<?> clazz && clazz.isEnum()) {
-      MethodHandle mh;
-      try {
-        mh = lookup.findStatic(clazz, "valueOf", methodType(clazz, String.class));
-      } catch (NoSuchMethodException e) {
-        throw (NoSuchMethodError) new NoSuchMethodError().initCause(e);
-      } catch (IllegalAccessException e) {
-        throw (IllegalAccessError) new IllegalAccessError().initCause(e);
-      }
-      return Optional.of(ConverterResolver.converter(mh));
+      return Optional.of(arg -> Enum.valueOf((Class) clazz, (String) arg));
     }
     return Optional.empty();
   }
