@@ -13,6 +13,32 @@ import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Find a converter that converts a String/boolean/record to a Java generic type.
+ *
+ * <p>This API proposes a toolkit to build your own revolver by composition.
+ *
+ * <p>For example, the default resolver is defined as such
+ *
+ * <pre>
+ *   ConverterResolver defaultResolver =
+ *       ConverterResolver.of(ConverterResolver::base)
+ *           .or(ConverterResolver::reflected)
+ *           .unwrap();
+ * </pre>
+ *
+ * <code>ConverterResolver::base</code> is a resolver that associate the identity for the base
+ * types, String, boolean, Boolean and records.
+ * <p>
+ * <code>ConverterResolver::reflected</code> is a resolver
+ * that tries to find a static method factory to convert a type from String inside the type.
+ * <p>
+ * <code>or(resolver)</code> executes the first resolver and if there is no converter found,
+ * executes the second converter.
+ * <p>
+ * <code>unwrap()</code> provides a resolver that unwrap Optional, List and array and
+ * executes the resolver on the component type.
+ */
 @FunctionalInterface
 public interface ConverterResolver {
   Optional<Function<Object, ?>> converter(Lookup lookup, Type valueType);
