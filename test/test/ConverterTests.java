@@ -1,6 +1,7 @@
 package test;
 
 import main.ConverterResolver;
+import main.ConverterResolver.TypeReference;
 import main.Name;
 import main.Option;
 import main.Splitter;
@@ -77,6 +78,27 @@ class ConverterTests {
     assertAll(
         () -> assertEquals(Level.warning, cmdLineOption.__level.orElseThrow()),
         () -> assertEquals(List.of("foo.txt"), List.of(cmdLineOption.rest))
+    );
+  }
+
+  @Test
+  void optionsWithUserDefinedConverter() {
+    var resolver = ConverterResolver.of(ConverterResolver::basic)
+        .or(when(Integer.class, stringConverter(Integer::parseInt)))
+        .or(when(Path.class, stringConverter(Path::of)))
+        .unwrap();
+    var lookup = lookup();
+
+    var version = Option.single("-v", "--version")
+        .map(resolver.converter(lookup, new TypeReference<Optional<Integer>>() {}).orElseThrow());
+    var rest = Option.varargs("rest")
+        .map(resolver.converter(lookup, new TypeReference<Path[]>() {}).orElseThrow());
+    var splitter = Splitter.ofArgument(version, rest);
+
+    var bag = splitter.split("--version", "12", "foo.txt");
+    assertAll(
+        () -> assertEquals(12, version.argument(bag).orElseThrow()),
+        () -> assertEquals(List.of(Path.of("foo.txt")), List.of(rest.argument(bag)))
     );
   }
 }

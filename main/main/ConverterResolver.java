@@ -49,7 +49,27 @@ import static java.util.Objects.requireNonNull;
  */
 @FunctionalInterface
 public interface ConverterResolver {
+  interface TypeReference<R> {
+    private Type extract() {
+      var genericInterfaces = getClass().getGenericInterfaces();
+      Type[] typeArguments;
+      if (genericInterfaces.length == 1 &&
+          genericInterfaces[0] instanceof  ParameterizedType parameterizedType &&
+          (typeArguments = parameterizedType.getActualTypeArguments()).length == 1) {
+        return typeArguments[0];
+      }
+      throw new IllegalStateException("the TypeReference is not created correctly " + Arrays.toString(genericInterfaces));
+    }
+  }
+
   Optional<Function<Object, ?>> converter(Lookup lookup, Type valueType);
+
+  @SuppressWarnings("unchecked")
+  default <R> Optional<Function<Object, R>> converter(Lookup lookup, TypeReference<R> typeReference) {
+    Objects.requireNonNull(lookup, "lookup is null");
+    Objects.requireNonNull(typeReference, "typeReference is null");
+    return (Optional<Function<Object, R>>) (Optional<? extends Function<?,?>>) converter(lookup, typeReference.extract());
+  }
 
   default ConverterResolver or(ConverterResolver resolver) {
     requireNonNull(resolver, "resolver is null");
