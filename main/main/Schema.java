@@ -159,7 +159,7 @@ public class Schema<T> {
     return str.charAt(0) == '"' && str.charAt(str.length()-1) == '"' ? str.substring(1, str.length()-1) : str;
   }
 
-  private Object splitNested(ArrayDeque<String> pendingArguments, Option<?> option) {
+  private static Object splitNested(ArrayDeque<String> pendingArguments, Option<?> option) {
     return option.nestedSchema().split(true, pendingArguments);
   }
 
