@@ -6,11 +6,15 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.Array;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
+import static java.lang.invoke.MethodType.methodType;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -22,22 +26,26 @@ import static java.util.Objects.requireNonNull;
  *
  * <pre>
  *   ConverterResolver defaultResolver =
- *       ConverterResolver.of(ConverterResolver::base)
+ *       ConverterResolver.of(ConverterResolver::basic)
+ *           .or(ConverterResolver::enumerated)
  *           .or(ConverterResolver::reflected)
  *           .unwrap();
  * </pre>
  *
- * <code>ConverterResolver::base</code> is a resolver that associate the identity for the base
+ * {@code ConverterResolver::base} is a resolver that associate the identity for the base
  * types, String, boolean, Boolean and records.
- * <p>
- * <code>ConverterResolver::reflected</code> is a resolver
- * that tries to find a static method factory to convert a type from String inside the type.
- * <p>
- * <code>or(resolver)</code> executes the first resolver and if there is no converter found,
+ *
+ * <p>{@code ConverterResolver::enumerated} is a resolver that calls {@code Enum.valueOf}
+ * if the type is an enum
+ *
+ * <p>{@code ConverterResolver::reflected} is a resolver that tries to find a static method
+ * factory to convert a type from String inside the type.
+ *
+ * <p>{@code or(resolver)} executes the first resolver and if there is no converter found,
  * executes the second converter.
- * <p>
- * <code>unwrap()</code> provides a resolver that unwrap Optional, List and array and
- * executes the resolver on the component type.
+ *
+ * <p>{@code unwrap()} provides a resolver that unwrap Optional, List and array and executes
+ * the resolver on the component type.
  */
 @FunctionalInterface
 public interface ConverterResolver {
@@ -58,14 +66,52 @@ public interface ConverterResolver {
     return resolver;
   }
 
+  static ConverterResolver when(Predicate<? super Class<?>> predicate, Function<Object, ?> converter) {
+    requireNonNull(predicate, "predicate is null");
+    requireNonNull(converter, "converter is null");
+    return (lookup, valueType) -> Optional.<Function<Object, ?>>of(converter)
+        .filter(__ -> valueType instanceof Class<?> clazz && predicate.test(clazz));
+  }
+
+  static ConverterResolver when(Class<?> valueType, Function<Object, ?> converter) {
+    requireNonNull(valueType, "valueType is null");
+    requireNonNull(converter, "converter is null");
+    return when(valueType::equals, converter);
+  }
+
   static ConverterResolver defaultResolver() {
     final class Default {
       private static final ConverterResolver DEFAULT_RESOLVER =
-          of(ConverterResolver::base)
+          of(ConverterResolver::basic)
+              .or(ConverterResolver::enumerated)
               .or(ConverterResolver::reflected)
               .unwrap();
     }
     return Default.DEFAULT_RESOLVER;
+  }
+
+  static <T> Function<Object, ?> converter(Function<? super T, ?> converter, Class<? extends T> type) {
+    requireNonNull(converter, "converter is null");
+    requireNonNull(converter, "type is null");
+    return converter.compose(type::cast);
+  }
+
+  static Function<Object, ?> stringConverter(Function<? super String, ?> converter) {
+    requireNonNull(converter, "converter is null");
+    return converter(converter, String.class);
+  }
+
+  static Function<Object, ?> converter(MethodHandle mh) {
+    Objects.requireNonNull(mh, "mh is null");
+    return arg -> {
+      try {
+        return mh.invoke(arg);
+      } catch (RuntimeException | Error e) {
+        throw e;
+      } catch (Throwable e) {
+        throw new UndeclaredThrowableException(e);
+      }
+    };
   }
 
   private static Optional<Function<Object, ?>> unwrap(Lookup lookup, Type valueType, ConverterResolver resolver) {
@@ -94,7 +140,7 @@ public interface ConverterResolver {
     return resolver.converter(lookup, valueType);
   }
 
-  static Optional<Function<Object, ?>> base(Lookup lookup, Type valueType) {
+  static Optional<Function<Object, ?>> basic(Lookup lookup, Type valueType) {
     requireNonNull(lookup, "lookup is null");
     requireNonNull(valueType, "valueType is null");
     return Optional.of(valueType)
@@ -108,32 +154,43 @@ public interface ConverterResolver {
         });
   }
 
+  static Optional<Function<Object, ?>> enumerated(Lookup lookup, Type valueType) {
+    requireNonNull(lookup, "lookup is null");
+    requireNonNull(valueType, "valueType is null");
+    if (valueType instanceof Class<?> clazz && clazz.isEnum()) {
+      MethodHandle mh;
+      try {
+        mh = lookup.findStatic(clazz, "valueOf", methodType(clazz, String.class));
+      } catch (NoSuchMethodException e) {
+        throw (NoSuchMethodError) new NoSuchMethodError().initCause(e);
+      } catch (IllegalAccessException e) {
+        throw (IllegalAccessError) new IllegalAccessError().initCause(e);
+      }
+      return Optional.of(ConverterResolver.converter(mh));
+    }
+    return Optional.empty();
+  }
+
   static Optional<Function<Object, ?>> reflected(Lookup lookup, Type valueType) {
     requireNonNull(lookup, "lookup is null");
     requireNonNull(valueType, "valueType is null");
     return Optional.of(valueType)
         .flatMap(type -> {
-          if (type instanceof Class<?> clazz) {
-            return valueOfMethod(lookup, clazz).map(mh -> arg -> {
-              try {
-                return clazz.cast(mh.invoke(arg));
-              } catch (Throwable e) {
-                return Optional.empty();
-              }
-            });
-          }
-          return Optional.empty();
-      });
+            if (valueType instanceof Class<?> clazz) {
+              return valueOfMethod(lookup, clazz).map(ConverterResolver::converter);
+            }
+            return Optional.empty();
+        });
   }
 
   private static Optional<MethodHandle> valueOfMethod(Lookup lookup, Class<?> type) {
     record Factory (String name, MethodType method) {}
     var factories = List.of(
-        new Factory("valueOf", MethodType.methodType(type, String.class)),
-        new Factory("of", MethodType.methodType(type, String.class)),
-        new Factory("of", MethodType.methodType(type, String.class, String[].class)),
-        new Factory("parse", MethodType.methodType(type, String.class)),
-        new Factory("parse", MethodType.methodType(type, CharSequence.class))
+        new Factory("valueOf", methodType(type, String.class)),
+        new Factory("of", methodType(type, String.class)),
+        new Factory("of", methodType(type, String.class, String[].class)),
+        new Factory("parse", methodType(type, String.class)),
+        new Factory("parse", methodType(type, CharSequence.class))
         );
     for (var factory : factories) {
       MethodHandle mh;
