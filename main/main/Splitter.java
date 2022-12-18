@@ -17,9 +17,14 @@ import java.util.stream.Stream;
 public interface Splitter<T> {
 
   static <R extends Record> Splitter<R> of(Lookup lookup, Class<R> schema) {
+    return of(lookup, schema, ValueConverterResolver.defaultResolver());
+  }
+
+  static <R extends Record> Splitter<R> of(Lookup lookup, Class<R> schema, ValueConverterResolver resolver) {
     requireNonNull(schema, "schema is null");
     requireNonNull(lookup, "lookup is null");
-    return of(RecordSchemaSupport.toSchema(lookup, schema));
+    requireNonNull(resolver, "resolver is null");
+    return of(RecordSchemaSupport.toSchema(lookup, schema, resolver));
   }
 
   static Splitter<Map<String, Value<?>>> of(Option<?>... options) {

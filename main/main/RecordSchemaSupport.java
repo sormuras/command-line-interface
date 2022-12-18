@@ -31,13 +31,13 @@ class RecordSchemaSupport {
     throw new AssertionError();
   }
 
-  static <T extends Record> Schema<T> toSchema(Lookup lookup, Class<T> schema) {
+  static <T extends Record> Schema<T> toSchema(Lookup lookup, Class<T> schema, ValueConverterResolver resolver) {
     return new Schema<>(
-        Stream.of(schema.getRecordComponents()).map(comp -> toOption(lookup, comp)).toList(),
+        Stream.of(schema.getRecordComponents()).map(component -> toOption(lookup, component, resolver)).toList(),
         values -> createRecord(schema, values, lookup));
   }
 
-  private static Option<?> toOption(Lookup lookup, RecordComponent component) {
+  private static Option<?> toOption(Lookup lookup, RecordComponent component, ValueConverterResolver resolver) {
     var nameAnno = component.getAnnotation(Name.class);
     var helpAnno = component.getAnnotation(Help.class);
     var names =
@@ -47,13 +47,13 @@ class RecordSchemaSupport {
     var type = optionTypeFrom(component.getType());
     var help = helpAnno != null ? String.join("\n", helpAnno.value()) : "";
     var nestedSchema = toNestedSchema(component);
-    var valueConverter = resolveValueConverter(lookup, component);
-    var optionSchema = nestedSchema == null ? null: toSchema(lookup, nestedSchema);
+    var valueConverter = resolveValueConverter(lookup, component, resolver);
+    var optionSchema = nestedSchema == null ? null: toSchema(lookup, nestedSchema, resolver);
     return new Option<>(type, names, valueConverter, help, optionSchema);
   }
 
-  private static Function<Object, ?> resolveValueConverter(Lookup lookup, RecordComponent component) {
-     return ValueConverterResolver.defaultValueConverter().valueConverter(lookup, component.getGenericType())
+  private static Function<Object, ?> resolveValueConverter(Lookup lookup, RecordComponent component, ValueConverterResolver resolver) {
+     return resolver.valueConverter(lookup, component.getGenericType())
          .orElseThrow(() -> new UnsupportedOperationException("no converter for component " + component));
   }
 

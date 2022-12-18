@@ -32,14 +32,14 @@ public interface ValueConverterResolver {
     return resolver;
   }
 
-  static ValueConverterResolver defaultValueConverter() {
+  static ValueConverterResolver defaultResolver() {
     final class Default {
-      private static final ValueConverterResolver DEFAULT_VALUE_CONVERTER =
+      private static final ValueConverterResolver DEFAULT_RESOLVER =
           of(ValueConverterResolver::base)
               .or(ValueConverterResolver::reflected)
               .unwrap();
     }
-    return Default.DEFAULT_VALUE_CONVERTER;
+    return Default.DEFAULT_RESOLVER;
   }
 
   private static Optional<Function<Object, ?>> unwrap(Lookup lookup, Type valueType, ValueConverterResolver resolver) {
