@@ -114,8 +114,7 @@ public interface ConverterResolver {
     return Optional.of(valueType)
         .flatMap(type -> {
           if (type instanceof Class<?> clazz) {
-            MethodHandle mh = valueOfMethod(lookup, clazz);
-            return Optional.of(arg -> {
+            return valueOfMethod(lookup, clazz).map(mh -> arg -> {
               try {
                 return clazz.cast(mh.invoke(arg));
               } catch (Throwable e) {
@@ -127,22 +126,30 @@ public interface ConverterResolver {
       });
   }
 
-  private static MethodHandle valueOfMethod(Lookup lookup, Class<?> valueType) {
+  private static Optional<MethodHandle> valueOfMethod(Lookup lookup, Class<?> type) {
     record Factory (String name, MethodType method) {}
-    List<Factory> factories = List.of( //
-        new Factory("valueOf", MethodType.methodType(valueType, String.class)), //
-        new Factory("of", MethodType.methodType(valueType, String.class)), //
-        new Factory("of", MethodType.methodType(valueType, String.class, String[].class)), //
-        new Factory("parse", MethodType.methodType(valueType, String.class)),
-        new Factory("parse", MethodType.methodType(valueType, CharSequence.class))
-    );
-    for (Factory factory : factories) {
+    var factories = List.of(
+        new Factory("valueOf", MethodType.methodType(type, String.class)),
+        new Factory("of", MethodType.methodType(type, String.class)),
+        new Factory("of", MethodType.methodType(type, String.class, String[].class)),
+        new Factory("parse", MethodType.methodType(type, String.class)),
+        new Factory("parse", MethodType.methodType(type, CharSequence.class))
+        );
+    for (var factory : factories) {
+      MethodHandle mh;
       try {
-        return lookup.findStatic(valueType, factory.name(), factory.method());
+        mh = lookup.findStatic(type, factory.name(), factory.method());
       } catch (NoSuchMethodException | IllegalAccessException e) {
-        continue;  // try next
+        continue;  // does not exist, try next
       }
+      // we only allow X.of(String, String...) with a varargs, not X.of(String, String[])
+      if (factory.name().equals("of") &&
+          mh.type().parameterType(mh.type().parameterCount() - 1).isArray() &&
+          !mh.isVarargsCollector()) {
+        continue; // try next
+      }
+      return Optional.of(mh);
     }
-    throw new UnsupportedOperationException("Unsupported conversion from String to " + valueType);
+    return Optional.empty();
   }
 }
