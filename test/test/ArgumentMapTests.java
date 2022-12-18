@@ -6,6 +6,7 @@ import main.Splitter;
 import test.api.JTest;
 import test.api.JTest.Test;
 
+import static test.api.Assertions.assertAll;
 import static test.api.Assertions.assertEquals;
 import static test.api.Assertions.assertTrue;
 
@@ -21,12 +22,16 @@ class ArgumentMapTests {
     var r = Option.required("-r");
     var argMap = Splitter.ofArgument(flag, text, r).split("-f", "value");
 
-    assertTrue(flag.argument(argMap));
-    assertTrue(text.argument(argMap).isEmpty());
-    assertEquals("value", r.argument(argMap));
+    assertAll(
+        () -> assertTrue(flag.argument(argMap)),
+        () -> assertTrue(text.argument(argMap).isEmpty()),
+        () -> assertEquals("value", r.argument(argMap))
+    );
 
-    assertTrue(argMap.argument(flag));
-    assertTrue(argMap.argument(text).isEmpty());
-    assertEquals("value", argMap.argument(r));
+    assertAll(
+        () -> assertTrue(argMap.argument(flag)),
+        () -> assertTrue(argMap.argument(text).isEmpty()),
+        () -> assertEquals("value", argMap.argument(r))
+    );
   }
 }

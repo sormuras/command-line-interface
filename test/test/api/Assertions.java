@@ -18,7 +18,7 @@ public final class Assertions {
         + (message.isEmpty() ? "" : ": " + message);
   }
 
-  public static void fail(String message) {
+  public static AssertionError fail(String message) {
     throw new AssertionError(message);
   }
 
@@ -44,26 +44,38 @@ public final class Assertions {
 
   public static <T> void assertEquals(T expected, T actual, String message) {
     if (Objects.equals(expected, actual)) return;
-    fail(format(String.valueOf(expected), String.valueOf(actual), message));
+    throw fail(format(String.valueOf(expected), String.valueOf(actual), message));
   }
 
   public static <T> void assertArrayEquals(T[] expected, T[] actual) {
     if (Arrays.equals(expected, actual)) return;
-    fail(format(Arrays.toString(expected), Arrays.toString(actual), ""));
+    throw fail(format(Arrays.toString(expected), Arrays.toString(actual), ""));
   }
 
   public static <E extends RuntimeException> E assertThrows(
       Class<? extends E> expected, Runnable test) {
     try {
       test.run();
-      fail("Expected a " + expected.getSimpleName() + " exception but nothing was thrown.");
-      throw new Error("unreachable");
+      throw fail("Expected a " + expected.getName() + " exception but nothing was thrown.");
     } catch (RuntimeException ex) {
-      if (expected == ex.getClass()) {
+      if (expected.isInstance(ex)) {
         return expected.cast(ex);
       }
-      assertEquals(expected, ex.getClass(), ex.getMessage());
-      throw new Error("unreachable");
+      throw fail("Expected a " + expected.getName() + " exception but " + ex.getClass().getName() + " was thrown.");
+    }
+  }
+
+  public static void assertAll(Runnable... tests) {
+    var error = new AssertionError();
+    for(var test: tests) {
+      try {
+        test.run();
+      } catch(RuntimeException e) {
+        error.addSuppressed(e);
+      }
+    }
+    if (error.getSuppressed().length != 0) {
+      throw error;
     }
   }
 }
