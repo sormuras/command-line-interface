@@ -7,6 +7,7 @@ import test.unit.ArgumentMapTests;
 import test.unit.ConverterResolverTests;
 import test.unit.OptionTests;
 import test.unit.SchemaTests;
+import test.unit.SplitterOptionTests;
 
 class AllTests {
   public static void main(String[] args) {
@@ -22,10 +23,11 @@ class AllTests {
         new JarRecordTests(),
         new JarValueTests(),
         // unit tests
+        new ArgumentMapTests(),
         new ConverterResolverTests(),
         new OptionTests(),
         new SchemaTests(),
-        new ArgumentMapTests()
+        new SplitterOptionTests()
     );
   }
 }
