@@ -3,6 +3,7 @@ package test;
 import test.api.JTest;
 import test.jdk.JarRecordTests;
 import test.jdk.JarValueTests;
+import test.unit.ArgumentMapTests;
 import test.unit.ConverterResolverTests;
 import test.unit.OptionTests;
 import test.unit.SchemaTests;
@@ -15,7 +16,6 @@ class AllTests {
         new PublishedTests(),
         new ValueTests(),
         new BranchTests(),
-        new ArgumentMapTests(),
         new DoubleDashTests(),
         new ConverterTests(),
         // jdk examples
@@ -24,7 +24,8 @@ class AllTests {
         // unit tests
         new ConverterResolverTests(),
         new OptionTests(),
-        new SchemaTests()
+        new SchemaTests(),
+        new ArgumentMapTests()
     );
   }
 }
