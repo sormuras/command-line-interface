@@ -5,7 +5,6 @@ import static java.util.Objects.requireNonNull;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -58,6 +57,10 @@ public class Option<T> {
     requireNonNull(names, "names is null");
     var set = new LinkedHashSet<String>();
     for(var name: names) {
+      requireNonNull(name, "one name is null");
+      if (name.isEmpty()) {
+        throw new IllegalArgumentException("one name is empty");
+      }
       if (!set.add(name)) {
         throw new IllegalArgumentException("duplicate names " + name);
       }
@@ -103,6 +106,11 @@ public class Option<T> {
     return new Option<>(Type.VARARGS, names, object -> (String[]) object, "", null);
   }
 
+  @Override
+  public String toString() {
+    return type + names.toString();
+  }
+
   // the return type must be an equivalent type (Boolean -> Boolean, Optional -> Optional, etc)
   public <U> Option<U> map(Function<? super T, ? extends U> mapper) {
     requireNonNull(mapper, "mapper is null");
@@ -110,7 +118,7 @@ public class Option<T> {
   }
 
   private static <V> V requireEquivalentType(Type type, V value) {
-    Objects.requireNonNull(value, "value is null");
+    requireNonNull(value, "value is null");
     var valueClass = valueClass(type);
     if (!valueClass.isInstance(value)) {
       throw new IllegalArgumentException(value + " type is not equivalent to " + valueClass.getName());
@@ -137,7 +145,7 @@ public class Option<T> {
     return new Option<>(type, names, toValue, helpText, nestedSchema);
   }
 
-  public Option<T> nestedSchema(Schema<?> nestedSchema) {
+  public Option<?> nestedSchema(Schema<?> nestedSchema) {
     requireNonNull(nestedSchema, "nestedSchema is null");
     if (this.nestedSchema != null) {
       throw new IllegalStateException("a nested schema is already specified");
