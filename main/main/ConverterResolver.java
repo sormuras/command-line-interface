@@ -52,13 +52,12 @@ public interface ConverterResolver {
   interface TypeReference<R> {
     private Type extract() {
       var genericInterfaces = getClass().getGenericInterfaces();
-      Type[] typeArguments;
-      if (genericInterfaces.length == 1 &&
-          genericInterfaces[0] instanceof  ParameterizedType parameterizedType &&
-          (typeArguments = parameterizedType.getActualTypeArguments()).length == 1) {
-        return typeArguments[0];
+      if (genericInterfaces.length == 1
+          && genericInterfaces[0] instanceof ParameterizedType parameterizedType
+          && parameterizedType.getRawType() == TypeReference.class) {
+        return parameterizedType.getActualTypeArguments()[0];
       }
-      throw new IllegalStateException("the TypeReference is not created correctly " + Arrays.toString(genericInterfaces));
+      throw new IllegalStateException("the TypeReference is malformed " + Arrays.toString(genericInterfaces));
     }
   }
 
@@ -112,7 +111,7 @@ public interface ConverterResolver {
 
   static <T> Function<Object, ?> converter(Function<? super T, ?> converter, Class<? extends T> type) {
     requireNonNull(converter, "converter is null");
-    requireNonNull(converter, "type is null");
+    requireNonNull(type, "type is null");
     return converter.compose(type::cast);
   }
 
@@ -121,7 +120,7 @@ public interface ConverterResolver {
     return converter(converter, String.class);
   }
 
-  static Function<Object, ?> converter(MethodHandle mh) {
+  private static Function<Object, ?> converter(MethodHandle mh) {
     Objects.requireNonNull(mh, "mh is null");
     return arg -> {
       try {
