@@ -90,9 +90,9 @@ class ConverterTests {
     var lookup = lookup();
 
     var version = Option.single("-v", "--version")
-        .map(resolver.converter(lookup, new TypeReference<Optional<Integer>>() {}).orElseThrow());
+        .map(resolver.resolve(lookup, new TypeReference<Optional<Integer>>() {}).orElseThrow());
     var rest = Option.varargs("rest")
-        .map(resolver.converter(lookup, new TypeReference<Path[]>() {}).orElseThrow());
+        .map(resolver.resolve(lookup, new TypeReference<Path[]>() {}).orElseThrow());
     var splitter = Splitter.ofArgument(version, rest);
 
     var bag = splitter.split("--version", "12", "foo.txt");
@@ -108,9 +108,9 @@ class ConverterTests {
     var lookup = lookup();
 
     var version = Option.single("-v", "--version")
-        .map(resolver.converter(lookup, new TypeReference<Optional<Integer>>() {}).orElseThrow());
+        .map(resolver.resolve(lookup, new TypeReference<Optional<Integer>>() {}).orElseThrow());
     var rest = Option.varargs("rest")
-        .map(resolver.converter(lookup, new TypeReference<Path[]>() {}).orElseThrow());
+        .map(resolver.resolve(lookup, new TypeReference<Path[]>() {}).orElseThrow());
     var splitter = Splitter.ofArgument(version, rest);
 
     var bag = splitter.split("--version", "12", "foo.txt");

@@ -51,7 +51,7 @@ class RecordSchemaSupport {
   }
 
   private static Function<Object, ?> resolveConverter(Lookup lookup, RecordComponent component, ConverterResolver resolver) {
-     return resolver.converter(lookup, component.getGenericType())
+     return resolver.resolve(lookup, component.getGenericType())
          .orElseThrow(() -> new UnsupportedOperationException("no converter for component " + component));
   }
 

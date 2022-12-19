@@ -62,19 +62,19 @@ public interface ConverterResolver {
     }
   }
 
-  Optional<Function<Object, ?>> converter(Lookup lookup, Type valueType);
+  Optional<Function<Object, ?>> resolve(Lookup lookup, Type valueType);
 
   @SuppressWarnings("unchecked")
-  default <R> Optional<Function<Object, R>> converter(Lookup lookup, TypeReference<R> typeReference) {
+  default <R> Optional<Function<Object, R>> resolve(Lookup lookup, TypeReference<R> typeReference) {
     Objects.requireNonNull(lookup, "lookup is null");
     Objects.requireNonNull(typeReference, "typeReference is null");
-    return (Optional<Function<Object, R>>) (Optional<? extends Function<?,?>>) converter(lookup, typeReference.extract());
+    return (Optional<Function<Object, R>>) (Optional<? extends Function<?,?>>) resolve(lookup, typeReference.extract());
   }
 
   default ConverterResolver or(ConverterResolver resolver) {
     requireNonNull(resolver, "resolver is null");
-    return (lookup, valueType) -> converter(lookup, valueType)
-        .or(() -> resolver.converter(lookup, valueType));
+    return (lookup, valueType) -> resolve(lookup, valueType)
+        .or(() -> resolver.resolve(lookup, valueType));
   }
 
   default ConverterResolver unwrap() {
@@ -142,22 +142,22 @@ public interface ConverterResolver {
       var raw = (Class<?>) parameterizedType.getRawType();
       if (raw == Optional.class) {
         var actualTypeArgument = parameterizedType.getActualTypeArguments()[0];
-        return resolver.converter(lookup, actualTypeArgument).map(f -> arg -> ((Optional<?>) arg).map(f));
+        return resolver.resolve(lookup, actualTypeArgument).map(f -> arg -> ((Optional<?>) arg).map(f));
       }
       if (raw == List.class) {
         var actualTypeArgument = parameterizedType.getActualTypeArguments()[0];
-        return resolver.converter(lookup, actualTypeArgument).map(f -> arg -> ((List<?>) arg).stream().map(f).toList());
+        return resolver.resolve(lookup, actualTypeArgument).map(f -> arg -> ((List<?>) arg).stream().map(f).toList());
       }
     }
     if (valueType instanceof Class<?> clazz && Object[].class.isAssignableFrom(clazz)) {
       var componentType = clazz.getComponentType();
-      return resolver.converter(lookup, componentType)
+      return resolver.resolve(lookup, componentType)
           .map(f -> arg ->
               Arrays.stream(((Object[]) arg))
                   .map(f)
                   .toArray(size -> (Object[]) Array.newInstance(componentType, size)));
     }
-    return resolver.converter(lookup, valueType);
+    return resolver.resolve(lookup, valueType);
   }
 
   static Optional<Function<Object, ?>> basic(Lookup lookup, Type valueType) {
