@@ -182,16 +182,14 @@ public class OptionTests {
     var varargs = Option.varargs("v").map(array -> Arrays.stream(array).map(s -> "*" + s + "*").toArray(String[]::new));
 
     var splitter = Splitter.ofArgument(flag, single, required, repeatable, varargs);
-    var bag = splitter.split("-f", "-s", "12", "-p", "bar", "-p", "baz", "buz", "biz", "booz");
-
-    System.out.println(bag);
+    var argumentMap = splitter.split("-f", "-s", "12", "-p", "bar", "-p", "baz", "buz", "biz", "booz");
 
     assertAll(
-        () -> assertTrue(bag.argument(flag)),
-        () -> assertEquals(12, bag.argument(single).orElseThrow()),
-        () -> assertEquals("BUZ", bag.argument(required)),
-        () -> assertEquals(List.of("*bar*", "*baz*"), bag.argument(repeatable)),
-        () -> assertArrayEquals(new String[] { "*biz*", "*booz*" }, bag.argument(varargs))
+        () -> assertTrue(argumentMap.argument(flag)),
+        () -> assertEquals(12, argumentMap.argument(single).orElseThrow()),
+        () -> assertEquals("BUZ", argumentMap.argument(required)),
+        () -> assertEquals(List.of("*bar*", "*baz*"), argumentMap.argument(repeatable)),
+        () -> assertArrayEquals(new String[] { "*biz*", "*booz*" }, argumentMap.argument(varargs))
     );
   }
 
@@ -246,14 +244,14 @@ public class OptionTests {
     var varargs = Option.varargs("v");
 
     var splitter = Splitter.ofArgument(flag, single, required, repeatable, varargs);
-    var bag = splitter.split("-f", "-s", "12", "-p", "bar", "-p", "baz", "buz", "biz", "booz");
+    var argumentMap = splitter.split("-f", "-s", "12", "-p", "bar", "-p", "baz", "buz", "biz", "booz");
 
     assertAll(
-        () -> assertTrue(bag.argument(flag)),
-        () -> assertEquals("12", bag.argument(single).orElseThrow()),
-        () -> assertEquals("buz", bag.argument(required)),
-        () -> assertEquals(List.of("bar", "baz"), bag.argument(repeatable)),
-        () -> assertArrayEquals(new String[] { "biz", "booz" }, bag.argument(varargs))
+        () -> assertTrue(argumentMap.argument(flag)),
+        () -> assertEquals("12", argumentMap.argument(single).orElseThrow()),
+        () -> assertEquals("buz", argumentMap.argument(required)),
+        () -> assertEquals(List.of("bar", "baz"), argumentMap.argument(repeatable)),
+        () -> assertArrayEquals(new String[] { "biz", "booz" }, argumentMap.argument(varargs))
     );
   }
 
