@@ -2,7 +2,6 @@ package main;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -77,7 +76,7 @@ public class Schema<T> {
     boolean doubleDashMode = false;
     while (true) {
       if (pendingArguments.isEmpty()) {
-        if (requiredOptions.isEmpty()) return create(workspace.values());
+        if (requiredOptions.isEmpty()) return create(workspace, optionsByName);
         throw new IllegalArgumentException("Required option(s) missing: " + requiredOptions);
       }
       // acquire next argument
@@ -98,7 +97,7 @@ public class Schema<T> {
           workspace.put(name, splitNested(pendingArguments, option));
           if (!pendingArguments.isEmpty())
             throw new IllegalArgumentException("Too many arguments: " + pendingArguments);
-          return create(workspace.values());
+          return create(workspace, optionsByName);
         }
         var optionValue =
             switch (option.type()) {
@@ -122,7 +121,7 @@ public class Schema<T> {
               }
               case BRANCH, VARARGS, REQUIRED -> throw new AssertionError("Unnamed name? " + name);
             };
-        workspace.put( name, option.apply(optionValue));
+        workspace.put( name, optionValue);
         continue; // with next argument
       }
       // maybe a combination of single letter flags?
@@ -131,7 +130,7 @@ public class Schema<T> {
         if (flags.stream().allMatch(optionsByName::containsKey)) {
           flags.forEach(flag -> {
             var option = optionsByName.get(flag);
-            workspace.put(option.name(), option.apply(true));
+            workspace.put(option.name(),true);
           });
           continue;
         }
@@ -139,17 +138,17 @@ public class Schema<T> {
       // try required option
       if (!requiredOptions.isEmpty()) {
         var requiredOption = requiredOptions.pop();
-        workspace.put(requiredOption.name(), requiredOption.apply(argument));
+        workspace.put(requiredOption.name(), argument);
         continue;
       }
       // restore pending arguments deque
       pendingArguments.addFirst(argument);
-      if (nested) return create(workspace.values());
+      if (nested) return create(workspace, optionsByName);
       // try globbing all pending arguments into a varargs collector
       var varargsOption = options.stream().filter(Option::isVarargs).findFirst().orElse(null);
       if (varargsOption != null) {
-        workspace.put(varargsOption.name(), varargsOption.apply(pendingArguments.toArray(String[]::new)));
-        return create(workspace.values());
+        workspace.put(varargsOption.name(), pendingArguments.toArray(String[]::new));
+        return create(workspace, optionsByName);
       }
       throw new IllegalArgumentException("Unhandled arguments: " + pendingArguments);
     }
@@ -163,7 +162,12 @@ public class Schema<T> {
     return option.nestedSchema().split(true, pendingArguments);
   }
 
-  private T create(Collection<Object> values) {
-    return finalizer.apply(new ArrayList<>(values));
+  private T create(LinkedHashMap<String, Object> workspace, HashMap<String, Option<?>> optionsByName) {
+    var values = new ArrayList<>();
+    workspace.forEach((optionName, value) -> {
+      var option = optionsByName.get(optionName);
+      values.add(option.apply(value));
+    });
+    return finalizer.apply(values);
   }
 }
