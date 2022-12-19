@@ -1,13 +1,12 @@
 package test;
 
 import main.Option;
-import main.Schema;
+import main.Command;
 import main.Splitter;
 import test.api.JTest;
 import test.api.JTest.Test;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -127,10 +126,10 @@ class EnumTests {
     }
   }
 
-  public static Schema<ArgumentBag<String>> schemaArgument(Option<?>... options) {
+  public static Command<ArgumentBag<String>> schemaArgument(Option<?>... options) {
     requireNonNull(options, "options is null");
     var opt = List.of(options);
-    return new Schema<>(opt, data -> new ArgumentBag<>(opt, data,
+    return new Command<>(opt, data -> new ArgumentBag<>(opt, data,
         optionList -> range(0, optionList.size()).boxed().collect(toMap(i -> optionList.get(i).names().iterator().next(), i -> i))));
   }
 
@@ -138,7 +137,7 @@ class EnumTests {
     Configuration<K> with(K key, Option<?> option);
   }
 
-  public static <K> Schema<ArgumentBag<K>> schemaKeyed(Consumer<? super Configuration<K>> consumer)  {
+  public static <K> Command<ArgumentBag<K>> schemaKeyed(Consumer<? super Configuration<K>> consumer)  {
     requireNonNull(consumer, "consumer is null");
     var keys = new ArrayList<K>();
     var options = new ArrayList<Option<?>>();
@@ -152,7 +151,7 @@ class EnumTests {
         return this;
       }
     });
-    return new Schema<>(options, data -> new ArgumentBag<>(options, data,
+    return new Command<>(options, data -> new ArgumentBag<>(options, data,
         optionList -> range(0, optionList.size()).boxed().collect(toMap(keys::get, i -> i))));
   }
 
@@ -217,11 +216,11 @@ class EnumTests {
     }
   }
 
-  public static <K> Schema<DataMap> schemaParameter(Parameter<?>... parameters)  {
+  public static <K> Command<DataMap> schemaParameter(Parameter<?>... parameters)  {
     requireNonNull(parameters, "parameters is null");
     var params = List.of(parameters);
     var options = params.stream().map(p -> p.option).toList();
-    return new Schema<>(options, data -> new DataMap(range(0, params.size())
+    return new Command<>(options, data -> new DataMap(range(0, params.size())
         .boxed()
         .collect(toMap(params::get, data::get))));
   }

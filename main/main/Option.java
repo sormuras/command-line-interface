@@ -10,7 +10,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
-public record Option<T>(Type type, Set<String> names, Class<T> valueType, Function<String, T> toValue, String help, Schema<?> nestedSchema) {
+public record Option<T>(Type type, Set<String> names, Class<T> valueType, Function<String, T> toValue, String help, Command<?> subCommand) {
   public enum Type {
     BRANCH(null),
     /** An optional flag, like {@code --verbose}. */
@@ -101,7 +101,7 @@ public record Option<T>(Type type, Set<String> names, Class<T> valueType, Functi
     if (!help.isEmpty()) {
       throw new IllegalStateException("option already has an help text");
     }
-    return new Option<>(type, names, valueType, toValue, helpText, nestedSchema);
+    return new Option<>(type, names, valueType, toValue, helpText, subCommand);
   }
 
   String name() {

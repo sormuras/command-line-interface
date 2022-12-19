@@ -7,7 +7,6 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
 import main.Option;
-import main.Splitter;
 import main.Value;
 import test.api.JTest;
 import test.api.JTest.Test;
@@ -24,7 +23,7 @@ public class JarValueTests {
   static final Option<Path> FILES_OPTION = Option.ofVarargs(Path.class, Path::of, "files...");
 
   private static Map<String, Value<?>> splitInput(String line) {
-    return Splitter.of(CREATE_FLAG, FILE_OPTION, FILES_OPTION).split(line.split("\\s+"));
+    return Value.splitter(CREATE_FLAG, FILE_OPTION, FILES_OPTION).split(line.split("\\s+"));
   }
 
   @Test

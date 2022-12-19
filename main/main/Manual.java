@@ -7,15 +7,15 @@ import static java.util.Objects.requireNonNull;
 
 public class Manual {
 
-  public static String help(Schema<?> schema) {
-    return help(schema, 2);
+  public static String help(Command<?> command) {
+    return help(command, 2);
   }
 
-  public static String help(Schema<?> schema, int indent) {
-    requireNonNull(schema, "schema is null");
+  public static String help(Command<?> command, int indent) {
+    requireNonNull(command, "schema is null");
     if (indent < 0) throw new IllegalArgumentException("invalid indent " + indent);
     var joiner = new StringJoiner("\n");
-    for (var option : schema.options.stream().sorted(Comparator.comparing(Option::name)).toList()) {
+    for (var option : command.options.stream().sorted(Comparator.comparing(Option::name)).toList()) {
       var text = option.help();
       if (text.isEmpty()) continue;
       var suffix =

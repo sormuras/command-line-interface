@@ -25,7 +25,7 @@ import static main.Option.Type.SINGLE;
 import static main.Option.Type.VARARGS;
 
 /**
- * Uses {@link Record}s to derive a {@link Schema} from the {@link RecordComponent}s as well as
+ * Uses {@link Record}s to derive a {@link Command} from the {@link RecordComponent}s as well as
  * container for the result values.
  */
 class RecordSchemaSupport {
@@ -33,8 +33,8 @@ class RecordSchemaSupport {
     throw new AssertionError();
   }
 
-  static <T extends Record> Schema<T> toSchema(Lookup lookup, Class<T> schema) {
-    return new Schema<>(
+  static <T extends Record> Command<T> toSchema(Lookup lookup, Class<T> schema) {
+    return new Command<>(
         Stream.of(schema.getRecordComponents()).map(comp -> toOption(lookup, comp)).toList(),
         values -> createRecord(schema, values, lookup));
   }

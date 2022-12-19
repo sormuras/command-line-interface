@@ -8,7 +8,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+import static java.util.Objects.requireNonNull;
+
 public sealed interface Value<T> {
+
+  static Splitter<Map<String, Value<?>>> splitter(Option<?>... options) {
+    requireNonNull(options, "options is null");
+    return Splitter.of(toSchema(options));
+  }
 
   Option<T> option();
 
@@ -38,9 +45,9 @@ public sealed interface Value<T> {
     }
   }
 
-  static Schema<Map<String, Value<?>>> toSchema(Option<?>... options) {
+  static Command<Map<String, Value<?>>> toSchema(Option<?>... options) {
     var list = List.of(options);
-    return new Schema<>(list, values -> evaluate(list, values));
+    return new Command<>(list, values -> evaluate(list, values));
   }
 
   private static Map<String, Value<?>> evaluate(List<? extends Option<?>> options, Collection<Object> collection) {
