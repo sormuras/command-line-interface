@@ -70,7 +70,7 @@ public final class Assertions {
     for(var test: tests) {
       try {
         test.run();
-      } catch(RuntimeException e) {
+      } catch(RuntimeException | AssertionError e) {
         error.addSuppressed(e);
       }
     }
