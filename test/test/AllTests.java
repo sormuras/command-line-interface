@@ -5,6 +5,7 @@ import test.jdk.JarRecordTests;
 import test.jdk.JarValueTests;
 import test.unit.ConverterResolverTests;
 import test.unit.OptionTests;
+import test.unit.SchemaTests;
 
 class AllTests {
   public static void main(String[] args) {
@@ -22,7 +23,8 @@ class AllTests {
         new JarValueTests(),
         // unit tests
         new ConverterResolverTests(),
-        new OptionTests()
+        new OptionTests(),
+        new SchemaTests()
     );
   }
 }
