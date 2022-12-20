@@ -231,8 +231,12 @@ public class OptionTests {
 
   @Test
   void nestedSchemaPrecondition() {
-    var flag = Option.flag("a");
-    assertThrows(NullPointerException.class, () -> flag.help(null));
+    var flag1 = Option.flag("a");
+    var flag2 = Option.flag("b").nestedSchema(new Schema<>(List.of(Option.flag("c")), x -> x));
+    assertAll(
+        () -> assertThrows(NullPointerException.class, () -> flag1.nestedSchema(null)),
+        () -> assertThrows(IllegalStateException.class, () -> flag2.nestedSchema(new Schema<>(List.of(Option.flag("d")), x -> x)))
+    );
   }
 
   @Test
