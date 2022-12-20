@@ -384,23 +384,6 @@ public class SplitterOptionTests {
   }
 
   @Test
-  void splitterOfOptionMapInvalidConversions() {
-    var flag = Option.flag("-flag");
-    var single = Option.single("-single");
-    var repeatable = Option.repeatable("-repeatable");
-    var required = Option.required("required");
-    var varargs = Option.varargs("varargs");
-
-    assertAll(
-        () -> assertThrows(IllegalStateException.class, () -> Splitter.ofArgument(flag.map(__ -> 1)).split("-flag")),
-        () -> assertThrows(IllegalStateException.class, () -> Splitter.ofArgument(single.map(__ -> 1)).split("-single", "value")),
-        () -> assertThrows(IllegalStateException.class, () -> Splitter.ofArgument(repeatable.map(__ -> 1)).split("-repeatable", "value")),
-        () -> assertTrue(Splitter.ofArgument(required.map(__ -> 1)).split("foo.txt") != null),
-        () -> assertThrows(IllegalStateException.class, () -> Splitter.ofArgument(varargs.map(__ -> 1)).split("foo.txt"))
-    );
-  }
-
-  @Test
   void splitterOfOptionsPreconditions() {
     var required = Option.required("foo");
     assertAll(

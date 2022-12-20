@@ -114,27 +114,7 @@ public class Option<T> {
   // the return type must be an equivalent type (Boolean -> Boolean, Optional -> Optional, etc)
   public <U> Option<U> map(Function<? super T, ? extends U> mapper) {
     requireNonNull(mapper, "mapper is null");
-    return new Option<>(type, names, toValue.andThen(v -> requireEquivalentType(type, mapper.apply(v))), help, nestedSchema);
-  }
-
-  private static <V> V requireEquivalentType(Type type, V value) {
-    requireNonNull(value, "value is null");
-    var valueClass = valueClass(type);
-    if (!valueClass.isInstance(value)) {
-      throw new IllegalStateException(value + " type is not equivalent to " + valueClass.getName());
-    }
-    return value;
-  }
-
-  private static Class<?> valueClass(Type type) {
-    return switch (type) {
-      case BRANCH -> Record.class;
-      case FLAG -> Boolean.class;
-      case SINGLE -> Optional.class;
-      case REPEATABLE -> List.class;
-      case REQUIRED -> Object.class;
-      case VARARGS -> Object[].class;
-    };
+    return new Option<>(type, names, toValue.andThen(mapper), help, nestedSchema);
   }
 
   public Option<T> help(String helpText) {
