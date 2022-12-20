@@ -70,9 +70,4 @@ public interface Splitter<T> {
     requireNonNull(preprocessor, "preprocessor is null");
     return args -> split(args.flatMap(preprocessor));
   }
-
-  default Splitter<T> withAdjust(UnaryOperator<Stream<String>> preprocessor) {
-    requireNonNull(preprocessor, "preprocessor is null");
-    return args -> split(preprocessor.apply(args));
-  }
 }
