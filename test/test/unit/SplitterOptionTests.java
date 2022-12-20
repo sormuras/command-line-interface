@@ -275,6 +275,56 @@ public class SplitterOptionTests {
   }
 
   @Test
+  void splitterOfAllOptionListArgsWithoutVarargs() {
+    var flag1 = Option.flag("-flag1");
+    var flag2 = Option.flag("-flag2");
+    var single1 = Option.single("-single1");
+    var single2 = Option.single("-single2");
+    var repeatable1 = Option.repeatable("-repeatable1");
+    var repeatable2 = Option.repeatable("-repeatable2");
+    var required1 = Option.required("required1");
+    var required2 = Option.required("required2");
+    var splitter = Splitter.ofArgument(single1, repeatable1, required1, flag2, required2, repeatable2, flag1, single2);
+    var argumentMap = splitter.split(List.of("-single1", "foo", "-flag1", "-repeatable1", "bar", "-repeatable2", "baz", "-single2", "biz", "-repeatable2", "buz", "-flag2", "r1.txt", "r2.txt"));
+    assertAll(
+        () -> assertTrue(argumentMap.argument(flag1)),
+        () -> assertTrue(argumentMap.argument(flag2)),
+        () -> assertEquals("foo",argumentMap.argument(single1).orElseThrow()),
+        () -> assertEquals("biz", argumentMap.argument(single2).orElseThrow()),
+        () -> assertEquals(List.of("bar"), argumentMap.argument(repeatable1)),
+        () -> assertEquals(List.of("baz", "buz"), argumentMap.argument(repeatable2)),
+        () -> assertEquals("r1.txt", argumentMap.argument(required1)),
+        () -> assertEquals("r2.txt", argumentMap.argument(required2))
+    );
+  }
+
+  //@Test
+  void splitterOfAllOptionListArgsWithVarargs() {
+    var flag1 = Option.flag("-flag1");
+    var flag2 = Option.flag("-flag2");
+    var single1 = Option.single("-single1");
+    var single2 = Option.single("-single2");
+    var repeatable1 = Option.repeatable("-repeatable1");
+    var repeatable2 = Option.repeatable("-repeatable2");
+    var required1 = Option.required("required1");
+    var required2 = Option.required("required2");
+    var varargs = Option.required("varargs");
+    var splitter = Splitter.ofArgument(single1, repeatable1, required1, flag2, required2, repeatable2, varargs, flag1, single2);
+    var argumentMap = splitter.split(List.of("-single1", "foo", "-flag1", "-repeatable1", "bar", "-repeatable2", "baz", "-single2", "biz", "-repeatable2", "buz", "-flag2", "r1.txt", "r2.txt", "r3.txt", "r4.txt"));
+    assertAll(
+        () -> assertTrue(argumentMap.argument(flag1)),
+        () -> assertTrue(argumentMap.argument(flag2)),
+        () -> assertEquals("foo",argumentMap.argument(single1).orElseThrow()),
+        () -> assertEquals("biz", argumentMap.argument(single2).orElseThrow()),
+        () -> assertEquals(List.of("bar"), argumentMap.argument(repeatable1)),
+        () -> assertEquals(List.of("baz", "buz"), argumentMap.argument(repeatable2)),
+        () -> assertEquals("r1.txt", argumentMap.argument(required1)),
+        () -> assertEquals("r2.txt", argumentMap.argument(required2)),
+        () -> assertEquals(List.of("r3.txt", "r4.txt"), List.of(argumentMap.argument(varargs)))
+    );
+  }
+
+  @Test
   void splitterOfAllNonPositional() {
     var flag1 = Option.flag("-flag1");
     var flag2 = Option.flag("-flag2");
