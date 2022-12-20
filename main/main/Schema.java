@@ -39,9 +39,6 @@ public class Schema<T> {
       var names = option.names();
       for (var name : names) {
         var otherOption = optionsByName.put(name, option);
-        if (otherOption == option)
-          throw new IllegalArgumentException(
-              "option " + option + " declares duplicated name " + name);
         if (otherOption != null)
           throw new IllegalArgumentException(
               "options " + option + " and " + otherOption + " both declares name " + name);
