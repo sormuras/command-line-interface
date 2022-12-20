@@ -121,7 +121,7 @@ public class Option<T> {
     requireNonNull(value, "value is null");
     var valueClass = valueClass(type);
     if (!valueClass.isInstance(value)) {
-      throw new IllegalArgumentException(value + " type is not equivalent to " + valueClass.getName());
+      throw new IllegalStateException(value + " type is not equivalent to " + valueClass.getName());
     }
     return value;
   }

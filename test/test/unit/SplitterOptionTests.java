@@ -5,6 +5,7 @@ import main.Splitter;
 import test.api.JTest;
 import test.api.JTest.Test;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -312,6 +313,40 @@ public class SplitterOptionTests {
         () -> assertEquals(List.of("bar", "buz"), argumentMap.argument(repeatable1)),
         () -> assertEquals(List.of("baz"), argumentMap.argument(repeatable2)),
         () -> assertEquals(List.of("r3.txt", "r4.txt"), List.of(argumentMap.argument(varargs)))
+    );
+  }
+
+  @Test
+  void splitterOfOptionMapConversions() {
+    var flag = Option.flag("-flag").map(b -> !b);
+    var single = Option.single("-single").map(opt -> opt.map(String::length));
+    var repeatable = Option.repeatable("-repeatable").map(l -> l.stream().map(String::length).toList());
+    var required = Option.required("required").map(String::length);
+    var varargs = Option.varargs("varargs").map(a -> Arrays.stream(a).map(String::length).toArray(Integer[]::new));
+
+    assertAll(
+        () -> assertFalse(Splitter.ofArgument(flag).split("-flag").argument(flag)),
+        () -> assertEquals(5, Splitter.ofArgument(single).split("-single", "value").argument(single).orElseThrow()),
+        () -> assertEquals(List.of(5), Splitter.ofArgument(repeatable).split("-repeatable", "value").argument(repeatable)),
+        () -> assertEquals(7, Splitter.ofArgument(required).split("foo.txt").argument(required)),
+        () -> assertArrayEquals(new Integer[] { 7 }, Splitter.ofArgument(varargs).split("foo.txt").argument(varargs))
+    );
+  }
+
+  @Test
+  void splitterOfOptionMapInvalidConversions() {
+    var flag = Option.flag("-flag");
+    var single = Option.single("-single");
+    var repeatable = Option.repeatable("-repeatable");
+    var required = Option.required("required");
+    var varargs = Option.varargs("varargs");
+
+    assertAll(
+        () -> assertThrows(IllegalStateException.class, () -> Splitter.ofArgument(flag.map(__ -> 1)).split("-flag")),
+        () -> assertThrows(IllegalStateException.class, () -> Splitter.ofArgument(single.map(__ -> 1)).split("-single", "value")),
+        () -> assertThrows(IllegalStateException.class, () -> Splitter.ofArgument(repeatable.map(__ -> 1)).split("-repeatable", "value")),
+        () -> assertTrue(Splitter.ofArgument(required.map(__ -> 1)).split("foo.txt") != null),
+        () -> assertThrows(IllegalStateException.class, () -> Splitter.ofArgument(varargs.map(__ -> 1)).split("foo.txt"))
     );
   }
 
