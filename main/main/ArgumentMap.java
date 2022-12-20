@@ -19,7 +19,7 @@ public final class ArgumentMap {
     Objects.requireNonNull(option, "option is null");
     var argument = argumentMap.get(option);
     if (argument == null) {
-      throw new IllegalStateException("no argument for parameter " + this);
+      throw new IllegalStateException("no argument for option " + this);
     }
     return (T) argument;
   }
