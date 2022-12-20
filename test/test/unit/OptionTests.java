@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static test.api.Assertions.assertAll;
 import static test.api.Assertions.assertArrayEquals;
@@ -146,6 +147,22 @@ public class OptionTests {
   }
 
   @Test
+  void optionDefaultValue() {
+    var flag = Option.flag("a");
+    var single = Option.single("b");
+    var repeatable = Option.repeatable("c");
+    var varargs = Option.varargs("d");
+    var argumentMap = Splitter.ofArgument(flag, single, repeatable, varargs).split();
+
+    assertAll(
+        () -> assertEquals(false, argumentMap.argument(flag)),
+        () -> assertEquals(Optional.empty(), argumentMap.argument(single)),
+        () -> assertEquals(List.of(), argumentMap.argument(repeatable)),
+        () -> assertArrayEquals(new String[0], argumentMap.argument(varargs))
+    );
+  }
+
+  @Test
   void optionToString() {
     assertAll(
         () -> assertEquals("FLAG[a, b]", Option.flag("a", "b").toString()),
@@ -190,6 +207,22 @@ public class OptionTests {
         () -> assertEquals("BUZ", argumentMap.argument(required)),
         () -> assertEquals(List.of("*bar*", "*baz*"), argumentMap.argument(repeatable)),
         () -> assertArrayEquals(new String[] { "*biz*", "*booz*" }, argumentMap.argument(varargs))
+    );
+  }
+
+  @Test
+  void mapDefaultValue() {
+    var flag = Option.flag("a").map(x -> !x);
+    var single = Option.single("b").map(__ -> Optional.of("default"));
+    var repeatable = Option.repeatable("c").map(l -> Stream.concat(l.stream(), Stream.of("default")).toList());
+    var varargs = Option.varargs("d").map(a -> Stream.concat(Arrays.stream(a), Stream.of("default")).toArray(String[]::new));
+    var argumentMap = Splitter.ofArgument(flag, single, repeatable, varargs).split();
+
+    assertAll(
+        () -> assertEquals(true, argumentMap.argument(flag)),
+        () -> assertEquals(Optional.of("default"), argumentMap.argument(single)),
+        () -> assertEquals(List.of("default"), argumentMap.argument(repeatable)),
+        () -> assertArrayEquals(new String[] { "default" }, argumentMap.argument(varargs))
     );
   }
 

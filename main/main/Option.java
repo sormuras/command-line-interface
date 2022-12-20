@@ -138,10 +138,9 @@ public class Option<T> {
     return argumentMap.argument(this);
   }
 
+  @SuppressWarnings("unchecked")
   T defaultValue() {
-    // a required option should not trigger a call to toValue()
-    var value = type.defaultValue;
-    return value == null? null: toValue.apply(value);
+    return (T) type.defaultValue;
   }
 
   T apply(Object arg) {
