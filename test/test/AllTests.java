@@ -11,22 +11,22 @@ import test.unit.SplitterOptionTests;
 
 class AllTests {
   public static void main(String[] args) {
-    JTest.runAllTests(
+    JTest.runTestSuites(
         // examples
-        new AssortedTests(),
-        new PublishedTests(),
-        new BranchTests(),
-        new DoubleDashTests(),
-        new ConverterTests(),
+        AssortedTests.class,
+        PublishedTests.class,
+        BranchTests.class,
+        DoubleDashTests.class,
+        ConverterTests.class,
         // jdk examples
-        new JarRecordTests(),
-        new JarOptionTests(),
+        JarRecordTests.class,
+        JarOptionTests.class,
         // unit tests
-        new ArgumentMapTests(),
-        new ConverterResolverTests(),
-        new OptionTests(),
-        new SchemaTests(),
-        new SplitterOptionTests()
+        ArgumentMapTests.class,
+        ConverterResolverTests.class,
+        OptionTests.class,
+        SchemaTests.class,
+        SplitterOptionTests.class
     );
   }
 }

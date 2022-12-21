@@ -1,6 +1,7 @@
 package test.api;
 
 import static java.lang.System.currentTimeMillis;
+import static java.lang.invoke.MethodType.methodType;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
@@ -15,13 +16,13 @@ import java.lang.annotation.Target;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
-import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /** JUnit on a diet of air and love */
 public final class JTest {
@@ -126,20 +127,55 @@ public final class JTest {
     }
   }
 
-  public static void runAllTests(Object... tests) {
+  public static void runTestSuites(Class<?>... testClasses) {
     var callerClass = LookupAccess.STACK_WALKER.getCallerClass();
-    runAllTests(LookupAccess.privateLookup(callerClass), tests);
+    runTestSuites(LookupAccess.privateLookup(callerClass), testClasses);
   }
 
-  public static void runAllTests(Lookup lookup, Object... tests) {
-    requireNonNull(tests, "tests is null");
+  private static final ThreadLocal<ArrayList<Event>> EVENTS_LOCAL = new ThreadLocal<>();
+
+  public static void runTestSuites(Lookup lookup, Class<?>... testClasses) {
+    requireNonNull(testClasses, "testClasses is null");
+    if (EVENTS_LOCAL.get() != null) {
+      throw new IllegalStateException("can not run a test suite inside a test suite");
+    }
+    runWithARunner(__ -> {
+      for (var testClass : testClasses) {
+        runMainMethod(lookup, testClass);
+      }
+    });
+  }
+
+  private static void runWithARunner(Consumer<List<Event>> consumer) {
     var events = new ArrayList<Event>();
-    for (var test : tests) {
-      executeTests(lookup, test, events::add);
+    EVENTS_LOCAL.set(events);
+    try {
+      consumer.accept(events);
+    } finally {
+      EVENTS_LOCAL.remove();
     }
     var runner = new Runner(events);
     runner.print(System.out);
     runner.verify();
+  }
+
+  private static void runMainMethod(Lookup lookup, Class<?> testClass, String... args) {
+    MethodHandle main;
+    try {
+      main = lookup.findStatic(testClass, "main", methodType(void.class, String[].class));
+    } catch (NoSuchMethodException e) {
+      throw (NoSuchMethodError) new NoSuchMethodError().initCause(e);
+    } catch (IllegalAccessException e) {
+      throw (IllegalAccessError) new IllegalAccessError().initCause(e);
+    }
+
+    try {
+      main.invokeExact(args);
+    } catch (Error | RuntimeException e) {
+      throw e;
+    } catch (Throwable t) {
+      throw new AssertionError("main method throws an exception", t);
+    }
   }
 
   public static void runTests(Object test, String... args) {
@@ -148,12 +184,16 @@ public final class JTest {
   }
 
   public static void runTests(Lookup lookup, Object test, String... args) {
+    requireNonNull(lookup, "lookup is null");
+    requireNonNull(test, "test is null");
     requireNonNull(args, "args is null");
-    var events = new ArrayList<Event>();
-    executeTests(lookup, test, events::add, args);
-    var runner = new Runner(events);
-    runner.print(System.out);
-    runner.verify();
+    var events = EVENTS_LOCAL.get();
+    if (events != null) {
+      // run inside an existing test suite
+      executeTests(lookup, test, events::add, args);
+    } else {
+      runWithARunner(_events -> executeTests(lookup, test, _events::add, args));
+    }
   }
 
   private static void executeTests(Lookup lookup, Object test, Listener listener, String... args) {
@@ -167,9 +207,9 @@ public final class JTest {
             method -> {
               MethodHandle mh;
               try {
-                method.setAccessible(true);
+                //method.setAccessible(true);
                 mh = lookup.unreflect(method);
-              } catch (IllegalAccessException | InaccessibleObjectException e) {
+              } catch (IllegalAccessException /*| InaccessibleObjectException*/ e) {
                 throw (IllegalAccessError) new IllegalAccessError().initCause(e);
               }
               var start = currentTimeMillis();
