@@ -24,7 +24,7 @@ public class ArgumentMapTests {
     var requiredH= Option.required("h");
     var repeatableI = Option.repeatable("-i");
     var varargsJ = Option.varargs("j");
-    var splitter = Splitter.ofArgument(flagF, singleG, requiredH, repeatableI, varargsJ);
+    var splitter = Splitter.of(flagF, singleG, requiredH, repeatableI, varargsJ);
     var argumentMap = splitter.split("-f", "h.txt");
 
     assertAll(
@@ -39,7 +39,7 @@ public class ArgumentMapTests {
   @Test
   void argumentPreconditions() {
     var flag = Option.flag("-f");
-    var splitter = Splitter.ofArgument(flag);
+    var splitter = Splitter.of(flag);
     var argumentMap = splitter.split("-f");
 
     var flag2 = Option.flag("-f");

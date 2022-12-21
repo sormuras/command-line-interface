@@ -152,7 +152,7 @@ public class OptionTests {
     var single = Option.single("b");
     var repeatable = Option.repeatable("c");
     var varargs = Option.varargs("d");
-    var argumentMap = Splitter.ofArgument(flag, single, repeatable, varargs).split();
+    var argumentMap = Splitter.of(flag, single, repeatable, varargs).split();
 
     assertAll(
         () -> assertEquals(false, argumentMap.argument(flag)),
@@ -198,7 +198,7 @@ public class OptionTests {
     var repeatable = Option.repeatable("-p").map(list -> list.stream().map(s -> "*" + s + "*").toList());
     var varargs = Option.varargs("v").map(array -> Arrays.stream(array).map(s -> "*" + s + "*").toArray(String[]::new));
 
-    var splitter = Splitter.ofArgument(flag, single, required, repeatable, varargs);
+    var splitter = Splitter.of(flag, single, required, repeatable, varargs);
     var argumentMap = splitter.split("-f", "-s", "12", "-p", "bar", "-p", "baz", "buz", "biz", "booz");
 
     assertAll(
@@ -216,7 +216,7 @@ public class OptionTests {
     var single = Option.single("b").map(__ -> Optional.of("default"));
     var repeatable = Option.repeatable("c").map(l -> Stream.concat(l.stream(), Stream.of("default")).toList());
     var varargs = Option.varargs("d").map(a -> Stream.concat(Arrays.stream(a), Stream.of("default")).toArray(String[]::new));
-    var argumentMap = Splitter.ofArgument(flag, single, repeatable, varargs).split();
+    var argumentMap = Splitter.of(flag, single, repeatable, varargs).split();
 
     assertAll(
         () -> assertEquals(true, argumentMap.argument(flag)),
@@ -280,7 +280,7 @@ public class OptionTests {
     var repeatable = Option.repeatable("-p");
     var varargs = Option.varargs("v");
 
-    var splitter = Splitter.ofArgument(flag, single, required, repeatable, varargs);
+    var splitter = Splitter.of(flag, single, required, repeatable, varargs);
     var argumentMap = splitter.split("-f", "-s", "12", "-p", "bar", "-p", "baz", "buz", "biz", "booz");
 
     assertAll(

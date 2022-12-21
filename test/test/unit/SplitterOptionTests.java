@@ -25,7 +25,7 @@ public class SplitterOptionTests {
   @Test
   void splitterOfFlag() {
     var flag = Option.flag("-f");
-    var splitter = Splitter.ofArgument(flag);
+    var splitter = Splitter.of(flag);
     assertAll(
         () -> assertTrue(splitter.split("-f").argument(flag)),
         () -> assertFalse(splitter.split().argument(flag))
@@ -35,7 +35,7 @@ public class SplitterOptionTests {
   @Test
   void splitterOfFlag2() {
     var flag = Option.flag("-f", "--flag", "flag");
-    var splitter = Splitter.ofArgument(flag);
+    var splitter = Splitter.of(flag);
     assertAll(
         () -> assertTrue(splitter.split("-f").argument(flag)),
         () -> assertTrue(splitter.split("--flag").argument(flag)),
@@ -46,7 +46,7 @@ public class SplitterOptionTests {
   @Test
   void splitterOfSingle() {
     var single = Option.single("-s");
-    var splitter = Splitter.ofArgument(single);
+    var splitter = Splitter.of(single);
     assertAll(
         () -> assertEquals("value", splitter.split("-s", "value").argument(single).orElseThrow()),
         () -> assertTrue(splitter.split().argument(single).isEmpty())
@@ -56,7 +56,7 @@ public class SplitterOptionTests {
   @Test
   void splitterOfSingle2() {
     var single = Option.single("-s", "--single", "single");
-    var splitter = Splitter.ofArgument(single);
+    var splitter = Splitter.of(single);
     assertAll(
         () -> assertEquals("value", splitter.split("-s", "value").argument(single).orElseThrow()),
         () -> assertEquals("value", splitter.split("--single", "value").argument(single).orElseThrow()),
@@ -67,7 +67,7 @@ public class SplitterOptionTests {
   @Test
   void splitterOfRequire() {
     var required = Option.required("r");
-    var splitter = Splitter.ofArgument(required);
+    var splitter = Splitter.of(required);
     assertAll(
         () -> assertEquals("value", splitter.split("value").argument(required)),
         // FIXME, use a proper exception !
@@ -80,7 +80,7 @@ public class SplitterOptionTests {
   @Test
   void splitterOfRepeatable() {
     var repeatable = Option.repeatable("-p", "--p", "p");
-    var splitter = Splitter.ofArgument(repeatable);
+    var splitter = Splitter.of(repeatable);
     assertAll(
         () -> assertEquals(List.of("value"), splitter.split("-p", "value").argument(repeatable)),
         () -> assertEquals(List.of("v1", "v2"), splitter.split("-p", "v1", "-p", "v2").argument(repeatable)),
@@ -91,7 +91,7 @@ public class SplitterOptionTests {
   @Test
   void splitterOfRepeatable2() {
     var repeatable = Option.repeatable("-p", "--p", "p");
-    var splitter = Splitter.ofArgument(repeatable);
+    var splitter = Splitter.of(repeatable);
     assertAll(
         () -> assertEquals(List.of("value"), splitter.split("-p", "value").argument(repeatable)),
         () -> assertEquals(List.of("v1", "v2", "v3"), splitter.split("-p", "v1", "--p", "v2", "p", "v3").argument(repeatable))
@@ -101,7 +101,7 @@ public class SplitterOptionTests {
   @Test
   void splitterOfVarargs() {
     var varargs = Option.varargs("name");
-    var splitter = Splitter.ofArgument(varargs);
+    var splitter = Splitter.of(varargs);
     assertAll(
         () -> assertArrayEquals(new String[0], splitter.split().argument(varargs)),
         () -> assertArrayEquals(new String[] { "a" }, splitter.split("a").argument(varargs)),
@@ -116,8 +116,8 @@ public class SplitterOptionTests {
     var varargs = Option.varargs("name");
 
     assertAll(
-        () -> assertThrows(IllegalArgumentException.class, () -> Splitter.ofArgument(varargs, requires1)),
-        () -> assertThrows(IllegalArgumentException.class, () -> Splitter.ofArgument(requires1, varargs, requires2))
+        () -> assertThrows(IllegalArgumentException.class, () -> Splitter.of(varargs, requires1)),
+        () -> assertThrows(IllegalArgumentException.class, () -> Splitter.of(requires1, varargs, requires2))
     );
 
   }
@@ -128,7 +128,7 @@ public class SplitterOptionTests {
     var flag2 = Option.flag("-flag2");
     var required1 = Option.required("required1");
     var required2 = Option.required("required2");
-    var splitter = Splitter.ofArgument(flag1, required1, flag2, required2);
+    var splitter = Splitter.of(flag1, required1, flag2, required2);
     var argumentMap = splitter.split("-flag1", "-flag2", "r1.txt", "r2.txt");
     assertAll(
         () -> assertTrue(argumentMap.argument(flag1)),
@@ -145,7 +145,7 @@ public class SplitterOptionTests {
     var required1 = Option.required("required1");
     var required2 = Option.required("required2");
     var varargs = Option.required("varargs");
-    var splitter = Splitter.ofArgument(flag1, required1, flag2, required2, varargs);
+    var splitter = Splitter.of(flag1, required1, flag2, required2, varargs);
     var argumentMap = splitter.split("-flag1", "-flag2", "r1.txt", "r2.txt", "r3.txt", "r4.txt");
     assertAll(
         () -> assertTrue(argumentMap.argument(flag1)),
@@ -162,7 +162,7 @@ public class SplitterOptionTests {
     var single2 = Option.single("-single2");
     var required1 = Option.required("required1");
     var required2 = Option.required("required2");
-    var splitter = Splitter.ofArgument(single1, required1, single2, required2);
+    var splitter = Splitter.of(single1, required1, single2, required2);
     var argumentMap = splitter.split("-single1", "foo", "-single2", "bar", "r1.txt", "r2.txt");
     assertAll(
         () -> assertEquals("foo", argumentMap.argument(single1).orElseThrow()),
@@ -179,7 +179,7 @@ public class SplitterOptionTests {
     var required1 = Option.required("required1");
     var required2 = Option.required("required2");
     var varargs = Option.required("varargs");
-    var splitter = Splitter.ofArgument(single2, required1, single1, required2, varargs);
+    var splitter = Splitter.of(single2, required1, single1, required2, varargs);
     var argumentMap = splitter.split("-single1", "foo", "-single2", "bar", "r1.txt", "r2.txt", "r3.txt", "r4.txt");
     assertAll(
         () -> assertEquals("foo", argumentMap.argument(single1).orElseThrow()),
@@ -196,7 +196,7 @@ public class SplitterOptionTests {
     var repeatable2 = Option.repeatable("-repeatable2");
     var required1 = Option.required("required1");
     var required2 = Option.required("required2");
-    var splitter = Splitter.ofArgument(repeatable1, required1, required2, repeatable2);
+    var splitter = Splitter.of(repeatable1, required1, required2, repeatable2);
     var argumentMap = splitter.split("-repeatable1", "foo", "-repeatable2", "bar", "-repeatable1", "baz", "r1.txt", "r2.txt");
     assertAll(
         () -> assertEquals(List.of("foo", "baz"), argumentMap.argument(repeatable1)),
@@ -213,7 +213,7 @@ public class SplitterOptionTests {
     var required1 = Option.required("required1");
     var required2 = Option.required("required2");
     var varargs = Option.required("varargs");
-    var splitter = Splitter.ofArgument(repeatable1, required1, required2, repeatable2, varargs);
+    var splitter = Splitter.of(repeatable1, required1, required2, repeatable2, varargs);
     var argumentMap = splitter.split("-repeatable1", "foo", "-repeatable2", "bar", "-repeatable2", "baz", "r1.txt", "r2.txt", "r3.txt", "r4.txt");
     assertAll(
         () -> assertEquals(List.of("foo"), argumentMap.argument(repeatable1)),
@@ -234,7 +234,7 @@ public class SplitterOptionTests {
     var repeatable2 = Option.repeatable("-repeatable2");
     var required1 = Option.required("required1");
     var required2 = Option.required("required2");
-    var splitter = Splitter.ofArgument(single1, repeatable1, required1, flag2, required2, repeatable2, flag1, single2);
+    var splitter = Splitter.of(single1, repeatable1, required1, flag2, required2, repeatable2, flag1, single2);
     var argumentMap = splitter.split("-single1", "foo", "-flag1", "-repeatable1", "bar", "-repeatable2", "baz", "-single2", "biz", "-repeatable2", "buz", "-flag2", "r1.txt", "r2.txt");
     assertAll(
         () -> assertTrue(argumentMap.argument(flag1)),
@@ -259,7 +259,7 @@ public class SplitterOptionTests {
     var required1 = Option.required("required1");
     var required2 = Option.required("required2");
     var varargs = Option.required("varargs");
-    var splitter = Splitter.ofArgument(single1, repeatable1, required1, flag2, required2, repeatable2, varargs, flag1, single2);
+    var splitter = Splitter.of(single1, repeatable1, required1, flag2, required2, repeatable2, varargs, flag1, single2);
     var argumentMap = splitter.split("-single1", "foo", "-flag1", "-repeatable1", "bar", "-repeatable2", "baz", "-single2", "biz", "-repeatable2", "buz", "-flag2", "r1.txt", "r2.txt", "r3.txt", "r4.txt");
     assertAll(
         () -> assertTrue(argumentMap.argument(flag1)),
@@ -284,7 +284,7 @@ public class SplitterOptionTests {
     var repeatable2 = Option.repeatable("-repeatable2");
     var required1 = Option.required("required1");
     var required2 = Option.required("required2");
-    var splitter = Splitter.ofArgument(single1, repeatable1, required1, flag2, required2, repeatable2, flag1, single2);
+    var splitter = Splitter.of(single1, repeatable1, required1, flag2, required2, repeatable2, flag1, single2);
     var argumentMap = splitter.split(List.of("-single1", "foo", "-flag1", "-repeatable1", "bar", "-repeatable2", "baz", "-single2", "biz", "-repeatable2", "buz", "-flag2", "r1.txt", "r2.txt"));
     assertAll(
         () -> assertTrue(argumentMap.argument(flag1)),
@@ -309,7 +309,7 @@ public class SplitterOptionTests {
     var required1 = Option.required("required1");
     var required2 = Option.required("required2");
     var varargs = Option.required("varargs");
-    var splitter = Splitter.ofArgument(single1, repeatable1, required1, flag2, required2, repeatable2, varargs, flag1, single2);
+    var splitter = Splitter.of(single1, repeatable1, required1, flag2, required2, repeatable2, varargs, flag1, single2);
     var argumentMap = splitter.split(List.of("-single1", "foo", "-flag1", "-repeatable1", "bar", "-repeatable2", "baz", "-single2", "biz", "-repeatable2", "buz", "-flag2", "r1.txt", "r2.txt", "r3.txt", "r4.txt"));
     assertAll(
         () -> assertTrue(argumentMap.argument(flag1)),
@@ -332,7 +332,7 @@ public class SplitterOptionTests {
     var single2 = Option.single("-single2");
     var repeatable1 = Option.repeatable("-repeatable1");
     var repeatable2 = Option.repeatable("-repeatable2");
-    var splitter = Splitter.ofArgument(single1, repeatable1, flag2, repeatable2, flag1, single2);
+    var splitter = Splitter.of(single1, repeatable1, flag2, repeatable2, flag1, single2);
     var argumentMap = splitter.split("-single1", "foo", "-flag1", "-repeatable1", "bar", "-repeatable2", "baz", "-single2", "biz", "-repeatable1", "buz", "-flag2");
     assertAll(
         () -> assertTrue(argumentMap.argument(flag1)),
@@ -353,7 +353,7 @@ public class SplitterOptionTests {
     var repeatable1 = Option.repeatable("-repeatable1");
     var repeatable2 = Option.repeatable("-repeatable2");
     var varargs = Option.required("varargs");
-    var splitter = Splitter.ofArgument(varargs, single1, repeatable1, flag2, repeatable2, flag1, single2);
+    var splitter = Splitter.of(varargs, single1, repeatable1, flag2, repeatable2, flag1, single2);
     var argumentMap = splitter.split("-single1", "foo", "-flag1", "-repeatable1", "bar", "-repeatable2", "baz", "-single2", "biz", "-repeatable1", "buz", "-flag2", "r3.txt", "r4.txt");
     assertAll(
         () -> assertTrue(argumentMap.argument(flag1)),
@@ -375,11 +375,11 @@ public class SplitterOptionTests {
     var varargs = Option.varargs("varargs").map(a -> Arrays.stream(a).map(String::length).toArray(Integer[]::new));
 
     assertAll(
-        () -> assertFalse(Splitter.ofArgument(flag).split("-flag").argument(flag)),
-        () -> assertEquals(5, Splitter.ofArgument(single).split("-single", "value").argument(single).orElseThrow()),
-        () -> assertEquals(List.of(5), Splitter.ofArgument(repeatable).split("-repeatable", "value").argument(repeatable)),
-        () -> assertEquals(7, Splitter.ofArgument(required).split("foo.txt").argument(required)),
-        () -> assertArrayEquals(new Integer[] { 7 }, Splitter.ofArgument(varargs).split("foo.txt").argument(varargs))
+        () -> assertFalse(Splitter.of(flag).split("-flag").argument(flag)),
+        () -> assertEquals(5, Splitter.of(single).split("-single", "value").argument(single).orElseThrow()),
+        () -> assertEquals(List.of(5), Splitter.of(repeatable).split("-repeatable", "value").argument(repeatable)),
+        () -> assertEquals(7, Splitter.of(required).split("foo.txt").argument(required)),
+        () -> assertArrayEquals(new Integer[] { 7 }, Splitter.of(varargs).split("foo.txt").argument(varargs))
     );
   }
 
@@ -387,8 +387,8 @@ public class SplitterOptionTests {
   void splitterOfOptionsPreconditions() {
     var required = Option.required("foo");
     assertAll(
-        () -> assertThrows(NullPointerException.class, () -> Splitter.ofArgument((Option<?>[]) null)),
-        () -> assertThrows(NullPointerException.class, () -> Splitter.ofArgument(required, null))
+        () -> assertThrows(NullPointerException.class, () -> Splitter.of((Option<?>[]) null)),
+        () -> assertThrows(NullPointerException.class, () -> Splitter.of(required, null))
     );
   }
 
@@ -407,7 +407,7 @@ public class SplitterOptionTests {
   @Test
   void splitPreconditions() {
     var required = Option.required("foo");
-    var splitter = Splitter.ofArgument(required);
+    var splitter = Splitter.of(required);
 
     assertAll(
         () -> assertThrows(NullPointerException.class, () -> splitter.split((List<String>) null)),

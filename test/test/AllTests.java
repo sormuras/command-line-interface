@@ -2,7 +2,7 @@ package test;
 
 import test.api.JTest;
 import test.jdk.JarRecordTests;
-import test.jdk.JarValueTests;
+import test.jdk.JarOptionTests;
 import test.unit.ArgumentMapTests;
 import test.unit.ConverterResolverTests;
 import test.unit.OptionTests;
@@ -15,13 +15,12 @@ class AllTests {
         // examples
         new AssortedTests(),
         new PublishedTests(),
-        new ValueTests(),
         new BranchTests(),
         new DoubleDashTests(),
         new ConverterTests(),
         // jdk examples
         new JarRecordTests(),
-        new JarValueTests(),
+        new JarOptionTests(),
         // unit tests
         new ArgumentMapTests(),
         new ConverterResolverTests(),

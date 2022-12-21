@@ -30,7 +30,7 @@ class ConverterTests {
         .map(opt -> opt.map(Integer::parseInt));
     var rest = Option.varargs("rest")
         .map(array -> Arrays.stream(array).map(Path::of).toArray(Path[]::new));
-    var splitter = Splitter.ofArgument(version, rest);
+    var splitter = Splitter.of(version, rest);
 
     var bag = splitter.split("--version", "12", "foo.txt");
     assertAll(
@@ -62,7 +62,7 @@ class ConverterTests {
 
   @Test
   void onlyEnumUserDefinedConverter() {
-    enum Level { warning, error }
+    enum Level { warning }
 
     record CmdLineOption(
         Optional<Level> __level,
@@ -93,7 +93,7 @@ class ConverterTests {
         .map(resolver.resolve(lookup, new TypeReference<Optional<Integer>>() {}).orElseThrow());
     var rest = Option.varargs("rest")
         .map(resolver.resolve(lookup, new TypeReference<Path[]>() {}).orElseThrow());
-    var splitter = Splitter.ofArgument(version, rest);
+    var splitter = Splitter.of(version, rest);
 
     var bag = splitter.split("--version", "12", "foo.txt");
     assertAll(
@@ -111,7 +111,7 @@ class ConverterTests {
         .map(resolver.resolve(lookup, new TypeReference<Optional<Integer>>() {}).orElseThrow());
     var rest = Option.varargs("rest")
         .map(resolver.resolve(lookup, new TypeReference<Path[]>() {}).orElseThrow());
-    var splitter = Splitter.ofArgument(version, rest);
+    var splitter = Splitter.of(version, rest);
 
     var bag = splitter.split("--version", "12", "foo.txt");
     assertAll(
