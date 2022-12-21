@@ -22,7 +22,7 @@ import java.util.stream.Stream;
  * Option.Type#FLAG}, {@link Option.Type#SINGLE} and {@link Option.Type#REPEATABLE} and positional
  * options with two sub-categories {@link Option.Type#REQUIRED} and {@link Option.Type#VARARGS}.
  *
- * <p>
+ * <p>&nbsp;
  * <table>
  *   <caption>Overview of the different options</caption>
  *   <tr>
