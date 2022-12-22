@@ -18,7 +18,8 @@ import static java.lang.invoke.MethodType.methodType;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Find a converter that converts a String/boolean/record to a Java generic type.
+ * Find a converter (a conversion function) that converts a String/boolean/record
+ * to a Java generic type.
  *
  * <p>This API proposes a toolkit to build your own revolver by composition.
  *
@@ -46,9 +47,18 @@ import static java.util.Objects.requireNonNull;
  *
  * <p>{@code unwrap()} provides a resolver that unwrap Optional, List and array and executes
  * the resolver on the component type.
+ *
+ * <p>A converter resolver is used by {@link Splitter#of(Lookup, Class, ConverterResolver)}
+ * that specify how the value of an option is converted to the type of the corresponding record component.
  */
 @FunctionalInterface
 public interface ConverterResolver {
+  /**
+   * A class used to send a generic Java {@link Type} to a converter resolver.
+   * @param <R> the Java type.
+   *
+   * @see #resolve(Lookup, TypeReference)
+   */
   interface TypeReference<R> {
     private Type extract() {
       var genericInterfaces = getClass().getGenericInterfaces();
@@ -61,8 +71,23 @@ public interface ConverterResolver {
     }
   }
 
-  Optional<Function<Object, ?>> resolve(Lookup lookup, Type valueType);
+  /**
+   * Returns a converter (a conversion function) for a Java type.
+   *
+   * @param lookup the lookup used if reflection is involved to find the converter.
+   * @param type a generic java type
+   * @return a converter (a conversion function) for a specific type or Optional.empty() if no converter is found.
+   */
+  Optional<Function<Object, ?>> resolve(Lookup lookup, Type type);
 
+  /**
+   * Returns a converter (a conversion function) for a Java type specified as type argument of a type reference.
+   *
+   * @param lookup the lookup used if reflection is involved to find the converter.
+   * @param typeReference
+   * @return
+   * @param <R> the Java type
+   */
   @SuppressWarnings("unchecked")
   default <R> Optional<Function<Object, R>> resolve(Lookup lookup, TypeReference<R> typeReference) {
     Objects.requireNonNull(lookup, "lookup is null");
