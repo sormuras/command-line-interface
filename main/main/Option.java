@@ -60,7 +60,7 @@ public sealed interface Option<T> {
     /** A collection of all unhandled arguments. */
     VARARGS(new String[0]);
 
-    private final Object defaultValue;
+    final Object defaultValue;
 
     Type(Object defaultValue) {
       this.defaultValue = defaultValue;
@@ -550,71 +550,5 @@ public sealed interface Option<T> {
   default T argument(ArgumentMap argumentMap) {
     requireNonNull(argumentMap, "dataMap is null");
     return argumentMap.argument(this);
-  }
-
-  // FIXME the following methods are too visible
-  @SuppressWarnings("unchecked")
-  default T defaultValue() {
-    return (T) type().defaultValue;
-  }
-
-  @SuppressWarnings("unchecked")
-  default T apply(Object arg) {
-    if (this instanceof Branch<T> branch) {
-      return (T) branch.toValue.apply((T) arg);
-    }
-    if (this instanceof Flag flag) {
-      return (T) flag.toValue.apply((Boolean) arg);
-    }
-    if (this instanceof Single<?> single) {
-      return (T) single.toValue.apply((Optional<String>) arg);
-    }
-    if (this instanceof Repeatable<?> repeatable) {
-      return (T) repeatable.toValue.apply((List<String>) arg);
-    }
-    if (this instanceof Required<T> required) {
-      return required.toValue.apply((String) arg);
-    }
-    if (this instanceof Option.Varargs<?> varargs) {
-      return (T) varargs.toValue.apply((String[]) arg);
-    }
-    throw new AssertionError();
-  }
-
-  default String name() {
-    return names().iterator().next();
-  }
-
-  default boolean isVarargs() {
-    return type() == Type.VARARGS;
-  }
-
-  default boolean isRequired() {
-    return type() == Type.REQUIRED;
-  }
-
-  default boolean isFlag() {
-    return type() == Type.FLAG;
-  }
-
-  default boolean isPositional() {
-    return type() == Type.VARARGS || type() == Type.REQUIRED;
-  }
-
-  static Option<?> newOption(Type type, String[] names, Function<Object, ?> converter, String help, Schema<?> schema) {
-    var nameList = Arrays.asList(names);
-    return switch (type) {
-      case BRANCH -> newBranch(nameList, converter, help, schema);
-      case FLAG -> new Flag(nameList, v -> (Boolean) converter.apply(v), help, schema);
-      case SINGLE -> new Single<>(nameList, v -> (Optional<?>) converter.apply(v), help, schema);
-      case REPEATABLE -> new Repeatable<>(nameList, v -> (List<?>) converter.apply(v), help, schema);
-      case REQUIRED -> new Required<>(nameList, converter, help, schema);
-      case VARARGS -> new Varargs<>(nameList, v -> (Object[]) converter.apply(v), help, schema);
-    };
-  }
-
-  @SuppressWarnings("unchecked")  // need to capture the Schema type
-  private static <T> Branch<T> newBranch(List<String> nameList, Function<Object, ?> converter, String help, Schema<T> schema) {
-    return new Branch<>(nameList, v -> (T) converter.apply(v), help, schema);
   }
 }
