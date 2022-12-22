@@ -33,7 +33,7 @@ public final class JTest {
   @Retention(RetentionPolicy.RUNTIME)
   public @interface Test {}
 
-  public record Event(Method test, Duration executionTime, Optional<Throwable> error) {
+  private record Event(Method test, Duration executionTime, Optional<Throwable> error) {
     public Event {
       requireNonNull(test);
       requireNonNull(executionTime);
@@ -41,12 +41,7 @@ public final class JTest {
     }
   }
 
-  @FunctionalInterface
-  public interface Listener {
-    void accept(Event e);
-  }
-
-  public record Runner(List<Event> events) {
+  private record Runner(List<Event> events) {
     public Runner {
       events = List.copyOf(events);
     }
@@ -147,7 +142,7 @@ public final class JTest {
       return;
     }
 
-    events = new ArrayList<Event>();
+    events = new ArrayList<>();
     EVENTS_LOCAL.set(events);
     try {
       consumer.accept(events);
@@ -171,7 +166,7 @@ public final class JTest {
     runWithARunner(events -> executeTests(lookup, test, events::add, args));
   }
 
-  private static void executeTests(Lookup lookup, Object test, Listener listener, String... args) {
+  private static void executeTests(Lookup lookup, Object test, Consumer<Event> listener, String... args) {
     var names = new HashSet<>(asList(args));
     stream(test.getClass().getDeclaredMethods())
         .filter(method -> method.isAnnotationPresent(Test.class))
