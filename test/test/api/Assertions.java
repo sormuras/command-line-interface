@@ -1,5 +1,6 @@
 package test.api;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
@@ -66,15 +67,18 @@ public final class Assertions {
   }
 
   public static void assertAll(Runnable... tests) {
-    var error = new AssertionError();
+    var errors = new ArrayList<Throwable>();
     for(var test: tests) {
       try {
         test.run();
       } catch(RuntimeException | AssertionError e) {
-        error.addSuppressed(e);
+        errors.add(e);
       }
     }
-    if (error.getSuppressed().length != 0) {
+    if (!errors.isEmpty()) {
+      var message = errors.size() == 1 ? errors.get(0).getMessage() : "multiple errors";
+      var error = new AssertionError(message);
+      errors.forEach(error::addSuppressed);
       throw error;
     }
   }
