@@ -1,7 +1,6 @@
 package test.api;
 
 import static java.lang.System.currentTimeMillis;
-import static java.lang.invoke.MethodType.methodType;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
@@ -127,19 +126,15 @@ public final class JTest {
     }
   }
 
-  public static void runTestSuites(Class<?>... testClasses) {
-    var callerClass = LookupAccess.STACK_WALKER.getCallerClass();
-    runTestSuites(LookupAccess.privateLookup(callerClass), testClasses);
-  }
-
   private static final ThreadLocal<ArrayList<Event>> EVENTS_LOCAL = new ThreadLocal<>();
 
-  public static void runTestSuites(Lookup lookup, Class<?>... testClasses) {
-    requireNonNull(lookup, "lookup is null");
-    requireNonNull(testClasses, "testClasses is null");
+  @SafeVarargs
+  public static void runTestSuites(String[] args, Consumer<? super String[]>... testSuites) {
+    requireNonNull(args, "args is null");
+    requireNonNull(testSuites, "testSuites is null");
     runWithARunner(__ -> {
-      for (var testClass : testClasses) {
-        runMainMethod(lookup, testClass);
+      for (var testSuite : testSuites) {
+        testSuite.accept(args);
       }
     });
   }
@@ -162,25 +157,6 @@ public final class JTest {
     var runner = new Runner(events);
     runner.print(System.out);
     runner.verify();
-  }
-
-  private static void runMainMethod(Lookup lookup, Class<?> testClass, String... args) {
-    MethodHandle main;
-    try {
-      main = lookup.findStatic(testClass, "main", methodType(void.class, String[].class));
-    } catch (NoSuchMethodException e) {
-      throw (NoSuchMethodError) new NoSuchMethodError().initCause(e);
-    } catch (IllegalAccessException e) {
-      throw (IllegalAccessError) new IllegalAccessError().initCause(e);
-    }
-
-    try {
-      main.invokeExact(args);
-    } catch (Error | RuntimeException e) {
-      throw e;
-    } catch (Throwable t) {
-      throw new AssertionError("main method throws an exception", t);
-    }
   }
 
   public static void runTests(Object test, String... args) {
