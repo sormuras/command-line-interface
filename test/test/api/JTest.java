@@ -114,7 +114,7 @@ public final class JTest {
     }
   }
 
-  private static class LookupAccess {
+  private static final class LookupAccess {
     private static final StackWalker STACK_WALKER =
         StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE);
 
@@ -135,10 +135,8 @@ public final class JTest {
   private static final ThreadLocal<ArrayList<Event>> EVENTS_LOCAL = new ThreadLocal<>();
 
   public static void runTestSuites(Lookup lookup, Class<?>... testClasses) {
+    requireNonNull(lookup, "lookup is null");
     requireNonNull(testClasses, "testClasses is null");
-    if (EVENTS_LOCAL.get() != null) {
-      throw new IllegalStateException("can not run a test suite inside a test suite");
-    }
     runWithARunner(__ -> {
       for (var testClass : testClasses) {
         runMainMethod(lookup, testClass);
@@ -147,7 +145,14 @@ public final class JTest {
   }
 
   private static void runWithARunner(Consumer<List<Event>> consumer) {
-    var events = new ArrayList<Event>();
+    var events = EVENTS_LOCAL.get();
+    if (events != null) {
+      // there is already a runner
+      consumer.accept(events);
+      return;
+    }
+
+    events = new ArrayList<Event>();
     EVENTS_LOCAL.set(events);
     try {
       consumer.accept(events);
@@ -187,18 +192,10 @@ public final class JTest {
     requireNonNull(lookup, "lookup is null");
     requireNonNull(test, "test is null");
     requireNonNull(args, "args is null");
-    var events = EVENTS_LOCAL.get();
-    if (events != null) {
-      // run inside an existing test suite
-      executeTests(lookup, test, events::add, args);
-    } else {
-      runWithARunner(_events -> executeTests(lookup, test, _events::add, args));
-    }
+    runWithARunner(events -> executeTests(lookup, test, events::add, args));
   }
 
   private static void executeTests(Lookup lookup, Object test, Listener listener, String... args) {
-    requireNonNull(listener, "listener is null");
-    requireNonNull(args, "args is null");
     var names = new HashSet<>(asList(args));
     stream(test.getClass().getDeclaredMethods())
         .filter(method -> method.isAnnotationPresent(Test.class))
