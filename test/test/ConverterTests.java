@@ -9,8 +9,10 @@ import test.api.JTest;
 import test.api.JTest.Test;
 
 import java.nio.file.Path;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static java.lang.invoke.MethodHandles.lookup;
 import static main.ConverterResolver.stringConverter;
@@ -88,10 +90,10 @@ class ConverterTests {
         .unwrap();
     var lookup = lookup();
 
-    var version = new Option.Single<>(List.of("-v", "--version"),
+    var version = new Option.Single<>(new LinkedHashSet<>(List.of("-v", "--version")),
         resolver.resolve(lookup, new TypeReference<Optional<Integer>>() {}).orElseThrow(),
         "", null);
-    var rest = new Option.Varargs<>(List.of("rest"),
+    var rest = new Option.Varargs<>(Set.of("rest"),
         resolver.resolve(lookup, new TypeReference<Path[]>() {}).orElseThrow(),
         "", null);
     var splitter = Splitter.of(version, rest);
@@ -108,10 +110,10 @@ class ConverterTests {
     var resolver = ConverterResolver.defaultResolver();
     var lookup = lookup();
 
-    var version = new Option.Single<>(List.of("-v", "--version"),
+    var version = new Option.Single<>(new LinkedHashSet<>(List.of("-v", "--version")),
         resolver.resolve(lookup, new TypeReference<Optional<Integer>>() {}).orElseThrow(),
         "", null);
-    var rest = new Option.Varargs<>(List.of("rest"),
+    var rest = new Option.Varargs<>(Set.of("rest"),
         resolver.resolve(lookup, new TypeReference<Path[]>() {}).orElseThrow(),
         "", null);
     var splitter = Splitter.of(version, rest);

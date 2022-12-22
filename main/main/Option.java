@@ -3,9 +3,9 @@ package main;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.UnaryOperator;
@@ -67,13 +67,13 @@ public sealed interface Option<T> {
     }
   }
 
-  record Branch<T>(List<String> names, UnaryOperator<T> toValue, String help, Schema<T> nestedSchema) implements Option<T> {
+  record Branch<T>(Set<String> names, UnaryOperator<T> toValue, String help, Schema<T> nestedSchema) implements Option<T> {
     public Branch {
       requireNonNull(names, "names is null");
       requireNonNull(toValue, "toValue is null");
       requireNonNull(help, "help null");
       requireNonNull(nestedSchema, "nestedSchema null");
-      names = checkDuplicates(List.copyOf(names));
+      names = NameSet.copyOf(names);
     }
 
     @Override
@@ -83,7 +83,7 @@ public sealed interface Option<T> {
 
     @Override
     public Branch<T> help(String helpText) {
-      requireNonNull(names, "helpText is null");
+      requireNonNull(helpText, "helpText is null");
       if (!help.isEmpty()) {
         throw new IllegalStateException("option already has an help text");
       }
@@ -114,12 +114,12 @@ public sealed interface Option<T> {
     }
   }
 
-  record Flag(List<String> names, UnaryOperator<Boolean> toValue, String help, Schema<?> nestedSchema) implements Option<Boolean> {
+  record Flag(Set<String> names, UnaryOperator<Boolean> toValue, String help, Schema<?> nestedSchema) implements Option<Boolean> {
     public Flag {
       requireNonNull(names, "names is null");
       requireNonNull(toValue, "toValue is null");
       requireNonNull(help, "help null");
-      names = checkDuplicates(List.copyOf(names));
+      names = NameSet.copyOf(names);
     }
 
     @Override
@@ -164,12 +164,12 @@ public sealed interface Option<T> {
     }
   }
 
-  record Single<T>(List<String> names, Function<? super Optional<String>, ? extends Optional<T>> toValue, String help, Schema<?> nestedSchema) implements Option<Optional<T>> {
+  record Single<T>(Set<String> names, Function<? super Optional<String>, ? extends Optional<T>> toValue, String help, Schema<?> nestedSchema) implements Option<Optional<T>> {
     public Single {
       requireNonNull(names, "names is null");
       requireNonNull(toValue, "toValue is null");
       requireNonNull(help, "help null");
-      names = checkDuplicates(List.copyOf(names));
+      names = NameSet.copyOf(names);
     }
 
     @Override
@@ -214,12 +214,12 @@ public sealed interface Option<T> {
     }
   }
 
-  record Repeatable<T>(List<String> names, Function<? super List<String>, ? extends List<T>> toValue, String help, Schema<?> nestedSchema) implements Option<List<T>> {
+  record Repeatable<T>(Set<String> names, Function<? super List<String>, ? extends List<T>> toValue, String help, Schema<?> nestedSchema) implements Option<List<T>> {
     public Repeatable {
       requireNonNull(names, "names is null");
       requireNonNull(toValue, "toValue is null");
       requireNonNull(help, "help null");
-      names = checkDuplicates(List.copyOf(names));
+      names = NameSet.copyOf(names);
     }
 
     @Override
@@ -264,12 +264,12 @@ public sealed interface Option<T> {
     }
   }
 
-  record Required<T>(List<String> names, Function<? super String, ? extends T> toValue, String help, Schema<?> nestedSchema) implements Option<T> {
+  record Required<T>(Set<String> names, Function<? super String, ? extends T> toValue, String help, Schema<?> nestedSchema) implements Option<T> {
     public Required {
       requireNonNull(names, "names is null");
       requireNonNull(toValue, "toValue is null");
       requireNonNull(help, "help null");
-      names = checkDuplicates(List.copyOf(names));
+      names = NameSet.copyOf(names);
     }
 
     @Override
@@ -312,12 +312,12 @@ public sealed interface Option<T> {
     }
   }
 
-  record Varargs<T>(List<String> names, Function<? super String[], ? extends T[]> toValue, String help, Schema<?> nestedSchema) implements Option<T[]> {
+  record Varargs<T>(Set<String> names, Function<? super String[], ? extends T[]> toValue, String help, Schema<?> nestedSchema) implements Option<T[]> {
     public Varargs {
       requireNonNull(names, "names is null");
       requireNonNull(toValue, "toValue is null");
       requireNonNull(help, "help null");
-      names = checkDuplicates(List.copyOf(names));
+      names = NameSet.copyOf(names);
     }
 
     @Override
@@ -362,22 +362,6 @@ public sealed interface Option<T> {
     }
   }
 
-  private static List<String> checkDuplicates(List<String> names) {
-    if (names.isEmpty()) {
-      throw new IllegalArgumentException("no name defined");
-    }
-    var set = new LinkedHashSet<String>();
-    for(var name: names) {
-      if (name.isEmpty()) {
-        throw new IllegalArgumentException("one name is empty");
-      }
-      if (!set.add(name)) {
-        throw new IllegalArgumentException("duplicate names " + name);
-      }
-    }
-    return names;
-  }
-
   /**
    * Returns the type of the option.
    * @return the type of the option.
@@ -406,9 +390,10 @@ public sealed interface Option<T> {
 
   /**
    * Returns the names of the options.
+   *
    * @return the named of the options.
    */
-  List<String> names();
+  Set<String> names();
 
   /**
    * Returns the text of the help message.
@@ -430,7 +415,7 @@ public sealed interface Option<T> {
    * @throws IllegalArgumentException is there are duplicated names.
    */
   static <T extends Record> Branch<T> branch(String... names) {
-    return new Branch<>(Arrays.asList(names), value -> value, "", null);
+    return new Branch<>(NameSet.of(names), value -> value, "", null);
   }
 
   /**
@@ -441,7 +426,7 @@ public sealed interface Option<T> {
    * @throws IllegalArgumentException is there are duplicated names.
    */
   static Flag flag(String... names) {
-    return new Flag(Arrays.asList(names), value -> value, "", null);
+    return new Flag(NameSet.of(names), value -> value, "", null);
   }
 
   /**
@@ -452,7 +437,7 @@ public sealed interface Option<T> {
    * @throws IllegalArgumentException is there are duplicated names.
    */
   static Single<String> single(String... names) {
-    return new Single<>(Arrays.asList(names), value -> value, "", null);
+    return new Single<>(NameSet.of(names), value -> value, "", null);
   }
 
   /**
@@ -463,7 +448,7 @@ public sealed interface Option<T> {
    * @throws IllegalArgumentException is there are duplicated names.
    */
   static Repeatable<String> repeatable(String... names) {
-    return new Repeatable<>(Arrays.asList(names), value -> value, "", null);
+    return new Repeatable<>(NameSet.of(names), value -> value, "", null);
   }
 
   /**
@@ -474,7 +459,7 @@ public sealed interface Option<T> {
    * @throws IllegalArgumentException is there are duplicated names.
    */
   static Required<String> required(String... names) {
-    return new Required<>(Arrays.asList(names), value -> value, "", null);
+    return new Required<>(NameSet.of(names), value -> value, "", null);
   }
 
   /**
@@ -485,7 +470,7 @@ public sealed interface Option<T> {
    * @throws IllegalArgumentException is there are duplicated names.
    */
   static Varargs<String> varargs(String... names) {
-    return new Varargs<>(Arrays.asList(names), value -> value, "", null);
+    return new Varargs<>(NameSet.of(names), value -> value, "", null);
   }
 
   /**
