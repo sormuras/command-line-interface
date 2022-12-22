@@ -47,7 +47,7 @@ class RecordSchemaSupport {
     var nestedSchema = toNestedSchema(component);
     var converter = resolveConverter(lookup, component, resolver);
     var optionSchema = nestedSchema == null ? null: toSchema(lookup, nestedSchema, resolver);
-    return new Option<>(type, names, converter, help, optionSchema);
+    return Option.newOption(type, names, converter, help, optionSchema);
   }
 
   private static Function<Object, ?> resolveConverter(Lookup lookup, RecordComponent component, ConverterResolver resolver) {
