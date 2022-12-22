@@ -9,7 +9,6 @@ import test.api.JTest;
 import test.api.JTest.Test;
 
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,9 +26,9 @@ class ConverterTests {
   @Test
   void simple() {
     var version = Option.single("-v", "--version")
-        .map(opt -> opt.map(Integer::parseInt));
+        .convert(Integer::parseInt);
     var rest = Option.varargs("rest")
-        .map(array -> Arrays.stream(array).map(Path::of).toArray(Path[]::new));
+        .convert(Path::of, Path[]::new);
     var splitter = Splitter.of(version, rest);
 
     var bag = splitter.split("--version", "12", "foo.txt");
@@ -89,10 +88,12 @@ class ConverterTests {
         .unwrap();
     var lookup = lookup();
 
-    var version = Option.single("-v", "--version")
-        .map(resolver.resolve(lookup, new TypeReference<Optional<Integer>>() {}).orElseThrow());
-    var rest = Option.varargs("rest")
-        .map(resolver.resolve(lookup, new TypeReference<Path[]>() {}).orElseThrow());
+    var version = new Option.Single<>(List.of("-v", "--version"),
+        resolver.resolve(lookup, new TypeReference<Optional<Integer>>() {}).orElseThrow(),
+        "", null);
+    var rest = new Option.Varargs<>(List.of("rest"),
+        resolver.resolve(lookup, new TypeReference<Path[]>() {}).orElseThrow(),
+        "", null);
     var splitter = Splitter.of(version, rest);
 
     var bag = splitter.split("--version", "12", "foo.txt");
@@ -107,10 +108,12 @@ class ConverterTests {
     var resolver = ConverterResolver.defaultResolver();
     var lookup = lookup();
 
-    var version = Option.single("-v", "--version")
-        .map(resolver.resolve(lookup, new TypeReference<Optional<Integer>>() {}).orElseThrow());
-    var rest = Option.varargs("rest")
-        .map(resolver.resolve(lookup, new TypeReference<Path[]>() {}).orElseThrow());
+    var version = new Option.Single<>(List.of("-v", "--version"),
+        resolver.resolve(lookup, new TypeReference<Optional<Integer>>() {}).orElseThrow(),
+        "", null);
+    var rest = new Option.Varargs<>(List.of("rest"),
+        resolver.resolve(lookup, new TypeReference<Path[]>() {}).orElseThrow(),
+        "", null);
     var splitter = Splitter.of(version, rest);
 
     var bag = splitter.split("--version", "12", "foo.txt");

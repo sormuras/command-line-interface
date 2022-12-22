@@ -7,11 +7,9 @@ import main.Splitter;
 import test.api.JTest;
 import test.api.JTest.Test;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 import static test.api.Assertions.assertAll;
 import static test.api.Assertions.assertArrayEquals;
@@ -175,11 +173,11 @@ public class OptionTests {
 
   @Test
   void mapTypeSafe() {
-    Option<Boolean> flag = Option.flag("a").map(b -> !b);
-    Option<Optional<String>> single = Option.single("a").map(opt -> opt.map(s -> "*" + s + "*"));
-    Option<String> required = Option.required("a").map(s -> "*" + s + "*");
-    Option<List<String>> repeatable = Option.repeatable("a").map(list -> list.stream().map(s -> "*" + s + "*").toList());
-    Option<String[]> varargs = Option.varargs("a").map(array -> Arrays.stream(array).map(s -> "*" + s + "*").toArray(String[]::new));
+    Option<Boolean> flag = Option.flag("a").convert(b -> !b);
+    Option<Optional<String>> single = Option.single("a").convert(s -> "*" + s + "*");
+    Option<String> required = Option.required("a").convert(s -> "*" + s + "*");
+    Option<List<String>> repeatable = Option.repeatable("a").convert(s -> "*" + s + "*");
+    Option<String[]> varargs = Option.varargs("a").convert(s -> "*" + s + "*", String[]::new);
 
     assertAll(
         () -> assertTrue(flag != null),
@@ -192,11 +190,11 @@ public class OptionTests {
 
   @Test
   void mapWithSplitter() {
-    var flag = Option.flag("-f").map(b -> b);
-    var single = Option.single("-s").map(opt -> opt.map(Integer::parseInt));
-    var required = Option.required("r").map(s -> s.toUpperCase(Locale.ROOT));
-    var repeatable = Option.repeatable("-p").map(list -> list.stream().map(s -> "*" + s + "*").toList());
-    var varargs = Option.varargs("v").map(array -> Arrays.stream(array).map(s -> "*" + s + "*").toArray(String[]::new));
+    var flag = Option.flag("-f").convert(b -> b);
+    var single = Option.single("-s").convert(Integer::parseInt);
+    var required = Option.required("r").convert(s -> s.toUpperCase(Locale.ROOT));
+    var repeatable = Option.repeatable("-p").convert(s -> "*" + s + "*");
+    var varargs = Option.varargs("v").convert(s -> "*" + s + "*", String[]::new);
 
     var splitter = Splitter.of(flag, single, required, repeatable, varargs);
     var argumentMap = splitter.split("-f", "-s", "12", "-p", "bar", "-p", "baz", "buz", "biz", "booz");
@@ -211,11 +209,11 @@ public class OptionTests {
   }
 
   @Test
-  void mapDefaultValue() {
-    var flag = Option.flag("a").map(x -> !x);
-    var single = Option.single("b").map(__ -> Optional.of("default"));
-    var repeatable = Option.repeatable("c").map(l -> Stream.concat(l.stream(), Stream.of("default")).toList());
-    var varargs = Option.varargs("d").map(a -> Stream.concat(Arrays.stream(a), Stream.of("default")).toArray(String[]::new));
+  void defaultValue() {
+    var flag = Option.flag("a").defaultValue(true);
+    var single = Option.single("b").defaultValue(Optional.of("default"));
+    var repeatable = Option.repeatable("c").defaultValue(List.of("default"));
+    var varargs = Option.varargs("d").defaultValue(new String[] { "default" });
     var argumentMap = Splitter.of(flag, single, repeatable, varargs).split();
 
     assertAll(
@@ -229,7 +227,7 @@ public class OptionTests {
   @Test
   void mapPreconditions() {
     var flag = Option.flag("a");
-    assertThrows(NullPointerException.class, () -> flag.map(null));
+    assertThrows(NullPointerException.class, () -> flag.convert(null));
   }
 
   @Test

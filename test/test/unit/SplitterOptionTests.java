@@ -5,7 +5,6 @@ import main.Splitter;
 import test.api.JTest;
 import test.api.JTest.Test;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -368,11 +367,11 @@ public class SplitterOptionTests {
 
   @Test
   void splitterOfOptionMapConversions() {
-    var flag = Option.flag("-flag").map(b -> !b);
-    var single = Option.single("-single").map(opt -> opt.map(String::length));
-    var repeatable = Option.repeatable("-repeatable").map(l -> l.stream().map(String::length).toList());
-    var required = Option.required("required").map(String::length);
-    var varargs = Option.varargs("varargs").map(a -> Arrays.stream(a).map(String::length).toArray(Integer[]::new));
+    var flag = Option.flag("-flag").convert(b -> !b);
+    var single = Option.single("-single").convert(String::length);
+    var repeatable = Option.repeatable("-repeatable").convert(String::length);
+    var required = Option.required("required").convert(String::length);
+    var varargs = Option.varargs("varargs").convert(String::length, Integer[]::new);
 
     assertAll(
         () -> assertFalse(Splitter.of(flag).split("-flag").argument(flag)),

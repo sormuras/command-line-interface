@@ -96,16 +96,21 @@ public sealed interface Option<T> {
       throw new IllegalStateException("a nested schema is already set");
     }
 
-    @Override
+    /*@Override
     @SuppressWarnings("unchecked")
     public <U> Option<U> map(Function<? super T, ? extends U> conversion) {
       requireNonNull(conversion, "conversion is null");
       return new Branch<>(names, v -> conversion.apply(toValue.apply((T) v)), help, (Schema<U>) nestedSchema);
-    }
+    }*/
 
     public Branch<T> convert(UnaryOperator<T> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Branch<>(names, v -> mapper.apply(toValue.apply(v)), help, nestedSchema);
+    }
+
+    @Override
+    public Branch<T> defaultValue(T value) {
+      return convert(v -> v == null? value: v);
     }
   }
 
@@ -140,16 +145,22 @@ public sealed interface Option<T> {
       return new Flag(names, toValue, help, nestedSchema);
     }
 
-    @Override
+    /*@Override
     @SuppressWarnings("unchecked")
     public <U> Option<U> map(Function<? super Boolean, ? extends U> conversion) {
       requireNonNull(conversion, "conversion is null");
       return (Option<U>) convert(v -> (Boolean) conversion.apply(v));
-    }
+    }*/
 
     public Flag convert(UnaryOperator<Boolean> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Flag(names, v -> mapper.apply(toValue.apply(v)), help, nestedSchema);
+    }
+
+    @Override
+    public Flag defaultValue(Boolean value) {
+      requireNonNull(value, "value is null");
+      return convert(v -> !v && value);
     }
   }
 
@@ -184,16 +195,22 @@ public sealed interface Option<T> {
       return new Single<>(names, toValue, help, nestedSchema);
     }
 
-    @Override
+    /*@Override
     @SuppressWarnings("unchecked")
     public <U> Option<U> map(Function<? super Optional<T>, ? extends U> conversion) {
       requireNonNull(conversion, "conversion is null");
       return (Option<U>) new Single<>(names, toValue.andThen(v -> (Optional<?>) conversion.apply(v)), help, nestedSchema);
-    }
+    }*/
 
     public <U> Single<U> convert(Function<? super T, ? extends U> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Single<>(names, toValue.andThen(v -> v.map(mapper)), help, nestedSchema);
+    }
+
+    @Override
+    public Single<T> defaultValue(Optional<T> value) {
+      requireNonNull(value, "value is null");
+      return new Single<>(names, toValue.andThen(v -> v.or(() -> value)), help, nestedSchema);
     }
   }
 
@@ -228,16 +245,22 @@ public sealed interface Option<T> {
       return new Repeatable<>(names, toValue, help, nestedSchema);
     }
 
-    @Override
+    /*@Override
     @SuppressWarnings("unchecked")
     public <U> Option<U> map(Function<? super List<T>, ? extends U> conversion) {
       requireNonNull(conversion, "conversion is null");
       return (Option<U>) new Repeatable<>(names, toValue.andThen(v -> (List<?>) conversion.apply(v)), help, nestedSchema);
-    }
+    }*/
 
     public <U> Repeatable<U> convert(Function<? super T, ? extends U> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Repeatable<>(names, toValue.andThen(list -> list.stream().<U>map(mapper).toList()), help, nestedSchema);
+    }
+
+    @Override
+    public Repeatable<T> defaultValue(List<T> value) {
+      requireNonNull(value, "value is null");
+      return new Repeatable<>(names, toValue.andThen(list -> list.isEmpty()? value: list), help, nestedSchema);
     }
   }
 
@@ -272,15 +295,20 @@ public sealed interface Option<T> {
       return new Required<>(names, toValue, help, nestedSchema);
     }
 
-    @Override
+    /*@Override
     public <U> Option<U> map(Function<? super T, ? extends U> conversion) {
       requireNonNull(conversion, "conversion is null");
       return convert(conversion);
-    }
+    }*/
 
     public <U> Required<U> convert(Function<? super T, ? extends U> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Required<>(names, toValue.andThen(mapper), help, nestedSchema);
+    }
+
+    @Override
+    public Required<T> defaultValue(T value) {
+      return convert(v -> v == null ? value : v);
     }
   }
 
@@ -315,16 +343,22 @@ public sealed interface Option<T> {
       return new Varargs<>(names, toValue, help, nestedSchema);
     }
 
-    @Override
+    /*@Override
     @SuppressWarnings("unchecked")
     public <U> Option<U> map(Function<? super T[], ? extends U> conversion) {
       requireNonNull(conversion, "conversion is null");
       return (Option<U>) new Varargs<>(names, toValue.andThen(v -> (Object[]) conversion.apply(v)), help, nestedSchema);
-    }
+    }*/
 
     public <U> Varargs<U> convert(Function<? super T, ? extends U> mapper, IntFunction<U[]> generator) {
       requireNonNull(mapper, "mapper is null");
       return new Varargs<>(names, toValue.andThen(v -> Arrays.stream(v).map(mapper).toArray(generator)), help, nestedSchema);
+    }
+
+    @Override
+    public Varargs<T> defaultValue(T[] value) {
+      requireNonNull(value, "value is null");
+      return new Varargs<>(names, toValue.andThen(v -> v.length == 0 ? value : v), help, nestedSchema);
     }
   }
 
@@ -477,8 +511,15 @@ public sealed interface Option<T> {
    * @return a new option configured with the conversion function.
    * @param <U> type of the return value of the conversion function
    */
-  <U> Option<U> map(Function<? super T, ? extends U> conversion);
+  //<U> Option<U> map(Function<? super T, ? extends U> conversion);
 
+  /**
+   * Returns a new option configured with a default value.
+   *
+   * @param value the default value
+   * @return a new option configured with a default value.
+   */
+  Option<T> defaultValue(T value);
 
   /**
    * Returns a new option with the help text.
