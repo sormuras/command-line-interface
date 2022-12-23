@@ -13,17 +13,14 @@ import java.util.stream.Stream;
 
 /**
  * An Option is a description of one of more arguments of the command line. It is a unitary piece of
- * a {@link Schema}. Option are immutable and can be shared between several schemas.
- *
- * <p>An option have a {@link #type()}, case-sensitive {@link #names()} and optionally a {@link
- * #help() help text}, a {@link #map(Function) conversion function} and {@link #nestedSchema() a
- * nested schema}.
+ * a {@link Schema}. Option are immutable value classes and can be shared between several schemas.
  *
  * <p>There two kinds of options, optional options with three sub-categories {@link
  * Option.Type#FLAG}, {@link Option.Type#SINGLE} and {@link Option.Type#REPEATABLE} and positional
  * options with two sub-categories {@link Option.Type#REQUIRED} and {@link Option.Type#VARARGS}.
  *
  * <p>&nbsp;
+ *
  * <table>
  *   <caption>Overview of the different options</caption>
  *   <tr>
@@ -41,7 +38,17 @@ import java.util.stream.Stream;
  *  </tr>
  * </table>
  *
- * @param <T> type of the argument described by this Option.
+ * <p>Options are created using factory methods, {@link #flag(String...)}, {@link #single(String...)},
+ * {@link #repeatable(String...)}, {@link #required(String...)} or {@link #varargs(String...)}.
+ *
+ * <p>Options have a {@link #type()}, case-sensitive {@link #names()} and optionally a {@link *
+ * #help() help text}, {@link #defaultValue(Object)} default value} and {@link #nestedSchema() a nested schema}.
+ *
+ * <p>Options are used to create {@link Schema#Schema(List, Function)} that are used to create a
+ * {@link Splitter#of(Schema) Splitter} that parses the command line.
+ * The value of the argument(s) of an option can be retrieved using {@link #argument(ArgumentMap).}
+ *
+ * @param <T> type of the argument(s) described by this Option.
  */
 public sealed interface Option<T> {
   /**
@@ -67,6 +74,15 @@ public sealed interface Option<T> {
     }
   }
 
+  /**
+   * An option that branch to a nested schema.
+   *
+   * @param names the names of the branch.
+   * @param toValue a conversion function.
+   * @param help a help message or "" if not defined.
+   * @param nestedSchema the nested schema.
+   * @param <T> the type of the argument corresponding to that option.
+   */
   record Branch<T>(Set<String> names, UnaryOperator<T> toValue, String help, Schema<T> nestedSchema) implements Option<T> {
     public Branch {
       requireNonNull(names, "names is null");
@@ -96,6 +112,12 @@ public sealed interface Option<T> {
       throw new IllegalStateException("a nested schema is already set");
     }
 
+    /**
+     * Returns a new option that converts the argument to a value of the same type.
+     *
+     * @param mapper the function to apply to do the conversion.
+     * @return a new option that converts the argument to a value of the same type.
+     */
     public Branch<T> convert(UnaryOperator<T> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Branch<>(names, v -> mapper.apply(toValue.apply(v)), help, nestedSchema);
@@ -107,6 +129,14 @@ public sealed interface Option<T> {
     }
   }
 
+  /**
+   * A boolean optional option.
+   *
+   * @param names the names of the option.
+   * @param toValue a conversion function.
+   * @param help a help message or "" if not defined.
+   * @param nestedSchema a nested schema or null.
+   */
   record Flag(Set<String> names, UnaryOperator<Boolean> toValue, String help, Schema<?> nestedSchema) implements Option<Boolean> {
     public Flag {
       requireNonNull(names, "names is null");
@@ -138,6 +168,12 @@ public sealed interface Option<T> {
       return new Flag(names, toValue, help, nestedSchema);
     }
 
+    /**
+     * Returns a new option that converts the argument to a boolean value.
+     *
+     * @param mapper the function to apply to do the conversion.
+     * @return a new option that converts the argument to a boolean value.
+     */
     public Flag convert(UnaryOperator<Boolean> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Flag(names, v -> mapper.apply(toValue.apply(v)), help, nestedSchema);
@@ -150,6 +186,15 @@ public sealed interface Option<T> {
     }
   }
 
+  /**
+   * An optional key/value option.
+   *
+   * @param names the names of the option.
+   * @param toValue a conversion function.
+   * @param help a help message or "" if not defined.
+   * @param nestedSchema a nested schema.
+   * @param <T> the type of the argument corresponding to that option.
+   */
   record Single<T>(Set<String> names, Function<? super Optional<String>, ? extends Optional<T>> toValue, String help, Schema<?> nestedSchema) implements Option<Optional<T>> {
     public Single {
       requireNonNull(names, "names is null");
@@ -181,6 +226,12 @@ public sealed interface Option<T> {
       return new Single<>(names, toValue, help, nestedSchema);
     }
 
+    /**
+     * Returns a new option that converts the argument if it exists to another value.
+     *
+     * @param mapper the function to apply to do the conversion.
+     * @return a new option that converts the argument if it exists to another value.
+     */
     public <U> Single<U> convert(Function<? super T, ? extends U> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Single<>(names, toValue.andThen(v -> v.map(mapper)), help, nestedSchema);
@@ -193,6 +244,15 @@ public sealed interface Option<T> {
     }
   }
 
+  /**
+   * An optional repeatable key/value option.
+   *
+   * @param names the names of the option.
+   * @param toValue a conversion function.
+   * @param help a help message or "" if not defined.
+   * @param nestedSchema a nested schema.
+   * @param <T> the type of the argument corresponding to that option.
+   */
   record Repeatable<T>(Set<String> names, Function<? super List<String>, ? extends List<T>> toValue, String help, Schema<?> nestedSchema) implements Option<List<T>> {
     public Repeatable {
       requireNonNull(names, "names is null");
@@ -224,6 +284,12 @@ public sealed interface Option<T> {
       return new Repeatable<>(names, toValue, help, nestedSchema);
     }
 
+    /**
+     * Returns a new option that converts each argument to another value.
+     *
+     * @param mapper the function to apply to do the conversion.
+     * @return a new option that converts each argument to another value.
+     */
     public <U> Repeatable<U> convert(Function<? super T, ? extends U> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Repeatable<>(names, toValue.andThen(list -> list.stream().<U>map(mapper).toList()), help, nestedSchema);
@@ -236,6 +302,15 @@ public sealed interface Option<T> {
     }
   }
 
+  /**
+   * A required positional option.
+   *
+   * @param names the names of the option.
+   * @param toValue a conversion function.
+   * @param help a help message or "" if not defined.
+   * @param nestedSchema a nested schema.
+   * @param <T> the type of the argument corresponding to that option.
+   */
   record Required<T>(Set<String> names, Function<? super String, ? extends T> toValue, String help, Schema<?> nestedSchema) implements Option<T> {
     public Required {
       requireNonNull(names, "names is null");
@@ -267,6 +342,12 @@ public sealed interface Option<T> {
       return new Required<>(names, toValue, help, nestedSchema);
     }
 
+    /**
+     * Returns a new option that converts the argument to another value.
+     *
+     * @param mapper the function to apply to do the conversion.
+     * @return a new option that converts the argument to another value.
+     */
     public <U> Required<U> convert(Function<? super T, ? extends U> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Required<>(names, toValue.andThen(mapper), help, nestedSchema);
@@ -278,6 +359,15 @@ public sealed interface Option<T> {
     }
   }
 
+  /**
+   * An option corresponding to the rest of the positional arguments..
+   *
+   * @param names the names of the option.
+   * @param toValue a conversion function.
+   * @param help a help message or "" if not defined.
+   * @param nestedSchema a nested schema.
+   * @param <T> the type of the argument corresponding to that option.
+   */
   record Varargs<T>(Set<String> names, Function<? super String[], ? extends T[]> toValue, String help, Schema<?> nestedSchema) implements Option<T[]> {
     public Varargs {
       requireNonNull(names, "names is null");
@@ -309,6 +399,13 @@ public sealed interface Option<T> {
       return new Varargs<>(names, toValue, help, nestedSchema);
     }
 
+    /**
+     * Returns a new option that converts each argument to another value.
+     *
+     * @param mapper the function to apply to do the conversion.
+     * @param generator an array generator
+     * @return a new option that converts each argument to another value.
+     */
     public <U> Varargs<U> convert(Function<? super T, ? extends U> mapper, IntFunction<U[]> generator) {
       requireNonNull(mapper, "mapper is null");
       return new Varargs<>(names, toValue.andThen(v -> Arrays.stream(v).map(mapper).toArray(generator)), help, nestedSchema);
