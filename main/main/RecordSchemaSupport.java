@@ -1,28 +1,18 @@
 package main;
 
-import main.Option.Type;
+import static java.lang.String.format;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
-import java.lang.reflect.Array;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.UndeclaredThrowableException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
-
-import static java.lang.String.format;
-import static main.Option.Type.BRANCH;
-import static main.Option.Type.FLAG;
-import static main.Option.Type.REPEATABLE;
-import static main.Option.Type.REQUIRED;
-import static main.Option.Type.SINGLE;
-import static main.Option.Type.VARARGS;
 
 /**
  * Uses {@link Record}s to derive a {@link Command} from the {@link RecordComponent}s as well as
@@ -33,45 +23,49 @@ class RecordSchemaSupport {
     throw new AssertionError();
   }
 
-  static <T extends Record> Command<T> toSchema(Lookup lookup, Class<T> schema) {
-    Object[] values = new Object[schema.getRecordComponents().length];
-    List<Option<?>> options = new ArrayList<>();
-    for (int i = 0; i < schema.getRecordComponents().length; i++) {
-      options.add(toOption(lookup, schema.getRecordComponents()[i], values, i));
+  static <T extends Record> Command<T> toCommand(Lookup lookup, Class<T> commandType) {
+    Object[] values = new Object[commandType.getRecordComponents().length];
+    Command<T> cmd = Command.of(() -> createRecord(commandType, values, lookup));
+    for (int i = 0; i < commandType.getRecordComponents().length; i++) {
+      int index = i;
+      cmd =
+          addOption(
+              lookup, cmd, commandType.getRecordComponents()[i], value -> values[index] = value);
     }
-    return new Command<>(options, () -> createRecord(schema, values, lookup));
+    return cmd;
   }
 
-  private static Option<?> toOption(Lookup lookup, RecordComponent component, Object[] values, int i) {
+  private static <T> Command<T> addOption(
+      Lookup lookup, Command<T> cmd, RecordComponent component, Consumer<Object> target) {
     var nameAnno = component.getAnnotation(Name.class);
     var names =
-        nameAnno != null
-            ? List.of(nameAnno.value())
-            : List.of(component.getName().replace('_', '-'));
-    var type = optionTypeFrom(component.getType());
+        nameAnno != null ? nameAnno.value() : new String[] {component.getName().replace('_', '-')};
+    var type = OptionType.of(component.getType());
     var nestedSchema = toNestedSchema(component);
     var valueType = valueTypeFrom(component);
-    return toOption(lookup, type, names, valueType, values, i, nestedSchema);
+    return addOption(lookup, cmd, type, names, valueType, target, nestedSchema);
   }
 
-  private static <T> Option<T> toOption(Lookup lookup, Type type, List<String> names, Class<T> valueType, Object[] values, int i, Class<? extends Record> nestedSchema) {
+  private static <T, V> Command<T> addOption(
+      Lookup lookup,
+      Command<T> cmd,
+      OptionType type,
+      String[] names,
+      Class<V> valueType,
+      Consumer<Object> target,
+      Class<? extends Record> subCommandType) {
     var valueConverter = valueConverter(lookup, valueType);
-    var optionSchema = nestedSchema == null ? null: toSchema(lookup, nestedSchema);
-    Consumer<List<T>> target = switch (type) {
-      case REPEATABLE -> v -> values[i] = v;
-      case VARARGS -> v -> values[i] = v.toArray(size -> (Object[]) Array.newInstance(valueType, size));
-      default -> v -> values[i] = v == null ? null : v.get(0);
+    Command<V> subCommand =
+        subCommandType == null ? null : (Command<V>) toCommand(lookup, subCommandType);
+    return switch (type) {
+      case BRANCH -> cmd.addBranch(subCommand, valueType, target::accept, names);
+      case FLAG -> cmd.addFlag(target::accept, names);
+      case SINGLE -> cmd.addSingle(subCommand, valueType, valueConverter, target::accept, names);
+      case REPEATABLE -> cmd.addRepeatable(
+          subCommand, valueType, valueConverter, target::accept, names);
+      case REQUIRED -> cmd.addRequired(valueType, valueConverter, target::accept, names);
+      case VARARGS -> cmd.addVarargs(valueType, valueConverter, target::accept, names);
     };
-    return new Option<>(type, names, valueType, valueConverter, target, optionSchema);
-  }
-
-  private static Type optionTypeFrom(Class<?> type) {
-    if (type.isRecord()) return BRANCH;
-    if (type == Boolean.class || type == boolean.class) return FLAG;
-    if (type == Optional.class) return SINGLE;
-    if (type == List.class) return REPEATABLE;
-    if (type.isArray()) return VARARGS;
-    return REQUIRED;
   }
 
   private static Class<?> valueTypeFrom(RecordComponent component) {
@@ -80,13 +74,13 @@ class RecordSchemaSupport {
     if (type == Boolean.class || type == boolean.class) return Boolean.class;
     if (type.isArray()) return type.getComponentType();
     if (type == List.class || type == Optional.class)
-      return (Class<?>) ((ParameterizedType) component.getGenericType()).getActualTypeArguments()[0];
+      return (Class<?>)
+          ((ParameterizedType) component.getGenericType()).getActualTypeArguments()[0];
     return type;
   }
 
   private static Class<? extends Record> toNestedSchema(RecordComponent component) {
-    if (component.getType().isRecord())
-      return component.getType().asSubclass(Record.class);
+    if (component.getType().isRecord()) return component.getType().asSubclass(Record.class);
     return (component.getGenericType() instanceof ParameterizedType paramType
             && paramType.getActualTypeArguments()[0] instanceof Class<?> nestedType
             && nestedType.isRecord())
@@ -95,27 +89,27 @@ class RecordSchemaSupport {
   }
 
   private static <T> Function<String, T> valueConverter(Lookup lookup, Class<T> valueType) {
-    if (valueType == String.class || valueType.isRecord())
-      return (Function) Function.identity();
+    if (valueType == String.class || valueType.isRecord()) return (Function) Function.identity();
     MethodHandle mh = valueOfMethod(lookup, valueType);
     return arg -> {
       try {
         return valueType.cast(mh.invoke(arg));
       } catch (Throwable e) {
-        throw new IllegalArgumentException(format("Not a valid value for type %s: %s", valueType.getSimpleName(), arg), e);
+        throw new IllegalArgumentException(
+            format("Not a valid value for type %s: %s", valueType.getSimpleName(), arg), e);
       }
     };
   }
 
   private static <T> MethodHandle valueOfMethod(Lookup lookup, Class<T> valueType) {
-    record Factory (String name, MethodType method) {};
-    List<Factory> factories = List.of( //
+    record Factory(String name, MethodType method) {}
+    List<Factory> factories =
+        List.of( //
             new Factory("valueOf", MethodType.methodType(valueType, String.class)), //
             new Factory("of", MethodType.methodType(valueType, String.class)), //
             new Factory("of", MethodType.methodType(valueType, String.class, String[].class)), //
             new Factory("parse", MethodType.methodType(valueType, String.class)),
-            new Factory("parse", MethodType.methodType(valueType, CharSequence.class))
-    );
+            new Factory("parse", MethodType.methodType(valueType, CharSequence.class)));
     for (Factory factory : factories) {
       try {
         return lookup.findStatic(valueType, factory.name(), factory.method());
@@ -137,10 +131,9 @@ class RecordSchemaSupport {
   }
 
   private static <T extends Record> T createRecord(
-          Class<T> schema, Object[] values, Lookup lookup) {
+      Class<T> schema, Object[] values, Lookup lookup) {
     try {
-      return schema.cast(
-          constructor(lookup, schema).asFixedArity().invokeWithArguments(values));
+      return schema.cast(constructor(lookup, schema).asFixedArity().invokeWithArguments(values));
     } catch (RuntimeException | Error e) {
       throw e;
     } catch (Throwable e) {

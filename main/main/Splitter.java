@@ -5,21 +5,17 @@ import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toCollection;
 
 import java.lang.invoke.MethodHandles.Lookup;
-import java.lang.reflect.Array;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import main.Command.Option;
 
 @FunctionalInterface
 public interface Splitter<T> {
@@ -27,7 +23,7 @@ public interface Splitter<T> {
   static <R extends Record> Splitter<R> of(Lookup lookup, Class<R> schema) {
     requireNonNull(schema, "schema is null");
     requireNonNull(lookup, "lookup is null");
-    return of(RecordSchemaSupport.toSchema(lookup, schema));
+    return of(RecordSchemaSupport.toCommand(lookup, schema));
   }
 
   static <T> Splitter<T> of(Command<T> cmd) {
@@ -74,32 +70,18 @@ public interface Splitter<T> {
    */
 
   private static <T> T split(Command<T> cmd, boolean nested, Deque<String> remainingArgs) {
-    var options = cmd.options;
+    var options = cmd.options();
     var requiredOptions =
         options.stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
-    var optionsByName = new HashMap<String, Option<?>>();
-    var workspace = new LinkedHashMap<String, Object>();
+    var optionsByName = new HashMap<String, Option>();
+    options.forEach(opt -> opt.names().forEach(name -> optionsByName.put(name, opt)));
     var flagCount = options.stream().filter(Option::isFlag).count();
     var flagPattern = flagCount == 0 ? null : Pattern.compile("^-[a-zA-Z]{1," + flagCount + "}$");
-    for (var option : options) {
-      for (var name : option.names()) {
-        optionsByName.put(name, option);
-      }
-      workspace.put(option.name(), option.defaultValue());
-    }
-    Supplier<T> res = () ->  {
-      for (Map.Entry<String, Object> e : workspace.entrySet()) {
-        Object value = e.getValue();
-        Option<?> option = optionsByName.get(e.getKey());
-        List<?> v = switch (option.type()) {
-          case REPEATABLE -> (List<?>)value;
-          case VARARGS -> List.of((Object[]) value);
-          default -> value == null ? null : List.of(value);
+    Supplier<T> res =
+        () -> {
+          options.forEach(Option::complete);
+          return cmd.complete();
         };
-        option.pack((List)v);
-      }
-      return cmd.create();
-    };
 
     boolean doubleDashMode = false;
     while (true) {
@@ -121,49 +103,45 @@ public interface Splitter<T> {
       if (!doubleDashMode && optionsByName.containsKey(maybeName)) {
         var option = optionsByName.get(maybeName);
         var name = option.name();
-        if (option.type() == Option.Type.BRANCH) {
-          workspace.put(name, split(option, remainingArgs));
+        if (option.type() == OptionType.BRANCH) {
+          option.addSub(split(option, remainingArgs));
           if (!remainingArgs.isEmpty())
             throw new IllegalArgumentException("Too many arguments: " + remainingArgs);
           return res.get();
         }
-        var optionValue =
-            switch (option.type()) {
-              case FLAG -> noValue || parseBoolean(maybeValue);
-              case SINGLE -> {
-                var value =
-                    option.subCommand() != null
-                        ? split(option, remainingArgs)
-                        : option.create(noValue ? remainingArgs.pop() : maybeValue);
-                yield Optional.of(value);
-              }
-              case REPEATABLE -> {
-                var value =
-                    option.subCommand() != null
-                        ? List.of(split(option, remainingArgs))
-                        : noValue
-                            ? List.of(option.create(remainingArgs.pop()))
-                            : Stream.of(maybeValue.split(",")).map(option::create).toList();
-                var elements = (List<?>) workspace.get(name);
-                yield Stream.concat(elements.stream(), value.stream()).toList();
-              }
-              case BRANCH, VARARGS, REQUIRED -> throw new AssertionError("Unnamed name? " + name);
-            };
-        workspace.put(name, optionValue);
+        switch (option.type()) {
+          case FLAG:
+            option.add(noValue || parseBoolean(maybeValue) ? "true" : "false");
+            break;
+          case SINGLE:
+            if (option.sub().isPresent()) {
+              option.addSub(split(option, remainingArgs));
+            } else option.add(noValue ? remainingArgs.pop() : maybeValue);
+            break;
+          case REPEATABLE:
+            if (option.sub().isPresent()) {
+              option.addSub(split(option, remainingArgs));
+            } else
+              Stream.of((noValue ? remainingArgs.pop() : maybeValue).split(","))
+                  .forEach(option::add);
+            break;
+          default:
+            throw new AssertionError("Unnamed name? " + name);
+        }
         continue; // with next argument
       }
       // maybe a combination of single letter flags?
       if (!doubleDashMode && flagPattern != null && flagPattern.matcher(argument).matches()) {
         var flags = argument.substring(1).chars().mapToObj(c -> "-" + (char) c).toList();
         if (flags.stream().allMatch(optionsByName::containsKey)) {
-          flags.forEach(flag -> workspace.put(optionsByName.get(flag).name(), true));
+          flags.forEach(flag -> optionsByName.get(flag).add("true"));
           continue;
         }
       }
       // try required option
       if (!requiredOptions.isEmpty()) {
         var requiredOption = requiredOptions.pop();
-        workspace.put(requiredOption.name(), requiredOption.create(argument));
+        requiredOption.add(argument);
         continue;
       }
       // restore pending arguments deque
@@ -172,11 +150,7 @@ public interface Splitter<T> {
       // try globbing all pending arguments into a varargs collector
       var varargsOption = options.stream().filter(Option::isVarargs).findFirst().orElse(null);
       if (varargsOption != null) {
-        workspace.put(
-            varargsOption.name(),
-            remainingArgs.stream()
-                .map(varargsOption::create)
-                .toArray(size -> (Object[]) Array.newInstance(varargsOption.valueType(), size)));
+        remainingArgs.forEach(varargsOption::add);
         return res.get();
       }
       throw new IllegalArgumentException("Unhandled arguments: " + remainingArgs);
@@ -189,7 +163,7 @@ public interface Splitter<T> {
         : str;
   }
 
-  private static Object split(Option<?> option, Deque<String> pendingArguments) {
-    return split(option.subCommand(), true, pendingArguments);
+  private static Object split(Option option, Deque<String> pendingArguments) {
+    return split(option.sub().get(), true, pendingArguments);
   }
 }

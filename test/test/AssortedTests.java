@@ -30,14 +30,6 @@ class AssortedTests {
   }
 
   @Test
-  void empty() {
-    record Options() {}
-    IllegalArgumentException ex =
-        assertThrows(IllegalArgumentException.class, () -> Splitter.of(lookup(), Options.class));
-    assertEquals("At least one option is expected", ex.getMessage());
-  }
-
-  @Test
   void varargs() {
     record Options(String... more) {
       static Options split(String... args) {
