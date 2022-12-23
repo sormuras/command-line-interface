@@ -2,12 +2,13 @@ package main;
 
 import static java.util.Objects.requireNonNull;
 
-import java.util.Collections;
-import java.util.LinkedHashSet;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.IntFunction;
+import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 /**
@@ -42,11 +43,11 @@ import java.util.stream.Stream;
  *
  * @param <T> type of the argument described by this Option.
  */
-public class Option<T> {
+public sealed interface Option<T> {
   /**
    * Type of {@link Option}.
    */
-  public enum Type {
+  enum Type {
     BRANCH(null),
     /** An optional flag, like {@code --verbose}. */
     FLAG(false),
@@ -59,81 +60,321 @@ public class Option<T> {
     /** A collection of all unhandled arguments. */
     VARARGS(new String[0]);
 
-    private final Object defaultValue;
+    final Object defaultValue;
 
     Type(Object defaultValue) {
       this.defaultValue = defaultValue;
     }
   }
 
-  private final Type type;
-  private final LinkedHashSet<String> names;
-  private final Function<Object, T> toValue;
-  private final String help;
-  private final Schema<?> nestedSchema;
-
-  private Option(Type type, LinkedHashSet<String> names,  Function<Object, T> toValue, String help, Schema<?> nestedSchema) {
-    requireNonNull(type, "type is null");
-    requireNonNull(names, "names is null");
-    requireNonNull(toValue, "toValue is null");
-    requireNonNull(help, "help is null");
-    if (names.isEmpty()) throw new IllegalArgumentException("no name defined");
-    this.type = type;
-    this.names = names;
-    this.toValue = toValue;
-    this.help = help;
-    this.nestedSchema = nestedSchema;
-  }
-
-  Option(Type type, String[] names,  Function<Object, T> toValue, String help, Schema<?> nestedSchema) {
-    this(type, checkDuplicates(names), toValue, help, nestedSchema);
-  }
-
-  private static LinkedHashSet<String> checkDuplicates(String... names) {
-    requireNonNull(names, "names is null");
-    var set = new LinkedHashSet<String>();
-    for(var name: names) {
-      requireNonNull(name, "one name is null");
-      if (name.isEmpty()) {
-        throw new IllegalArgumentException("one name is empty");
-      }
-      if (!set.add(name)) {
-        throw new IllegalArgumentException("duplicate names " + name);
-      }
+  record Branch<T>(Set<String> names, UnaryOperator<T> toValue, String help, Schema<T> nestedSchema) implements Option<T> {
+    public Branch {
+      requireNonNull(names, "names is null");
+      requireNonNull(toValue, "toValue is null");
+      requireNonNull(help, "help null");
+      requireNonNull(nestedSchema, "nestedSchema null");
+      names = NameSet.copyOf(names);
     }
-    return set;
+
+    @Override
+    public String toString() {
+      return "BRANCH" + names.toString();
+    }
+
+    @Override
+    public Branch<T> help(String helpText) {
+      requireNonNull(helpText, "helpText is null");
+      if (!help.isEmpty()) {
+        throw new IllegalStateException("option already has an help text");
+      }
+      return new Branch<>(names, toValue, helpText, nestedSchema);
+    }
+
+    @Override
+    public Branch<T> nestedSchema(Schema<?> nestedSchema) {
+      requireNonNull(nestedSchema, "nestedSchema is null");
+      throw new IllegalStateException("a nested schema is already set");
+    }
+
+    public Branch<T> convert(UnaryOperator<T> mapper) {
+      requireNonNull(mapper, "mapper is null");
+      return new Branch<>(names, v -> mapper.apply(toValue.apply(v)), help, nestedSchema);
+    }
+
+    @Override
+    public Branch<T> defaultValue(T value) {
+      return convert(v -> v == null? value: v);
+    }
+  }
+
+  record Flag(Set<String> names, UnaryOperator<Boolean> toValue, String help, Schema<?> nestedSchema) implements Option<Boolean> {
+    public Flag {
+      requireNonNull(names, "names is null");
+      requireNonNull(toValue, "toValue is null");
+      requireNonNull(help, "help null");
+      names = NameSet.copyOf(names);
+    }
+
+    @Override
+    public String toString() {
+      return "FLAG" + names.toString();
+    }
+
+    @Override
+    public Flag help(String helpText) {
+      requireNonNull(names, "helpText is null");
+      if (!help.isEmpty()) {
+        throw new IllegalStateException("option already has an help text");
+      }
+      return new Flag(names, toValue, helpText, nestedSchema);
+    }
+
+    @Override
+    public Flag nestedSchema(Schema<?> nestedSchema) {
+      requireNonNull(nestedSchema, "nestedSchema is null");
+      if (this.nestedSchema != null) {
+        throw new IllegalStateException("a nested schema is already set");
+      }
+      return new Flag(names, toValue, help, nestedSchema);
+    }
+
+    public Flag convert(UnaryOperator<Boolean> mapper) {
+      requireNonNull(mapper, "mapper is null");
+      return new Flag(names, v -> mapper.apply(toValue.apply(v)), help, nestedSchema);
+    }
+
+    @Override
+    public Flag defaultValue(Boolean value) {
+      requireNonNull(value, "value is null");
+      return convert(v -> !v && value);
+    }
+  }
+
+  record Single<T>(Set<String> names, Function<? super Optional<String>, ? extends Optional<T>> toValue, String help, Schema<?> nestedSchema) implements Option<Optional<T>> {
+    public Single {
+      requireNonNull(names, "names is null");
+      requireNonNull(toValue, "toValue is null");
+      requireNonNull(help, "help null");
+      names = NameSet.copyOf(names);
+    }
+
+    @Override
+    public String toString() {
+      return "SINGLE" + names.toString();
+    }
+
+    @Override
+    public Single<T> help(String helpText) {
+      requireNonNull(names, "helpText is null");
+      if (!help.isEmpty()) {
+        throw new IllegalStateException("option already has an help text");
+      }
+      return new Single<>(names, toValue, helpText, nestedSchema);
+    }
+
+    @Override
+    public Single<T> nestedSchema(Schema<?> nestedSchema) {
+      requireNonNull(nestedSchema, "nestedSchema is null");
+      if (this.nestedSchema != null) {
+        throw new IllegalStateException("a nested schema is already set");
+      }
+      return new Single<>(names, toValue, help, nestedSchema);
+    }
+
+    public <U> Single<U> convert(Function<? super T, ? extends U> mapper) {
+      requireNonNull(mapper, "mapper is null");
+      return new Single<>(names, toValue.andThen(v -> v.map(mapper)), help, nestedSchema);
+    }
+
+    @Override
+    public Single<T> defaultValue(Optional<T> value) {
+      requireNonNull(value, "value is null");
+      return new Single<>(names, toValue.andThen(v -> v.or(() -> value)), help, nestedSchema);
+    }
+  }
+
+  record Repeatable<T>(Set<String> names, Function<? super List<String>, ? extends List<T>> toValue, String help, Schema<?> nestedSchema) implements Option<List<T>> {
+    public Repeatable {
+      requireNonNull(names, "names is null");
+      requireNonNull(toValue, "toValue is null");
+      requireNonNull(help, "help null");
+      names = NameSet.copyOf(names);
+    }
+
+    @Override
+    public String toString() {
+      return "REPEATABLE" + names.toString();
+    }
+
+    @Override
+    public Repeatable<T> help(String helpText) {
+      requireNonNull(names, "helpText is null");
+      if (!help.isEmpty()) {
+        throw new IllegalStateException("option already has an help text");
+      }
+      return new Repeatable<>(names, toValue, helpText, nestedSchema);
+    }
+
+    @Override
+    public Repeatable<T> nestedSchema(Schema<?> nestedSchema) {
+      requireNonNull(nestedSchema, "nestedSchema is null");
+      if (this.nestedSchema != null) {
+        throw new IllegalStateException("a nested schema is already set");
+      }
+      return new Repeatable<>(names, toValue, help, nestedSchema);
+    }
+
+    public <U> Repeatable<U> convert(Function<? super T, ? extends U> mapper) {
+      requireNonNull(mapper, "mapper is null");
+      return new Repeatable<>(names, toValue.andThen(list -> list.stream().<U>map(mapper).toList()), help, nestedSchema);
+    }
+
+    @Override
+    public Repeatable<T> defaultValue(List<T> value) {
+      requireNonNull(value, "value is null");
+      return new Repeatable<>(names, toValue.andThen(list -> list.isEmpty()? value: list), help, nestedSchema);
+    }
+  }
+
+  record Required<T>(Set<String> names, Function<? super String, ? extends T> toValue, String help, Schema<?> nestedSchema) implements Option<T> {
+    public Required {
+      requireNonNull(names, "names is null");
+      requireNonNull(toValue, "toValue is null");
+      requireNonNull(help, "help null");
+      names = NameSet.copyOf(names);
+    }
+
+    @Override
+    public String toString() {
+      return "REQUIRED" + names.toString();
+    }
+
+    @Override
+    public Required<T> help(String helpText) {
+      requireNonNull(names, "helpText is null");
+      if (!help.isEmpty()) {
+        throw new IllegalStateException("option already has an help text");
+      }
+      return new Required<>(names, toValue, helpText, nestedSchema);
+    }
+
+    @Override
+    public Required<T> nestedSchema(Schema<?> nestedSchema) {
+      requireNonNull(nestedSchema, "nestedSchema is null");
+      if (this.nestedSchema != null) {
+        throw new IllegalStateException("a nested schema is already set");
+      }
+      return new Required<>(names, toValue, help, nestedSchema);
+    }
+
+    public <U> Required<U> convert(Function<? super T, ? extends U> mapper) {
+      requireNonNull(mapper, "mapper is null");
+      return new Required<>(names, toValue.andThen(mapper), help, nestedSchema);
+    }
+
+    @Override
+    public Required<T> defaultValue(T value) {
+      return convert(v -> v == null ? value : v);
+    }
+  }
+
+  record Varargs<T>(Set<String> names, Function<? super String[], ? extends T[]> toValue, String help, Schema<?> nestedSchema) implements Option<T[]> {
+    public Varargs {
+      requireNonNull(names, "names is null");
+      requireNonNull(toValue, "toValue is null");
+      requireNonNull(help, "help null");
+      names = NameSet.copyOf(names);
+    }
+
+    @Override
+    public String toString() {
+      return "VARARGS" + names.toString();
+    }
+
+    @Override
+    public Varargs<T> help(String helpText) {
+      requireNonNull(names, "helpText is null");
+      if (!help.isEmpty()) {
+        throw new IllegalStateException("option already has an help text");
+      }
+      return new Varargs<>(names, toValue, helpText, nestedSchema);
+    }
+
+    @Override
+    public Varargs<T> nestedSchema(Schema<?> nestedSchema) {
+      requireNonNull(nestedSchema, "nestedSchema is null");
+      if (this.nestedSchema != null) {
+        throw new IllegalStateException("a nested schema is already set");
+      }
+      return new Varargs<>(names, toValue, help, nestedSchema);
+    }
+
+    public <U> Varargs<U> convert(Function<? super T, ? extends U> mapper, IntFunction<U[]> generator) {
+      requireNonNull(mapper, "mapper is null");
+      return new Varargs<>(names, toValue.andThen(v -> Arrays.stream(v).map(mapper).toArray(generator)), help, nestedSchema);
+    }
+
+    @Override
+    public Varargs<T> defaultValue(T[] value) {
+      requireNonNull(value, "value is null");
+      return new Varargs<>(names, toValue.andThen(v -> v.length == 0 ? value : v), help, nestedSchema);
+    }
   }
 
   /**
    * Returns the type of the option.
    * @return the type of the option.
    */
-  public Type type() {
-    return type;
+  default Type type() {
+    if (this instanceof Branch<?>) {
+      return Type.BRANCH;
+    }
+    if (this instanceof Flag) {
+      return Type.FLAG;
+    }
+    if (this instanceof Single<?>) {
+      return Type.SINGLE;
+    }
+    if (this instanceof Repeatable<?>) {
+      return Type.REPEATABLE;
+    }
+    if (this instanceof Required<?>) {
+      return Type.REQUIRED;
+    }
+    if (this instanceof Option.Varargs<?>) {
+      return Type.VARARGS;
+    }
+    throw new AssertionError();
   }
 
   /**
    * Returns the names of the options.
+   *
    * @return the named of the options.
    */
-  public Set<String> names() {
-    return Collections.unmodifiableSet(names);
-  }
+  Set<String> names();
 
   /**
    * Returns the text of the help message.
    * @return the text of the help message or an empty string if no text is set.
    */
-  public String help() {
-    return help;
-  }
+  String help();
 
   /**
    * Returns the nested schema if it exists.
    * @return the nested schema or {@code null} otherwise.
    */
-  public Schema<?> nestedSchema() {
-    return nestedSchema;
+  Schema<?> nestedSchema();
+
+  /**
+   * Creates an option of type {@link Type#BRANCH} with names.
+   *
+   * @param names the names of the options.
+   * @return a new {@link Type#BRANCH} option.
+   * @throws IllegalArgumentException is there are duplicated names.
+   */
+  static <T extends Record> Branch<T> branch(String... names) {
+    return new Branch<>(NameSet.of(names), value -> value, "", null);
   }
 
   /**
@@ -143,8 +384,8 @@ public class Option<T> {
    * @return a new {@link Type#FLAG} option.
    * @throws IllegalArgumentException is there are duplicated names.
    */
-  public static Option<Boolean> flag(String... names) {
-    return new Option<>(Type.FLAG, names, object -> (Boolean) object, "", null);
+  static Flag flag(String... names) {
+    return new Flag(NameSet.of(names), value -> value, "", null);
   }
 
   /**
@@ -154,20 +395,8 @@ public class Option<T> {
    * @return a new {@link Type#SINGLE} option.
    * @throws IllegalArgumentException is there are duplicated names.
    */
-  @SuppressWarnings("unchecked")
-  public static Option<Optional<String>> single(String... names) {
-    return new Option<>(Type.SINGLE, names, object -> (Optional<String>) object, "", null);
-  }
-
-  /**
-   * Creates an option of type {@link Type#REQUIRED} with names.
-   *
-   * @param names the names of the options.
-   * @return a new {@link Type#REQUIRED} option.
-   * @throws IllegalArgumentException is there are duplicated names.
-   */
-  public static Option<String> required(String... names) {
-    return new Option<>(Type.REQUIRED, names, object -> (String) object, "", null);
+  static Single<String> single(String... names) {
+    return new Single<>(NameSet.of(names), value -> value, "", null);
   }
 
   /**
@@ -177,9 +406,19 @@ public class Option<T> {
    * @return a new {@link Type#REPEATABLE} option.
    * @throws IllegalArgumentException is there are duplicated names.
    */
-  @SuppressWarnings("unchecked")
-  public static Option<List<String>> repeatable(String... names) {
-    return new Option<>(Type.REPEATABLE, names, object -> (List<String>) object, "", null);
+  static Repeatable<String> repeatable(String... names) {
+    return new Repeatable<>(NameSet.of(names), value -> value, "", null);
+  }
+
+  /**
+   * Creates an option of type {@link Type#REQUIRED} with names.
+   *
+   * @param names the names of the options.
+   * @return a new {@link Type#REQUIRED} option.
+   * @throws IllegalArgumentException is there are duplicated names.
+   */
+  static Required<String> required(String... names) {
+    return new Required<>(NameSet.of(names), value -> value, "", null);
   }
 
   /**
@@ -189,8 +428,8 @@ public class Option<T> {
    * @return a new {@link Type#VARARGS} option.
    * @throws IllegalArgumentException is there are duplicated names.
    */
-  public static Option<String[]> varargs(String... names) {
-    return new Option<>(Type.VARARGS, names, object -> (String[]) object, "", null);
+  static Varargs<String> varargs(String... names) {
+    return new Varargs<>(NameSet.of(names), value -> value, "", null);
   }
 
   /**
@@ -198,30 +437,15 @@ public class Option<T> {
    * @return a string representation of the option using its {@link #type()} and its {@link #names()}.
    */
   @Override
-  public String toString() {
-    return type + names.toString();
-  }
+  String toString();
 
   /**
-   * Returns a new option configured with the conversion function.
+   * Returns a new option configured with a default value.
    *
-   * <p>The return type of the conversion function must be an equivalent type of the type of the option.
-   * If the option is a {@link Type#FLAG}, the return type must be a {@code Boolean},
-   * if the option is a {@link Type#SINGLE}, the return type must be any {@code Optional}s,
-   * if the option is a {@link Type#REPEATABLE}, the return type must be any {@code List}s,
-   * if the option is a {@link Type#REQUIRED}, the return type must be any {@code Object}s,
-   * if the option is a {@link Type#VARARGS}, the return type must be any arrays of objects ({@code Object[]}).
-   *
-   * <p>This restriction is not enforced but may result in {@link ClassCastException} later if not followed.
-   *
-   * @param conversion a conversion function
-   * @return a new option configured with the conversion function.
-   * @param <U> type of the return value of the conversion function
+   * @param value the default value
+   * @return a new option configured with a default value.
    */
-  public <U> Option<U> map(Function<? super T, ? extends U> conversion) {
-    requireNonNull(conversion, "conversion is null");
-    return new Option<>(type, names, toValue.andThen(conversion), help, nestedSchema);
-  }
+  Option<T> defaultValue(T value);
 
   /**
    * Returns a new option with the help text.
@@ -230,13 +454,7 @@ public class Option<T> {
    * @return a new option with the help text.
    * @throws IllegalStateException if the option already has a help text set.
    */
-  public Option<T> help(String helpText) {
-    requireNonNull(names, "helpText is null");
-    if (!help.isEmpty()) {
-      throw new IllegalStateException("option already has an help text");
-    }
-    return new Option<>(type, names, toValue, helpText, nestedSchema);
-  }
+  Option<T> help(String helpText);
 
   /**
    * Returns a new option with the nested schema.
@@ -245,13 +463,7 @@ public class Option<T> {
    * @return a new option with the nested schema.
    * @throws IllegalStateException if the option already has a nested schema set.
    */
-  public Option<?> nestedSchema(Schema<?> nestedSchema) {
-    requireNonNull(nestedSchema, "nestedSchema is null");
-    if (this.nestedSchema != null) {
-      throw new IllegalStateException("a nested schema is already set");
-    }
-    return new Option<>(type, names, toValue, help, nestedSchema);
-  }
+  Option<?> nestedSchema(Schema<?> nestedSchema);
 
   /**
    * Returns the value of the argument associated with the current option.
@@ -261,37 +473,8 @@ public class Option<T> {
    * @throws IllegalStateException if there is no argument value associated with the current option
    * in the {@link ArgumentMap}.
    */
-  public T argument(ArgumentMap argumentMap) {
+  default T argument(ArgumentMap argumentMap) {
     requireNonNull(argumentMap, "dataMap is null");
     return argumentMap.argument(this);
-  }
-
-  @SuppressWarnings("unchecked")
-  T defaultValue() {
-    return (T) type.defaultValue;
-  }
-
-  T apply(Object arg) {
-    return toValue.apply(arg);
-  }
-
-  String name() {
-    return names.iterator().next();
-  }
-
-  boolean isVarargs() {
-    return type == Type.VARARGS;
-  }
-
-  boolean isRequired() {
-    return type == Type.REQUIRED;
-  }
-
-  boolean isFlag() {
-    return type == Type.FLAG;
-  }
-
-  boolean isPositional() {
-    return type == Type.VARARGS || type == Type.REQUIRED;
   }
 }

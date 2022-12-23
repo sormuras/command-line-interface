@@ -24,7 +24,7 @@ public class JarOptionTests {
     var createFlag = Option.flag("-c", "--create").help("Create an archive");
     var fileSingle = Option.single("-f", "--file").help("The archive file");
     var filesVarargs = Option.varargs("files...")
-        .map(filenames -> Arrays.stream(filenames).map(Path::of).toArray(Path[]::new));
+        .convert(Path::of, Path[]::new);
 
     var line = "--create --file classes.jar Foo.class Bar.class";
     var argumentMap = Splitter.of(createFlag, fileSingle, filesVarargs).split(line.split("\\s+"));

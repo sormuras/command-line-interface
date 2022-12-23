@@ -1,6 +1,12 @@
 package main;
 
+import main.Option.Branch;
+import main.Option.Flag;
+import main.Option.Repeatable;
+import main.Option.Required;
+import main.Option.Single;
 import main.Option.Type;
+import main.Option.Varargs;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
@@ -10,6 +16,7 @@ import java.lang.reflect.RecordComponent;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -47,7 +54,7 @@ class RecordSchemaSupport {
     var nestedSchema = toNestedSchema(component);
     var converter = resolveConverter(lookup, component, resolver);
     var optionSchema = nestedSchema == null ? null: toSchema(lookup, nestedSchema, resolver);
-    return new Option<>(type, names, converter, help, optionSchema);
+    return newOption(type, names, converter, help, optionSchema);
   }
 
   private static Function<Object, ?> resolveConverter(Lookup lookup, RecordComponent component, ConverterResolver resolver) {
@@ -72,6 +79,23 @@ class RecordSchemaSupport {
             && nestedType.isRecord())
         ? nestedType.asSubclass(Record.class)
         : null;
+  }
+
+  private static Option<?> newOption(Type type, String[] names, Function<Object, ?> converter, String help, Schema<?> schema) {
+    var nameSet = NameSet.of(names);
+    return switch (type) {
+      case BRANCH -> newBranch(nameSet, converter, help, schema);
+      case FLAG -> new Flag(nameSet, v -> (Boolean) converter.apply(v), help, schema);
+      case SINGLE -> new Single<>(nameSet, v -> (Optional<?>) converter.apply(v), help, schema);
+      case REPEATABLE -> new Repeatable<>(nameSet, v -> (List<?>) converter.apply(v), help, schema);
+      case REQUIRED -> new Required<>(nameSet, converter, help, schema);
+      case VARARGS -> new Varargs<>(nameSet, v -> (Object[]) converter.apply(v), help, schema);
+    };
+  }
+
+  @SuppressWarnings("unchecked")  // need to capture the Schema type
+  private static <T> Branch<T> newBranch(Set<String> nameSet, Function<Object, ?> converter, String help, Schema<T> schema) {
+    return new Branch<>(nameSet, v -> (T) converter.apply(v), help, schema);
   }
 
   private static MethodHandle constructor(Lookup lookup, Class<?> schema) {
