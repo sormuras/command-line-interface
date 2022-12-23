@@ -84,9 +84,9 @@ public interface ConverterResolver {
    * Returns a converter (a conversion function) for a Java type specified as type argument of a type reference.
    *
    * @param lookup the lookup used if reflection is involved to find the converter.
-   * @param typeReference
-   * @return
-   * @param <R> the Java type
+   * @param typeReference the type reference used to extract the Java generic type from.
+   * @return a converter (a conversion function) for a Java type specified as type argument of a type reference.
+   * @param <R> the generic Java type.
    */
   @SuppressWarnings("unchecked")
   default <R> Optional<Function<Object, R>> resolve(Lookup lookup, TypeReference<R> typeReference) {
@@ -95,21 +95,58 @@ public interface ConverterResolver {
     return (Optional<Function<Object, R>>) (Optional<? extends Function<?,?>>) resolve(lookup, typeReference.extract());
   }
 
+  /**
+   * Returns a resolver that will first try to find the converter (a conversion function) from the current resolver
+   * and if not available from the resolver taken as parameter.
+   *
+   * @param resolver a second resolver.
+   * @return a new resolver that will resolve using the current resolver and the second resolver otherwise.
+   */
   default ConverterResolver or(ConverterResolver resolver) {
     requireNonNull(resolver, "resolver is null");
     return (lookup, valueType) -> resolve(lookup, valueType)
         .or(() -> resolver.resolve(lookup, valueType));
   }
 
+  /**
+   * Returns a new resolver that will unwrap Optional, List or array and calls the current resolver
+   * with the component type.
+   *
+   * @return a new resolver that will unwrap Optional, List or array and calls the current resolver
+   * with the component type.
+   */
   default ConverterResolver unwrap() {
     return (lookup, valueType) -> unwrap(lookup, valueType, this);
   }
 
+  /**
+   * Returns the resolver taken as parameter.
+   * This allows to type a lambda from right to left.
+   * <p>
+   * This does not compile
+   * <pre>
+   *   var resolver = (lookup, valueType) ->  ....
+   * </pre>
+   * But this does
+   * <pre>
+   *   var resolver = ConverterResolver.Of((lookup, valueType) -> ...);
+   * </pre>
+   *
+   * @param resolver the resolver.
+   * @return the resolver taken as parameter.
+   */
   static ConverterResolver of(ConverterResolver resolver) {
     requireNonNull(resolver, "resolver is null");
     return resolver;
   }
 
+  /**
+   * Returns a resolver that will call the converter if the predicate is true.
+   *
+   * @param predicate a predicate on the valueType (as a {@code java.lang.Class})
+   * @param converter the converter to call
+   * @return a resolver that will call the converter if the predicate is true.
+   */
   static ConverterResolver when(Predicate<? super Class<?>> predicate, Function<Object, ?> converter) {
     requireNonNull(predicate, "predicate is null");
     requireNonNull(converter, "converter is null");
@@ -117,12 +154,39 @@ public interface ConverterResolver {
         .filter(__ -> valueType instanceof Class<?> clazz && predicate.test(clazz));
   }
 
+  /**
+   * Returns a resolver that will call the converter if the valueType is the one taken as parameter.
+   * <p>
+   * The implementation is equivalent to
+   * <pre>
+   *   when(valueType::equals, converter)
+   * </pre>
+   *
+   * @param valueType the value type to check
+   * @param converter the converter to call
+   * @return a resolver that will call the converter if the valueType is the one taken as parameter.
+   */
   static ConverterResolver when(Class<?> valueType, Function<Object, ?> converter) {
     requireNonNull(valueType, "valueType is null");
     requireNonNull(converter, "converter is null");
     return when(valueType::equals, converter);
   }
 
+  /**
+   * Return the default resolver.
+   * The default resolver first try to unwrap Optional, Liat or any object array then
+   * calls {@link #basic(Lookup, Type)}, {@link #enumerated(Lookup, Type)} and then {@link #reflected(Lookup, Type)}.
+   *
+   * <p>The implementation is equivalent to
+   * <pre>
+   *   ConverterResolver.of(ConverterResolver::basic)
+   *       .or(ConverterResolver::enumerated)
+   *       .or(ConverterResolver::reflected)
+   *       .unwrap();
+   * </pre>
+   *
+   * @return the default resolver.
+   */
   static ConverterResolver defaultResolver() {
     final class Default {
       private static final ConverterResolver DEFAULT_RESOLVER =
@@ -134,12 +198,31 @@ public interface ConverterResolver {
     return Default.DEFAULT_RESOLVER;
   }
 
+  /**
+   * Returns a new converter from a conversion function typed as {@code type}.
+   *
+   * @param converter a conversion function
+   * @param type the type of the parameter of the conversion function.
+   * @return a new converter from a conversion function typed as {@code type}.
+   * @param <T> type of the conversion function parameter.
+   */
   static <T> Function<Object, ?> converter(Function<? super T, ?> converter, Class<? extends T> type) {
     requireNonNull(converter, "converter is null");
     requireNonNull(type, "type is null");
     return converter.compose(type::cast);
   }
 
+  /**
+   * Returns a new converter from a conversion function typed as String.
+   * <p>
+   * This implementation is equivalent to
+   * <pre>
+   *   converter(converter, String.class)
+   * </pre>
+   *
+   * @param converter a conversion function.
+   * @return a new converter from a conversion function typed as String..
+   */
   static Function<Object, ?> stringConverter(Function<? super String, ?> converter) {
     requireNonNull(converter, "converter is null");
     return converter(converter, String.class);
@@ -184,6 +267,13 @@ public interface ConverterResolver {
     return resolver.resolve(lookup, valueType);
   }
 
+  /**
+   * Returns the function identity for the types String, Boolean, boolean or Record.
+   *
+   * @param lookup an unused lookup
+   * @param valueType the type of the return type of the function
+   * @return the function identity for the types String, Boolean, boolean or Record.
+   */
   static Optional<Function<Object, ?>> basic(Lookup lookup, Type valueType) {
     requireNonNull(lookup, "lookup is null");
     requireNonNull(valueType, "valueType is null");
@@ -198,6 +288,13 @@ public interface ConverterResolver {
         });
   }
 
+  /**
+   * Returns the function {@code Enum.valueOf} for any enums.
+   *
+   * @param lookup an unused lookup
+   * @param valueType the type of the return type of the function
+   * @return the function {@code Enum.valueOf} for any enums.
+   */
   @SuppressWarnings({"rawtypes", "unchecked"})
   static Optional<Function<Object, ?>> enumerated(Lookup lookup, Type valueType) {
     requireNonNull(lookup, "lookup is null");
@@ -208,6 +305,22 @@ public interface ConverterResolver {
     return Optional.empty();
   }
 
+  /**
+   * Returns the function that parses a String to a value type.
+   * <p>
+   * This implementation tries the static methods (in that order)
+   * <pre>
+   *   valueType ValueType.valueOf(String)
+   *   valueType ValueType.of(String)
+   *   valueType ValueType.of(String, String...)
+   *   valueType ValueType.parse(String)
+   *   valueType ValueType.parse(CharSequence)
+   * </pre>
+   *
+   * @param lookup the lookup used to try to find the functions
+   * @param valueType the type of the return type of the function
+   * @return the function that parses a String to a value type if available.
+   */
   static Optional<Function<Object, ?>> reflected(Lookup lookup, Type valueType) {
     requireNonNull(lookup, "lookup is null");
     requireNonNull(valueType, "valueType is null");
