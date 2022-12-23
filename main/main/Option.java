@@ -12,12 +12,13 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 /**
- * An Option is a description of one of more arguments of the command line. It is a unitary piece of
- * a {@link Schema}. Option are immutable value classes and can be shared between several schemas.
+ * An Option is a description of one of more arguments of the command line.
+ * Option are immutable value classes and can be shared between several {@link Schema schemas}.
  *
- * <p>There two kinds of options, optional options with three sub-categories {@link
- * Option.Type#FLAG}, {@link Option.Type#SINGLE} and {@link Option.Type#REPEATABLE} and positional
- * options with two sub-categories {@link Option.Type#REQUIRED} and {@link Option.Type#VARARGS}.
+ * <p>There two kinds of options, optional options with three sub-categories {@link #flag(String...) FLAG},
+ * {@link #single(String...) SINGLE} and {@link #repeatable(String...) REPETABLE} and positional
+ * options with two sub-categories {@link #required(String...) REQUIRED} and
+ * {@link #varargs(String...) VARARGS}.
  *
  * <p>&nbsp;
  *
@@ -41,12 +42,17 @@ import java.util.stream.Stream;
  * <p>Options are created using factory methods, {@link #flag(String...)}, {@link #single(String...)},
  * {@link #repeatable(String...)}, {@link #required(String...)} or {@link #varargs(String...)}.
  *
- * <p>Options have a {@link #type()}, case-sensitive {@link #names()} and optionally a {@link *
- * #help() help text}, {@link #defaultValue(Object)} default value} and {@link #nestedSchema() a nested schema}.
+ * <p>Options have a {@link #type() type}, case-sensitive {@link #names() names} and optionally
+ * a {@link #help() help text}, a {@link #defaultValue(Object) default value} and
+ * {@link #nestedSchema() a nested schema}.
  *
- * <p>Options are used to create {@link Schema#Schema(List, Function)} that are used to create a
+ * <p>The argument(s) of an option can be converted using Options specific {@code convert()} methods,
+ * {@link Flag#convert(UnaryOperator)}, {@link Single#convert(Function)}, {@link Repeatable#convert(Function)},
+ * {@link Required#convert(Function)} and {@link Varargs#convert(Function, IntFunction)}.
+ *
+ * <p>Options are grouped into a {@link Schema#Schema(List, Function) schema} that is used to create a
  * {@link Splitter#of(Schema) Splitter} that parses the command line.
- * The value of the argument(s) of an option can be retrieved using {@link #argument(ArgumentMap).}
+ * The value of argument(s) of an option are retrieved using {@link #argument(ArgumentMap)}.
  *
  * @param <T> type of the argument(s) described by this Option.
  */
