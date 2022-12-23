@@ -27,5 +27,9 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.RECORD_COMPONENT)
 public @interface Help {
+  /**
+   * Returns the option help texts.
+   * @return the option help texts.
+   */
   String[] value();
 }

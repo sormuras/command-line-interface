@@ -35,5 +35,9 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.RECORD_COMPONENT)
 public @interface Name {
+  /**
+   * Returns the option names.
+   * @return the option names.
+   */
   String[] value();
 }
