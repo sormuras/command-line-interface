@@ -96,13 +96,6 @@ public sealed interface Option<T> {
       throw new IllegalStateException("a nested schema is already set");
     }
 
-    /*@Override
-    @SuppressWarnings("unchecked")
-    public <U> Option<U> map(Function<? super T, ? extends U> conversion) {
-      requireNonNull(conversion, "conversion is null");
-      return new Branch<>(names, v -> conversion.apply(toValue.apply((T) v)), help, (Schema<U>) nestedSchema);
-    }*/
-
     public Branch<T> convert(UnaryOperator<T> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Branch<>(names, v -> mapper.apply(toValue.apply(v)), help, nestedSchema);
@@ -144,13 +137,6 @@ public sealed interface Option<T> {
       }
       return new Flag(names, toValue, help, nestedSchema);
     }
-
-    /*@Override
-    @SuppressWarnings("unchecked")
-    public <U> Option<U> map(Function<? super Boolean, ? extends U> conversion) {
-      requireNonNull(conversion, "conversion is null");
-      return (Option<U>) convert(v -> (Boolean) conversion.apply(v));
-    }*/
 
     public Flag convert(UnaryOperator<Boolean> mapper) {
       requireNonNull(mapper, "mapper is null");
@@ -195,13 +181,6 @@ public sealed interface Option<T> {
       return new Single<>(names, toValue, help, nestedSchema);
     }
 
-    /*@Override
-    @SuppressWarnings("unchecked")
-    public <U> Option<U> map(Function<? super Optional<T>, ? extends U> conversion) {
-      requireNonNull(conversion, "conversion is null");
-      return (Option<U>) new Single<>(names, toValue.andThen(v -> (Optional<?>) conversion.apply(v)), help, nestedSchema);
-    }*/
-
     public <U> Single<U> convert(Function<? super T, ? extends U> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Single<>(names, toValue.andThen(v -> v.map(mapper)), help, nestedSchema);
@@ -244,13 +223,6 @@ public sealed interface Option<T> {
       }
       return new Repeatable<>(names, toValue, help, nestedSchema);
     }
-
-    /*@Override
-    @SuppressWarnings("unchecked")
-    public <U> Option<U> map(Function<? super List<T>, ? extends U> conversion) {
-      requireNonNull(conversion, "conversion is null");
-      return (Option<U>) new Repeatable<>(names, toValue.andThen(v -> (List<?>) conversion.apply(v)), help, nestedSchema);
-    }*/
 
     public <U> Repeatable<U> convert(Function<? super T, ? extends U> mapper) {
       requireNonNull(mapper, "mapper is null");
@@ -295,12 +267,6 @@ public sealed interface Option<T> {
       return new Required<>(names, toValue, help, nestedSchema);
     }
 
-    /*@Override
-    public <U> Option<U> map(Function<? super T, ? extends U> conversion) {
-      requireNonNull(conversion, "conversion is null");
-      return convert(conversion);
-    }*/
-
     public <U> Required<U> convert(Function<? super T, ? extends U> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Required<>(names, toValue.andThen(mapper), help, nestedSchema);
@@ -342,13 +308,6 @@ public sealed interface Option<T> {
       }
       return new Varargs<>(names, toValue, help, nestedSchema);
     }
-
-    /*@Override
-    @SuppressWarnings("unchecked")
-    public <U> Option<U> map(Function<? super T[], ? extends U> conversion) {
-      requireNonNull(conversion, "conversion is null");
-      return (Option<U>) new Varargs<>(names, toValue.andThen(v -> (Object[]) conversion.apply(v)), help, nestedSchema);
-    }*/
 
     public <U> Varargs<U> convert(Function<? super T, ? extends U> mapper, IntFunction<U[]> generator) {
       requireNonNull(mapper, "mapper is null");
@@ -479,24 +438,6 @@ public sealed interface Option<T> {
    */
   @Override
   String toString();
-
-  /**
-   * Returns a new option configured with the conversion function.
-   *
-   * <p>The return type of the conversion function must be an equivalent type of the type of the option.
-   * If the option is a {@link Type#FLAG}, the return type must be a {@code Boolean},
-   * if the option is a {@link Type#SINGLE}, the return type must be any {@code Optional}s,
-   * if the option is a {@link Type#REPEATABLE}, the return type must be any {@code List}s,
-   * if the option is a {@link Type#REQUIRED}, the return type must be any {@code Object}s,
-   * if the option is a {@link Type#VARARGS}, the return type must be any arrays of objects ({@code Object[]}).
-   *
-   * <p>This restriction is not enforced but may result in {@link ClassCastException} later if not followed.
-   *
-   * @param conversion a conversion function
-   * @return a new option configured with the conversion function.
-   * @param <U> type of the return value of the conversion function
-   */
-  //<U> Option<U> map(Function<? super T, ? extends U> conversion);
 
   /**
    * Returns a new option configured with a default value.
