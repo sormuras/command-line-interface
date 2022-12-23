@@ -7,13 +7,16 @@ import static java.util.stream.Collectors.toCollection;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Array;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -84,11 +87,24 @@ public interface Splitter<T> {
       }
       workspace.put(option.name(), option.defaultValue());
     }
+    Supplier<T> res = () ->  {
+      for (Map.Entry<String, Object> e : workspace.entrySet()) {
+        Object value = e.getValue();
+        Option<?> option = optionsByName.get(e.getKey());
+        List<?> v = switch (option.type()) {
+          case REPEATABLE -> (List<?>)value;
+          case VARARGS -> List.of((Object[]) value);
+          default -> value == null ? null : List.of(value);
+        };
+        option.pack((List)v);
+      }
+      return cmd.create();
+    };
 
     boolean doubleDashMode = false;
     while (true) {
       if (remainingArgs.isEmpty()) {
-        if (requiredOptions.isEmpty()) return cmd.create(workspace.values());
+        if (requiredOptions.isEmpty()) return res.get();
         throw new IllegalArgumentException("Required option(s) missing: " + requiredOptions);
       }
       // acquire next argument
@@ -109,7 +125,7 @@ public interface Splitter<T> {
           workspace.put(name, split(option, remainingArgs));
           if (!remainingArgs.isEmpty())
             throw new IllegalArgumentException("Too many arguments: " + remainingArgs);
-          return cmd.create(workspace.values());
+          return res.get();
         }
         var optionValue =
             switch (option.type()) {
@@ -152,7 +168,7 @@ public interface Splitter<T> {
       }
       // restore pending arguments deque
       remainingArgs.addFirst(argument);
-      if (nested) return cmd.create(workspace.values());
+      if (nested) return res.get();
       // try globbing all pending arguments into a varargs collector
       var varargsOption = options.stream().filter(Option::isVarargs).findFirst().orElse(null);
       if (varargsOption != null) {
@@ -161,7 +177,7 @@ public interface Splitter<T> {
             remainingArgs.stream()
                 .map(varargsOption::create)
                 .toArray(size -> (Object[]) Array.newInstance(varargsOption.valueType(), size)));
-        return cmd.create(workspace.values());
+        return res.get();
       }
       throw new IllegalArgumentException("Unhandled arguments: " + remainingArgs);
     }

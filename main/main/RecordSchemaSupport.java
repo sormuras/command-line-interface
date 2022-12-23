@@ -5,14 +5,14 @@ import main.Option.Type;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.Array;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.UndeclaredThrowableException;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -34,29 +34,35 @@ class RecordSchemaSupport {
   }
 
   static <T extends Record> Command<T> toSchema(Lookup lookup, Class<T> schema) {
-    return new Command<>(
-        Stream.of(schema.getRecordComponents()).map(comp -> toOption(lookup, comp)).toList(),
-        values -> createRecord(schema, values, lookup));
+    Object[] values = new Object[schema.getRecordComponents().length];
+    List<Option<?>> options = new ArrayList<>();
+    for (int i = 0; i < schema.getRecordComponents().length; i++) {
+      options.add(toOption(lookup, schema.getRecordComponents()[i], values, i));
+    }
+    return new Command<>(options, () -> createRecord(schema, values, lookup));
   }
 
-  private static Option<?> toOption(Lookup lookup, RecordComponent component) {
+  private static Option<?> toOption(Lookup lookup, RecordComponent component, Object[] values, int i) {
     var nameAnno = component.getAnnotation(Name.class);
-    var helpAnno = component.getAnnotation(Help.class);
     var names =
         nameAnno != null
-            ? new LinkedHashSet<>(Arrays.asList(nameAnno.value()))
-            : Set.of(component.getName().replace('_', '-'));
+            ? List.of(nameAnno.value())
+            : List.of(component.getName().replace('_', '-'));
     var type = optionTypeFrom(component.getType());
-    var help = helpAnno != null ? String.join("\n", helpAnno.value()) : "";
     var nestedSchema = toNestedSchema(component);
     var valueType = valueTypeFrom(component);
-    return toOption(lookup, type, names, valueType, help, nestedSchema);
+    return toOption(lookup, type, names, valueType, values, i, nestedSchema);
   }
 
-  private static <T> Option<T> toOption(Lookup lookup, Type type, Set<String> names, Class<T> valueType, String help, Class<? extends Record> nestedSchema) {
+  private static <T> Option<T> toOption(Lookup lookup, Type type, List<String> names, Class<T> valueType, Object[] values, int i, Class<? extends Record> nestedSchema) {
     var valueConverter = valueConverter(lookup, valueType);
     var optionSchema = nestedSchema == null ? null: toSchema(lookup, nestedSchema);
-    return new Option<>(type, names, valueType, valueConverter, help, optionSchema);
+    Consumer<List<T>> target = switch (type) {
+      case REPEATABLE -> v -> values[i] = v;
+      case VARARGS -> v -> values[i] = v.toArray(size -> (Object[]) Array.newInstance(valueType, size));
+      default -> v -> values[i] = v == null ? null : v.get(0);
+    };
+    return new Option<>(type, names, valueType, valueConverter, target, optionSchema);
   }
 
   private static Type optionTypeFrom(Class<?> type) {
@@ -131,10 +137,10 @@ class RecordSchemaSupport {
   }
 
   private static <T extends Record> T createRecord(
-          Class<T> schema, List<Object> values, Lookup lookup) {
+          Class<T> schema, Object[] values, Lookup lookup) {
     try {
       return schema.cast(
-          constructor(lookup, schema).asFixedArity().invokeWithArguments(values.toArray()));
+          constructor(lookup, schema).asFixedArity().invokeWithArguments(values));
     } catch (RuntimeException | Error e) {
       throw e;
     } catch (Throwable e) {

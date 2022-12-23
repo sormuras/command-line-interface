@@ -4,16 +4,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
 
 public class Command<T> {
 
   final List<? extends Option<?>> options;
-  private final Function<? super List<Object>, ? extends T> finalizer;
+  private final Supplier<T> finalizer;
 
-  public Command(List<? extends Option<?>> options, Function<? super List<Object>, ? extends T> finalizer) {
+  public Command(List<? extends Option<?>> options, Supplier<T> finalizer) {
     requireNonNull(options, "options is null");
     requireNonNull(finalizer, "finalizer is null");
     var opts = List.copyOf(options);
@@ -53,8 +55,12 @@ public class Command<T> {
     if (!positionals.get(positionals.size() - 1).isVarargs())
       throw new IllegalArgumentException("varargs is not at last positional option: " + options);
   }
+  public T create() {
+    return finalizer.get();
+  }
 
-  public T create(Collection<Object> values) {
-    return finalizer.apply(new ArrayList<>(values));
+  public Command<T> addFlag(Consumer<Boolean> to, String...names) {
+
+    return this;
   }
 }
