@@ -40,22 +40,6 @@ public class Command<T> {
     default String name() {
       return names().iterator().next();
     }
-
-    default boolean isVarargs() {
-      return type() == OptionType.VARARGS;
-    }
-
-    default boolean isRequired() {
-      return type() == OptionType.REQUIRED;
-    }
-
-    default boolean isFlag() {
-      return type() == OptionType.FLAG;
-    }
-
-    default boolean isPositional() {
-      return type() == OptionType.VARARGS || type() == OptionType.REQUIRED;
-    }
   }
 
   public static <T> Command<T> of(Supplier<T> finalizer) {
@@ -181,12 +165,12 @@ public class Command<T> {
   }
 
   private static void checkVarargs(List<Option> options) {
-    var varargs = options.stream().filter(Option::isVarargs).toList();
+    var varargs = options.stream().filter(opt -> opt.type().isVarargs()).toList();
     if (varargs.isEmpty()) return;
     if (varargs.size() > 1)
       throw new IllegalArgumentException("Too many varargs types specified: " + varargs);
-    var positionals = options.stream().filter(Option::isPositional).toList();
-    if (!positionals.get(positionals.size() - 1).isVarargs())
+    var positionals = options.stream().filter(opt -> opt.type().isPositional()).toList();
+    if (!positionals.get(positionals.size() - 1).type().isVarargs())
       throw new IllegalArgumentException("varargs is not at last positional option: " + options);
   }
 
@@ -244,7 +228,7 @@ public class Command<T> {
       requireNonNull(names, "names is null");
       requireNonNull(of, "of is null");
       requireNonNull(from, "from is null");
-      if (names.isEmpty()) throw new IllegalArgumentException("no name defined");
+      if (names.isEmpty() && !type.isPositional()) throw new IllegalArgumentException("Option of type "+type+" must have at least one name");
     }
   }
 }

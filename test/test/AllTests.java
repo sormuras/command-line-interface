@@ -10,6 +10,7 @@ class AllTests {
         new PublishedTests(),
         new BranchTests(),
         new DoubleDashTests(),
+        new ProgrammaticTests(),
         // jdk examples
         new JarRecordTests());
   }

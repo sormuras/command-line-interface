@@ -72,10 +72,10 @@ public interface Splitter<T> {
   private static <T> T split(Command<T> cmd, boolean nested, Deque<String> remainingArgs) {
     var options = cmd.options();
     var requiredOptions =
-        options.stream().filter(Option::isRequired).collect(toCollection(ArrayDeque::new));
+        options.stream().filter(opt -> opt.type().isRequired()).collect(toCollection(ArrayDeque::new));
     var optionsByName = new HashMap<String, Option>();
     options.forEach(opt -> opt.names().forEach(name -> optionsByName.put(name, opt)));
-    var flagCount = options.stream().filter(Option::isFlag).count();
+    var flagCount = options.stream().filter(opt -> opt.type().isFlag()).count();
     var flagPattern = flagCount == 0 ? null : Pattern.compile("^-[a-zA-Z]{1," + flagCount + "}$");
     Supplier<T> res =
         () -> {
@@ -148,7 +148,7 @@ public interface Splitter<T> {
       remainingArgs.addFirst(argument);
       if (nested) return res.get();
       // try globbing all pending arguments into a varargs collector
-      var varargsOption = options.stream().filter(Option::isVarargs).findFirst().orElse(null);
+      var varargsOption = options.stream().filter(opt -> opt.type().isVarargs()).findFirst().orElse(null);
       if (varargsOption != null) {
         remainingArgs.forEach(varargsOption::add);
         return res.get();

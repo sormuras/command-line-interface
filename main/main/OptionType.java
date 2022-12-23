@@ -28,4 +28,20 @@ public enum OptionType {
     if (valueType.isArray()) return VARARGS;
     return REQUIRED;
   }
+
+  public boolean isVarargs() {
+    return this == OptionType.VARARGS;
+  }
+
+  public boolean isRequired() {
+    return this == OptionType.REQUIRED;
+  }
+
+  public boolean isFlag() {
+    return this == OptionType.FLAG;
+  }
+
+  public boolean isPositional() {
+    return this == OptionType.VARARGS || this == OptionType.REQUIRED;
+  }
 }
