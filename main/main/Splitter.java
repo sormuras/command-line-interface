@@ -11,10 +11,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import main.Command.Builder;
 import main.Command.Option;
 
 @FunctionalInterface
@@ -26,7 +26,7 @@ public interface Splitter<T> {
     return of(RecordSchemaSupport.toCommand(lookup, schema));
   }
 
-  static <T> Splitter<T> of(Command<T> cmd) {
+  static <T> Splitter<T> of(Command.Builder<T> cmd) {
     Objects.requireNonNull(cmd, "schema is null");
     return args -> {
       requireNonNull(args, "args is null");
@@ -69,24 +69,20 @@ public interface Splitter<T> {
   Implementation
    */
 
-  private static <T> T split(Command<T> cmd, boolean nested, Deque<String> remainingArgs) {
-    var options = cmd.options();
+  private static <T> T split(Builder<T> cmd, boolean nested, Deque<String> remainingArgs) {
+    var res = cmd.build();
+    var options = res.options();
     var requiredOptions =
-        options.stream().filter(opt -> opt.type().isRequired()).collect(toCollection(ArrayDeque::new));
+        res.options(OptionType::isRequired).collect(toCollection(ArrayDeque::new));
     var optionsByName = new HashMap<String, Option>();
     options.forEach(opt -> opt.names().forEach(name -> optionsByName.put(name, opt)));
-    var flagCount = options.stream().filter(opt -> opt.type().isFlag()).count();
+    var flagCount = res.options(OptionType::isFlag).count();
     var flagPattern = flagCount == 0 ? null : Pattern.compile("^-[a-zA-Z]{1," + flagCount + "}$");
-    Supplier<T> res =
-        () -> {
-          options.forEach(Option::complete);
-          return cmd.complete();
-        };
 
     boolean doubleDashMode = false;
     while (true) {
       if (remainingArgs.isEmpty()) {
-        if (requiredOptions.isEmpty()) return res.get();
+        if (requiredOptions.isEmpty()) return res.complete();
         throw new IllegalArgumentException("Required option(s) missing: " + requiredOptions);
       }
       // acquire next argument
@@ -107,7 +103,7 @@ public interface Splitter<T> {
           option.addSub(split(option, remainingArgs));
           if (!remainingArgs.isEmpty())
             throw new IllegalArgumentException("Too many arguments: " + remainingArgs);
-          return res.get();
+          return res.complete();
         }
         switch (option.type()) {
           case FLAG:
@@ -118,6 +114,7 @@ public interface Splitter<T> {
               option.addSub(split(option, remainingArgs));
             } else option.add(noValue ? remainingArgs.pop() : maybeValue);
             break;
+            // TODO handle named required
           case REPEATABLE:
             if (option.sub().isPresent()) {
               option.addSub(split(option, remainingArgs));
@@ -146,12 +143,12 @@ public interface Splitter<T> {
       }
       // restore pending arguments deque
       remainingArgs.addFirst(argument);
-      if (nested) return res.get();
+      if (nested) return res.complete();
       // try globbing all pending arguments into a varargs collector
-      var varargsOption = options.stream().filter(opt -> opt.type().isVarargs()).findFirst().orElse(null);
+      var varargsOption = res.options(OptionType::isVarargs).findFirst().orElse(null);
       if (varargsOption != null) {
         remainingArgs.forEach(varargsOption::add);
-        return res.get();
+        return res.complete();
       }
       throw new IllegalArgumentException("Unhandled arguments: " + remainingArgs);
     }

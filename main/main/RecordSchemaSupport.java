@@ -1,5 +1,7 @@
 package main;
 
+import main.Command.Builder;
+
 import static java.lang.String.format;
 
 import java.lang.invoke.MethodHandle;
@@ -15,7 +17,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
- * Uses {@link Record}s to derive a {@link Command} from the {@link RecordComponent}s as well as
+ * Uses {@link Record}s to derive a {@link Builder} from the {@link RecordComponent}s as well as
  * container for the result values.
  */
 class RecordSchemaSupport {
@@ -23,21 +25,22 @@ class RecordSchemaSupport {
     throw new AssertionError();
   }
 
-  static <T extends Record> Command<T> toCommand(Lookup lookup, Class<T> commandType) {
-    Object[] values = new Object[commandType.getRecordComponents().length];
-    Command<T> cmd = Command.of(() -> createRecord(commandType, values, lookup));
-    for (int i = 0; i < commandType.getRecordComponents().length; i++) {
+  static <T extends Record> Builder<T> toCommand(Lookup lookup, Class<T> commandType) {
+    RecordComponent[] components = commandType.getRecordComponents();
+    Object[] values = new Object[components.length];
+    Builder<T> cmd = Command.of(() -> createRecord(commandType, values, lookup));
+    for (int i = 0; i < components.length; i++) {
       int index = i;
-      cmd =
-          addOption(
-              lookup, cmd, commandType.getRecordComponents()[i], value -> values[index] = value);
+      cmd = addOption(lookup, cmd, components[i], value -> values[index] = value);
     }
     return cmd;
   }
 
-  private static <T> Command<T> addOption(
-      Lookup lookup, Command<T> cmd, RecordComponent component, Consumer<Object> target) {
+  private static <T> Builder<T> addOption(
+          Lookup lookup, Builder<T> cmd, RecordComponent component, Consumer<Object> target) {
     var nameAnno = component.getAnnotation(Name.class);
+    // TODO make name of positionals dependent; when component name starts with _ it gets a name,
+    // otherwise not
     var names =
         nameAnno != null ? nameAnno.value() : new String[] {component.getName().replace('_', '-')};
     var type = OptionType.of(component.getType());
@@ -46,17 +49,17 @@ class RecordSchemaSupport {
     return addOption(lookup, cmd, type, names, valueType, target, nestedSchema);
   }
 
-  private static <T, V> Command<T> addOption(
+  private static <T, V> Builder<T> addOption(
       Lookup lookup,
-      Command<T> cmd,
+      Builder<T> cmd,
       OptionType type,
       String[] names,
       Class<V> valueType,
       Consumer<Object> target,
       Class<? extends Record> subCommandType) {
     var valueConverter = valueConverter(lookup, valueType);
-    Command<V> subCommand =
-        subCommandType == null ? null : (Command<V>) toCommand(lookup, subCommandType);
+    Builder<V> subCommand =
+        subCommandType == null ? null : (Builder<V>) toCommand(lookup, subCommandType);
     return switch (type) {
       case BRANCH -> cmd.addBranch(subCommand, valueType, target::accept, names);
       case FLAG -> cmd.addFlag(target::accept, names);

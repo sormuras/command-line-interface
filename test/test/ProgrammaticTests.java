@@ -1,6 +1,7 @@
 package test;
 
 import main.Command;
+import main.Command.Builder;
 import main.Splitter;
 import test.api.JTest;
 import test.api.JTest.Test;
@@ -28,7 +29,7 @@ class ProgrammaticTests {
             }
         }
         Options options = new Options();
-        Command<Object> cmd = Command.of(() -> null)
+        Builder<Object> cmd = Command.of(() -> null)
                 .addFlag(options::setY, "--f")
                 .addRequired(options::setX);
 
