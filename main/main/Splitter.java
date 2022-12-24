@@ -12,13 +12,85 @@ import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
+/**
+ * Splits the command line arguments from a {@link Schema}.
+ * This class is thread-safe.
+ *
+ * <p>First, we need a schema, then we create a Splitter from it using {@link #of(Schema)}.
+ *    Once configured the Splitter can be used to split arguments.
+ * <pre>
+ *   Schema&lt;X&gt; schema = ...
+ *   Splitter&lt;X&gt; splitter = Splitter.of(schema);
+ *   X result = splitter.split(args);
+ * </pre>
+ *
+ * <h2>Using a record to define a schema</h2>
+ * <p>There is a convenient method {@link #of(Lookup, Class, ConverterResolver)} that uses a record
+ * both as a schema and also as a storage for the arguments.
+ * <pre>
+ *   record Command(
+ *     &#064;Name("-v")  boolean verbose,
+ *     Optional&lt;Level&gt; __level,
+ *     List&lt;String&gt; __data,
+ *     Path destination,
+ *     Path... files) {}
+ *
+ *   Splitter&lt;Command&gt; splitter = Splitter.of(MethodHandles.lookup(), Command.class);
+ *   Command command = splitter.split(args);
+ * </pre>
+ *
+ * <h2>Using a list of options to define a schema</h2>
+ * <p>There is a convenient method {@link #of(Option[])} that uses an array of options as schema
+ * and store the resulting arguments in an {@link ArgumentMap}.
+ * <pre>
+ *   var verbose = Option.flag("-v");
+ *   var level = Option.single("--level").convert(Level::valueOf);
+ *   var data = Option.repeatable("--data");
+ *   var destination = Option.required("destination").convert(Path::of);
+ *   var files = Option.varargs("files").convert(Path::of, Path[]::new);
+ *
+ *   Splitter&lt;ArgumentMap&gt; splitter = Splitter.of(verbose, level, data, destination, files);
+ *   ArgumentMap argumentMap = splitter.split(args);
+ * </pre>
+ *
+ * <h2>Argument pre-processing</h2>
+ * <p>The méthodes {@link #withEach(UnaryOperator)} and {@link #withExpand(Function)} allows to
+ * pre-process the arguments and respectively modify an argument or expand it into several arguments.
+ *
+ * @param <T> the type of the class bundling all the arguments extracted from the command line.
+ */
 @FunctionalInterface
 public interface Splitter<T> {
 
+  /**
+   * Returns a splitter configured from a record class and using the {@link ConverterResolver#defaultResolver() default resolver}.
+   * The result of the method {@link #split(Stream)} is an instance of the record class created using
+   * the lookup. The lookup is also used to find the conversion functions if needed.
+   *
+   * @param lookup a lookup object.
+   * @param schema a record class defining the schema.
+   * @return a splitter configured from a record class.
+   * @throws IllegalArgumentException if the record is not a valid schema.
+   *
+   * @param <R> the type of the record.
+   */
   static <R extends Record> Splitter<R> of(Lookup lookup, Class<R> schema) {
     return of(lookup, schema, ConverterResolver.defaultResolver());
   }
 
+  /**
+   * Returns a splitter configured from a record class and a conversion function resolver.
+   * The result of the method {@link #split(Stream)} is an instance of the record class created using
+   * the lookup. The lookup is also used by the resolver to find the conversion functions if needed.
+   *
+   * @param lookup a lookup object.
+   * @param schema a record class defining the schema.
+   * @param resolver a conversion function resolver
+   * @return a splitter configured from a record class.
+   * @throws IllegalArgumentException if the record is not a valid schema.
+   *
+   * @param <R> the type of the record.
+   */
   static <R extends Record> Splitter<R> of(Lookup lookup, Class<R> schema, ConverterResolver resolver) {
     requireNonNull(schema, "schema is null");
     requireNonNull(lookup, "lookup is null");
@@ -26,11 +98,26 @@ public interface Splitter<T> {
     return of(RecordSchemaSupport.toSchema(lookup, schema, resolver));
   }
 
+  /**
+   * Returns a splitter configured from the options.
+   * The result of the method {@link #split(Stream)} is an instance of {@link ArgumentMap}.
+   *
+   * @param options the options defining the schema.
+   * @return a splitter configured from the options.
+   */
   static Splitter<ArgumentMap> of(Option<?>... options)  {
     requireNonNull(options, "options is null");
     return of(ArgumentMap.toSchema(options));
   }
 
+  /**
+   * Returns a splitter configured from a schema.
+   *
+   * @param schema the schema used to configure the splitter.
+   * @return a splitter configured from a schema.
+   *
+   * @param <T> type of the return type of the method {@link #split(Stream)}.
+   */
   static <T> Splitter<T> of(Schema<T> schema) {
     Objects.requireNonNull(schema, "schema is null");
     return args -> {
@@ -39,13 +126,42 @@ public interface Splitter<T> {
     };
   }
 
+  /**
+   * Splits the command line argument into different values following the recipe of the {@link Schema}
+   * used to create this splitter.
+   *
+   * @param args the command line arguments.
+   * @return an object gathering the values of the arguments.
+   */
   T split(Stream<String> args);
 
+  /**
+   * Splits the command line argument into different values following the recipe of the {@link Schema}
+   * used to create this splitter.
+   * This is a convenient method equivalent to
+   * <pre>
+   *   split(Arrays.stream(args))
+   * </pre>
+   *
+   * @param args the command line arguments.
+   * @return an object gathering the values of the arguments.
+   */
   default T split(String... args) {
     requireNonNull(args, "args is null");
     return split(Arrays.stream(args));
   }
 
+  /**
+   * Splits the command line argument into different values following the recipe of the {@link Schema}
+   * used to create this splitter.
+   * This is a convenient method equivalent to
+   * <pre>
+   *   split(args.stream())
+   * </pre>
+   *
+   * @param args the command line arguments.
+   * @return an object gathering the values of the arguments.
+   */
   default T split(List<String> args) {
     requireNonNull(args, "args is null");
     return split(args.stream());
@@ -55,11 +171,29 @@ public interface Splitter<T> {
   Argument preprocessing
    */
 
+  /**
+   * Returns a splitter that will call the preprocessor on all arguments of the command line
+   * when {@link #split(Stream)} is called.
+   *
+   * @param preprocessor an argument pre-processor.
+   * @return a splitter that will call the preprocessor on all arguments of the command line.
+   *
+   * @see #split(Stream)
+   */
   default Splitter<T> withEach(UnaryOperator<String> preprocessor) {
     requireNonNull(preprocessor, "preprocessor is null");
     return args -> split(args.map(preprocessor));
   }
 
+  /**
+   * Returns a splitter that will call the preprocessor on all arguments of the command line
+   * when {@link #split(Stream)} is called.
+   *
+   * @param preprocessor an argument pre-processor that can expand each argument into multiple arguments.
+   * @return a splitter that will call the preprocessor on all arguments of the command line.
+   *
+   * @see #split(Stream)
+   */
   default Splitter<T> withExpand(Function<? super String, ? extends Stream<String>> preprocessor) {
     requireNonNull(preprocessor, "preprocessor is null");
     return args -> split(args.flatMap(preprocessor));
