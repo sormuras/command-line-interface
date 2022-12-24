@@ -29,7 +29,7 @@ class ProgrammaticTests {
                 this.x = x;
             }
         }
-        Command.Factory<Options> cmd = Command.of(Options::new)
+        Command.Factory<Options> cmd = Command.builder(Options::new)
                 .addFlag(Options::setY, "--f")
                 .addRequired(Options::setX)
                 .build();

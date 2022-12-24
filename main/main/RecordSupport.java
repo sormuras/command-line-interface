@@ -27,7 +27,7 @@ class RecordSupport {
   static <T extends Record> Command.Factory<T> factory(Lookup lookup, Class<T> of) {
     RecordComponent[] components = of.getRecordComponents();
     Command.Builder<Object[], T> cmd =
-        Command.of(() -> new Object[components.length], values -> createRecord(of, values, lookup));
+        Command.builder(() -> new Object[components.length], values -> createRecord(of, values, lookup));
     for (int i = 0; i < components.length; i++) {
       int index = i;
       cmd = addOption(lookup, cmd, components[i], (values, value) -> values[index] = value);

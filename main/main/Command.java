@@ -15,12 +15,25 @@ import java.util.stream.Stream;
 
 public interface Command<T> {
 
+  /**
+   * @return lists all options of a command in their declaration order
+   */
   List<? extends Option> options();
 
+  /**
+   * @param test filter that returns true for those {@link OptionType}s to keep
+   * @return lists all options of a command of the given type in their declaration order
+   */
   default Stream<? extends Option> options(Predicate<OptionType> test) {
     return options().stream().filter(opt -> test.test(opt.type()));
   }
 
+  /**
+   * Completes the handling of command options. This is called when all {@link Option#add(String)}
+   * calls have been made.
+   *
+   * @return the result value of the command
+   */
   T complete();
 
   interface Option {
@@ -47,20 +60,51 @@ public interface Command<T> {
     }
   }
 
+  /**
+   * Creates new instances of a {@link Command} state.
+   *
+   * @param <T> type of the command result value
+   */
   @FunctionalInterface
   interface Factory<T> {
 
+    /**
+     * @return a fresh instance of a command with empty (initial) state
+     */
     Command<T> create();
   }
 
-  static <T> Builder<T, T> of(Supplier<T> init) {
-    return of(init, Function.identity());
+  /**
+   * Create a new builder where aggregation and result state are the same.
+   *
+   * @param init creates a new instance of the result value
+   * @return a builder to add options to the command
+   * @param <T> type of the aggregation and command result state
+   */
+  static <T> Builder<T, T> builder(Supplier<T> init) {
+    return builder(init, Function.identity());
   }
 
-  static <A, T> Builder<A, T> of(Supplier<A> init, Function<A, T> exit) {
+  /**
+   * Create a new builder with dedicated intermediate state.
+   *
+   * @param init creates a new instance of the aggregation state, must be a pure function
+   * @param exit transforms the aggregation state into the final result, must be a pure function
+   * @return a builder to add options to the command
+   * @param <A> type of the aggregation state
+   * @param <T> type of the command result value
+   */
+  static <A, T> Builder<A, T> builder(Supplier<A> init, Function<A, T> exit) {
     return new Builder<>(List.of(), init, exit);
   }
 
+  /**
+   * Allows to programmatically compose a command. Once all options have been added a {@link
+   * Factory} is created using {@link #build()}.
+   *
+   * @param <A> type of the aggregation state (the intermediate value used to collect option values)
+   * @param <T> type of the result value created from the aggregation state
+   */
   final class Builder<A, T> {
 
     private final List<OptionValue<A, ?>> options;
@@ -77,7 +121,9 @@ public interface Command<T> {
 
     public Factory<T> build() {
       // this is to hide the create method from the Builder class even if it is implemented here
-      return this::createCommand;
+      // the copy is made so that the builder instance used can be changed further without
+      // affecting the factory
+      return new Builder<>(List.copyOf(options), init, exit)::createCommand;
     }
 
     private Command<T> createCommand() {
@@ -106,7 +152,9 @@ public interface Command<T> {
         Function<String, V> from,
         BiConsumer<A, List<V>> to,
         Factory<?> sub) {
-      return add(new OptionValue<>(type, List.of(names), of, from, to, Optional.ofNullable(sub), List.of()));
+      return add(
+          new OptionValue<>(
+              type, List.of(names), of, from, to, Optional.ofNullable(sub), List.of()));
     }
 
     public <V> Builder<A, T> addBranch(
