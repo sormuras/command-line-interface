@@ -1,5 +1,6 @@
 package main;
 
+import main.AbstractOption.NameSet;
 import main.Option.Branch;
 import main.Option.Flag;
 import main.Option.Repeatable;

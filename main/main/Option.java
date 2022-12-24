@@ -1,5 +1,7 @@
 package main;
 
+import main.AbstractOption.NameSet;
+
 import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
