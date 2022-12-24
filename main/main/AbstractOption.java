@@ -80,22 +80,22 @@ abstract sealed class AbstractOption<T>
   @SuppressWarnings("unchecked")
   static <T> T applyToValue(Option<T> option, Object arg) {
     if (option instanceof Option.Branch<T> branch) {
-      return branch.toValue.apply((T) arg);
+      return branch.converter.apply((T) arg);
     }
     if (option instanceof Option.Flag flag) {
-      return (T) flag.toValue.apply((Boolean) arg);
+      return (T) flag.converter.apply((Boolean) arg);
     }
     if (option instanceof Option.Single<?> single) {
-      return (T) single.toValue.apply((Optional<String>) arg);
+      return (T) single.converter.apply((Optional<String>) arg);
     }
     if (option instanceof Option.Repeatable<?> repeatable) {
-      return (T) repeatable.toValue.apply((List<String>) arg);
+      return (T) repeatable.converter.apply((List<String>) arg);
     }
     if (option instanceof Option.Required<T> required) {
-      return required.toValue.apply((String) arg);
+      return required.converter.apply((String) arg);
     }
     if (option instanceof Option.Varargs<?> varargs) {
-      return (T) varargs.toValue.apply((String[]) arg);
+      return (T) varargs.converter.apply((String[]) arg);
     }
     throw new AssertionError();
   }
