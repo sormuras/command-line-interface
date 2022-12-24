@@ -13,11 +13,11 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 /**
- * Splits the command line arguments from a {@link Schema}.
- * This class is thread-safe.
+ * Splits the command line arguments.
+ * All the implementations of this interface must be thread-safe.
  *
- * <p>First, we need a schema, then we create a Splitter from it using {@link #of(Schema)}.
- *    Once configured the Splitter can be used to split arguments.
+ * <p>A Splitter is created from a schema using {@link #of(Schema)}.
+ *    Once configured the Splitter can be used to split arguments using {@link #split(Stream)}.
  * <pre>
  *   Schema&lt;X&gt; schema = ...
  *   Splitter&lt;X&gt; splitter = Splitter.of(schema);
@@ -25,7 +25,7 @@ import java.util.stream.Stream;
  * </pre>
  *
  * <h2>Using a record to define a schema</h2>
- * <p>There is a convenient method {@link #of(Lookup, Class, ConverterResolver)} that uses a record
+ * <p>There is a convenient method {@link #of(Lookup, Class) of(lookup, class)} that uses a record
  * both as a schema and also as a storage for the arguments.
  * <pre>
  *   record Command(
@@ -38,9 +38,19 @@ import java.util.stream.Stream;
  *   Splitter&lt;Command&gt; splitter = Splitter.of(MethodHandles.lookup(), Command.class);
  *   Command command = splitter.split(args);
  * </pre>
+ * Each component of the record is transformed to an {@link Option}. The component type determines
+ * the option type, a boolean/Boolean is a {@link Option.Flag Flag}, an Optional is a {@link Option.Single Single},
+ * a List is a {@link Option.Repeatable Repeatable}, an array is a {@link Option.Varargs Varargs},
+ * a record is a {@link main.Option.Branch Branch} otherwise it's a {@link Option.Required Required}.
+ * <p>
+ * The annotations &#064;{@link Name} and &#064;{@link Help} specify respectively
+ * {@link Option#names() several names} and a {@link Option#help() help text} of an option.
+ * <p>
+ * The conversion from strings are handled by the {@link ConverterResolver#defaultResolver() default resolver}.
+ * <p>&nbsp;
  *
  * <h2>Using a list of options to define a schema</h2>
- * <p>There is a convenient method {@link #of(Option[])} that uses an array of options as schema
+ * <p>There is a convenient method {@link #of(Option[]) of(options...)} that uses an array of options as schema
  * and store the resulting arguments in an {@link ArgumentMap}.
  * <pre>
  *   var verbose = Option.flag("-v");
@@ -52,6 +62,8 @@ import java.util.stream.Stream;
  *   Splitter&lt;ArgumentMap&gt; splitter = Splitter.of(verbose, level, data, destination, files);
  *   ArgumentMap argumentMap = splitter.split(args);
  * </pre>
+ * This example defines the same schema as the record above but using the programmatic API.
+ * <p>&nbsp;
  *
  * <h2>Argument pre-processing</h2>
  * <p>The méthodes {@link #withEach(UnaryOperator)} and {@link #withExpand(Function)} allows to
