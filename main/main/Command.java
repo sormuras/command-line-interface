@@ -51,9 +51,7 @@ public interface Command<T> {
      */
     void add(String value);
 
-    Optional<Factory<?>> sub();
-
-    void addSub(Object value);
+    Optional<? extends Factory<?>> sub();
 
     default String name() {
       return names().iterator().next();
@@ -112,7 +110,7 @@ public interface Command<T> {
     private final Function<A, T> exit;
 
     private Builder(List<OptionValue<A, ?>> options, Supplier<A> init, Function<A, T> exit) {
-      requireNonNull(init, "init is null");
+      requireNonNull(init, "state is null");
       requireNonNull(exit, "exit is null");
       this.options = options;
       this.init = init;
@@ -127,18 +125,19 @@ public interface Command<T> {
     }
 
     private Command<T> createCommand() {
-      var opts = options.stream().map(OptionValue::empty).toList();
-      record Instance<A, T>(List<? extends OptionValue<A, ?>> options, A init, Function<A, T> done)
+      A state = init.get();
+      var optionValues = options.stream().map(OptionValue::empty).toList();
+      record Instance<A, T>(List<? extends OptionValue<A, ?>> options, A state, Function<A, T> done)
           implements Command<T> {
         @Override
         public T complete() {
-          options.forEach(opt -> opt.complete(init));
-          return done.apply(init);
+          options.forEach(opt -> opt.complete(state));
+          return done.apply(state);
         }
       }
-      checkDuplicates(opts);
-      checkVarargs(opts);
-      return new Instance<>(opts, init.get(), exit);
+      checkDuplicates(optionValues);
+      checkVarargs(optionValues);
+      return new Instance<>(optionValues, state, exit);
     }
 
     private Builder<A, T> add(OptionValue<A, ?> option) {
@@ -151,7 +150,7 @@ public interface Command<T> {
         Class<V> of,
         Function<String, V> from,
         BiConsumer<A, List<V>> to,
-        Factory<?> sub) {
+        Factory<V> sub) {
       return add(
           new OptionValue<>(
               type, List.of(names), of, from, to, Optional.ofNullable(sub), List.of()));
@@ -159,12 +158,12 @@ public interface Command<T> {
 
     public <V> Builder<A, T> addBranch(
         Factory<V> sub, Class<V> of, BiConsumer<A, V> to, String... names) {
-      return add(OptionType.BRANCH, names, of, str -> null, fromList1(to, null), sub);
+      return add(OptionType.BRANCH, names, of, str -> null, valueToList(to, null), sub);
     }
 
     public Builder<A, T> addFlag(BiConsumer<A, Boolean> to, String... names) {
       return add(
-          OptionType.FLAG, names, Boolean.class, Boolean::valueOf, fromList1(to, false), null);
+          OptionType.FLAG, names, Boolean.class, Boolean::valueOf, valueToList(to, false), null);
     }
 
     public Builder<A, T> addSingle(BiConsumer<A, Optional<String>> to, String... names) {
@@ -182,10 +181,7 @@ public interface Command<T> {
         Function<String, V> from,
         BiConsumer<A, Optional<V>> to,
         String... names) {
-      BiConsumer<A, List<V>> listToOptional =
-          (agg, list) ->
-              to.accept(agg, list.isEmpty() ? Optional.empty() : Optional.of(list.get(0)));
-      return add(OptionType.SINGLE, names, of, from, listToOptional, sub);
+      return add(OptionType.SINGLE, names, of, from, optionalToList(to), sub);
     }
 
     public Builder<A, T> addRequired(BiConsumer<A, String> to, String... names) {
@@ -194,7 +190,7 @@ public interface Command<T> {
 
     public <V> Builder<A, T> addRequired(
         Class<V> of, Function<String, V> from, BiConsumer<A, V> to, String... names) {
-      return add(OptionType.REQUIRED, names, of, from, fromList1(to, null), null);
+      return add(OptionType.REQUIRED, names, of, from, valueToList(to, null), null);
     }
 
     public Builder<A, T> addRepeatable(BiConsumer<A, List<String>> to, String... names) {
@@ -221,13 +217,22 @@ public interface Command<T> {
 
     public <V> Builder<A, T> addVarargs(
         Class<V> of, Function<String, V> from, BiConsumer<A, V[]> to, String... names) {
-      BiConsumer<A, List<V>> listToArray =
-          (agg, list) -> to.accept(agg, list.toArray(size -> (V[]) Array.newInstance(of, size)));
-      return add(OptionType.VARARGS, names, of, from, listToArray, null);
+      return add(OptionType.VARARGS, names, of, from, arrayToList(of, to), null);
     }
 
-    private static <A, V> BiConsumer<A, List<V>> fromList1(BiConsumer<A, V> to, V defaultValue) {
-      return (agg, values) -> to.accept(agg, values.isEmpty() ? defaultValue : values.get(0));
+    @SuppressWarnings("unchecked")
+    private <V> BiConsumer<A, List<V>> arrayToList(Class<V> of, BiConsumer<A, V[]> to) {
+      return (state, list) ->
+          to.accept(state, list.toArray(size -> (V[]) Array.newInstance(of, size)));
+    }
+
+    private <V> BiConsumer<A, List<V>> valueToList(BiConsumer<A, V> to, V defaultValue) {
+      return (state, list) -> to.accept(state, list.isEmpty() ? defaultValue : list.get(0));
+    }
+
+    private <V> BiConsumer<A, List<V>> optionalToList(BiConsumer<A, Optional<V>> to) {
+      return (state, list) ->
+          to.accept(state, list.isEmpty() ? Optional.empty() : Optional.of(list.get(0)));
     }
 
     private static void checkDuplicates(List<? extends Option> options) {
@@ -258,11 +263,14 @@ public interface Command<T> {
 
     private record OptionValue<A, T>(
         OptionType type,
+        // TODO distinguish name and handles
+        // the name is just a unique term used to refer to the option, its role
+        // the handles are the keywords used on the command line to select an option
         List<String> names,
         Class<T> of,
         Function<String, T> from,
         BiConsumer<A, List<T>> to,
-        Optional<Factory<?>> sub,
+        Optional<Factory<T>> sub,
         List<T> values)
         implements Option {
 
@@ -276,10 +284,6 @@ public interface Command<T> {
               "Option of type " + type + " must have at least one name");
       }
 
-      OptionValue<A, T> empty() {
-        return new OptionValue<>(type, names, of, from, to, sub, new ArrayList<>());
-      }
-
       @Override
       public void add(String value) {
         values.add(from.apply(value));
@@ -289,9 +293,29 @@ public interface Command<T> {
         to.accept(target, values);
       }
 
-      @Override
-      public void addSub(Object value) {
-        values.add(of.cast(value));
+      OptionValue<A, T> empty() {
+        ArrayList<T> copy = new ArrayList<>();
+        Optional<Factory<T>> linkedSub = sub.map(factory -> link(factory, copy));
+        return new OptionValue<>(type, names, of, from, to, linkedSub, copy);
+      }
+
+      private Factory<T> link(Factory<T> factory, List<T> values) {
+        return () ->
+            new Command<>() {
+              Command<T> cmd = factory.create();
+
+              @Override
+              public List<? extends Option> options() {
+                return cmd.options();
+              }
+
+              @Override
+              public T complete() {
+                T value = cmd.complete();
+                values.add(of.cast(value));
+                return value;
+              }
+            };
       }
     }
   }

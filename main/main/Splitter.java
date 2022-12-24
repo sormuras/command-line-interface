@@ -99,7 +99,7 @@ public interface Splitter<T> {
         var option = optionsByName.get(maybeName);
         var name = option.name();
         if (option.type() == OptionType.BRANCH) {
-          option.addSub(split(option, remainingArgs));
+          split(option, remainingArgs);
           if (!remainingArgs.isEmpty())
             throw new IllegalArgumentException("Too many arguments: " + remainingArgs);
           return res.complete();
@@ -110,13 +110,14 @@ public interface Splitter<T> {
             break;
           case SINGLE:
             if (option.sub().isPresent()) {
-              option.addSub(split(option, remainingArgs));
+              split(option, remainingArgs);
             } else option.add(noValue ? remainingArgs.pop() : maybeValue);
             break;
-            // TODO handle named required
+            // TODO handle named required (these are not positional but required and have a handle,
+            // e.g. "-f file" if it must occur somewhere)
           case REPEATABLE:
             if (option.sub().isPresent()) {
-              option.addSub(split(option, remainingArgs));
+              split(option, remainingArgs);
             } else
               Stream.of((noValue ? remainingArgs.pop() : maybeValue).split(","))
                   .forEach(option::add);
@@ -159,7 +160,7 @@ public interface Splitter<T> {
         : str;
   }
 
-  private static Object split(Option option, Deque<String> pendingArguments) {
-    return split(option.sub().get(), true, pendingArguments);
+  private static void split(Option option, Deque<String> pendingArguments) {
+    split(option.sub().get(), true, pendingArguments);
   }
 }
