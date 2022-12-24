@@ -30,13 +30,19 @@ class ReflectSupport {
     throw new AssertionError();
   }
 
+  static <T> Command.Factory<T> factory(Lookup lookup, Class<T> schema) {
+    return schema.isRecord() ? recordFactory(lookup, schema) : proxyFactory(lookup, schema);
+  }
+
   /*
   Using Java Records as target types
    */
 
-  static <T extends Record> Command.Factory<T> recordFactory(Lookup lookup, Class<T> schema) {
+  private static <T> Command.Factory<T> recordFactory(Lookup lookup, Class<T> schema) {
     requireNonNull(schema, "schema is null");
     requireNonNull(lookup, "lookup is null");
+    if (!schema.isRecord()) throw new IllegalArgumentException("schema must be a record");
+
     RecordComponent[] components = schema.getRecordComponents();
     Command.Builder<Object[], T> cmd =
         Command.builder(
@@ -54,10 +60,11 @@ class ReflectSupport {
   Using Java Proxies as target types
    */
 
-  static <T> Command.Factory<T> proxyFactory(Lookup lookup, Class<T> schema) {
+  private static <T> Command.Factory<T> proxyFactory(Lookup lookup, Class<T> schema) {
     requireNonNull(schema, "schema is null");
     requireNonNull(lookup, "lookup is null");
     if (!schema.isInterface()) throw new IllegalArgumentException("schema must be an interface");
+
     Method[] methods = schema.getMethods();
     Builder<Object[], T> cmd =
         Command.builder(
@@ -102,8 +109,7 @@ class ReflectSupport {
     var optionType = OptionType.of(type);
     var subCommandType = toSubCommandType(type, genericType);
     var valueType = valueTypeFrom(type, genericType);
-    Command.Factory<?> subCommand =
-        subCommandType == null ? null : recordFactory(lookup, subCommandType);
+    Command.Factory<?> subCommand = subCommandType == null ? null : factory(lookup, subCommandType);
     return addOption(
         lookup, builder, optionType, names, valueType, to, (Command.Factory) subCommand);
   }
@@ -192,8 +198,7 @@ class ReflectSupport {
     }
   }
 
-  private static <T extends Record> T createRecord(
-      Class<T> schema, Object[] values, Lookup lookup) {
+  private static <T> T createRecord(Class<T> schema, Object[] values, Lookup lookup) {
     try {
       return schema.cast(constructor(lookup, schema).asFixedArity().invokeWithArguments(values));
     } catch (RuntimeException | Error e) {

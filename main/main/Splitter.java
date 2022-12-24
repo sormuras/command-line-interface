@@ -19,12 +19,8 @@ import main.Command.Option;
 @FunctionalInterface
 public interface Splitter<T> {
 
-  static <R extends Record> Splitter<R> ofRecord(Lookup lookup, Class<R> schema) {
-    return of(ReflectSupport.recordFactory(lookup, schema));
-  }
-
-  static <P> Splitter<P> ofProxy(Lookup lookup, Class<P> schema) {
-    return of(ReflectSupport.proxyFactory(lookup, schema));
+  static <R> Splitter<R> of(Lookup lookup, Class<R> schema) {
+    return of(ReflectSupport.factory(lookup, schema));
   }
 
   static <X> Splitter<X> of(Command.Factory<X> cmd) {

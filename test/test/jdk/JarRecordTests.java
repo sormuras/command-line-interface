@@ -52,7 +52,7 @@ public class JarRecordTests {
   }
 
   private static JarOptions splitInput(String line) {
-    return Splitter.ofRecord(lookup(), JarOptions.class).split(line.split("\\s+"));
+    return Splitter.of(lookup(), JarOptions.class).split(line.split("\\s+"));
   }
 
   @Test
@@ -60,7 +60,7 @@ public class JarRecordTests {
     var options = splitInput("--create --file classes.jar Foo.class Bar.class");
     assertEquals(true, options.create());
     assertEqualsOptional("classes.jar", options.file());
-    assertEquals(List.of(Path.of("Foo.class"), Path.of( "Bar.class")), List.of(options.files()));
+    assertEquals(List.of(Path.of("Foo.class"), Path.of("Bar.class")), List.of(options.files()));
   }
 
   @Test

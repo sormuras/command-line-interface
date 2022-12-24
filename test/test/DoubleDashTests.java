@@ -22,7 +22,7 @@ class DoubleDashTests {
         @Name("-v") boolean verbose, @Name("-files") List<String> files, String... params) {}
 
     String[] args = {"-v", "--", "-files", "file1", "file2"};
-    DoubleDashDemo obj = Splitter.ofRecord(lookup(), DoubleDashDemo.class).split(args);
+    DoubleDashDemo obj = Splitter.of(lookup(), DoubleDashDemo.class).split(args);
 
     assertEquals(true, obj.verbose());
     assertEquals(List.of(), obj.files());
@@ -42,7 +42,7 @@ class DoubleDashTests {
     }
 
     String[] args = {"-v", "--", "-files", "file1", "file2"};
-    DoubleDashDemo obj = Splitter.ofProxy(lookup(), DoubleDashDemo.class).split(args);
+    DoubleDashDemo obj = Splitter.of(lookup(), DoubleDashDemo.class).split(args);
 
     assertEquals(true, obj.verbose());
     assertEquals(List.of(), obj.files());
@@ -50,11 +50,29 @@ class DoubleDashTests {
   }
 
   @Test
-  void doubleDashRequired() {
+  void doubleDashRequired_Record() {
     record DoubleDashRequired(boolean __verbose, Optional<String> dir, String target) {}
 
     String[] args = {"--verbose", "--", "dir"};
-    DoubleDashRequired obj = Splitter.ofRecord(lookup(), DoubleDashRequired.class).split(args);
+    DoubleDashRequired obj = Splitter.of(lookup(), DoubleDashRequired.class).split(args);
+
+    assertEquals(true, obj.__verbose());
+    assertEquals(Optional.empty(), obj.dir());
+    assertEquals("dir", obj.target());
+  }
+
+  @Test
+  void doubleDashRequired_Proxy() {
+    interface DoubleDashRequired {
+      boolean __verbose();
+
+      Optional<String> dir();
+
+      String target();
+    }
+
+    String[] args = {"--verbose", "--", "dir"};
+    DoubleDashRequired obj = Splitter.of(lookup(), DoubleDashRequired.class).split(args);
 
     assertEquals(true, obj.__verbose());
     assertEquals(Optional.empty(), obj.dir());

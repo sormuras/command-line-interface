@@ -32,7 +32,7 @@ class AssortedTests {
   void varargs() {
     record Options(String... more) {
       static Options split(String... args) {
-        var splitter = Splitter.ofRecord(lookup(), Options.class);
+        var splitter = Splitter.of(lookup(), Options.class);
         return splitter.split(args);
       }
     }
@@ -78,7 +78,7 @@ class AssortedTests {
         String... names) {
 
       static final Splitter<Options> PARSER =
-          Splitter.ofRecord(lookup(), Options.class)
+          Splitter.of(lookup(), Options.class)
               .withExpand(AssortedTests::expandFileToArgs)
               .withEach(String::strip);
 
@@ -136,7 +136,7 @@ class AssortedTests {
   void conventional() {
     record Options(boolean _flag, Optional<String> _key, List<String> _list, String... more) {
       static Options of(String... args) {
-        return Splitter.ofRecord(lookup(), Options.class).split(args);
+        return Splitter.of(lookup(), Options.class).split(args);
       }
     }
     var options = Options.of("-flag", "-key", "value", "-list", "a", "-list=b,o", "1", "2", "3");
@@ -149,14 +149,14 @@ class AssortedTests {
   @Test
   void positional() {
     record Options(boolean a, String first, boolean b, String second, boolean c) {}
-    var objects = Splitter.ofRecord(lookup(), Options.class).split("one", "two");
+    var objects = Splitter.of(lookup(), Options.class).split("one", "two");
     assertEquals(new Options(false, "one", false, "two", false), objects);
   }
 
   @Test
   void flags() {
     record Options(boolean _f, boolean _h, boolean _z) {}
-    var parser = Splitter.ofRecord(lookup(), Options.class);
+    var parser = Splitter.of(lookup(), Options.class);
     var options = parser.split("-zfh");
     assertEquals(true, options._f);
     assertEquals(true, options._h);
@@ -167,7 +167,7 @@ class AssortedTests {
   void flags_trueFalse() {
     record Options(boolean __verbose, boolean __brief, boolean __x) {}
     ;
-    var parser = Splitter.ofRecord(lookup(), Options.class);
+    var parser = Splitter.of(lookup(), Options.class);
     var options = parser.split("--verbose=true", "--brief=false", "--x");
     assertTrue(options.__verbose());
     assertFalse(options.__brief());
@@ -178,7 +178,7 @@ class AssortedTests {
   void nested_keyValue() {
     record SubOptions(String dir, String file) {}
     record MainOptions(boolean __flag, Optional<SubOptions> __release, String... rest) {}
-    var parser = Splitter.ofRecord(lookup(), MainOptions.class);
+    var parser = Splitter.of(lookup(), MainOptions.class);
     var options = parser.split("--release dirX fileX --flag and the rest".split(" "));
     assertEquals(true, options.__flag);
     assertEquals("dirX", options.__release.orElseThrow().dir());
@@ -190,7 +190,7 @@ class AssortedTests {
   void nested_repeatable() {
     record SubOptions(String dir, String file) {}
     record MainOptions(boolean __flag, List<SubOptions> __release, String... rest) {}
-    var parser = Splitter.ofRecord(lookup(), MainOptions.class);
+    var parser = Splitter.of(lookup(), MainOptions.class);
     var options =
         parser.split("--release dirX fileX --flag --release dirY fileY and the rest".split(" "));
     assertEquals(true, options.__flag);
