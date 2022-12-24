@@ -17,7 +17,6 @@ import java.lang.reflect.RecordComponent;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -85,18 +84,13 @@ class RecordSchemaSupport {
   private static Option<?> newOption(Type type, String[] names, Function<Object, ?> converter, String help, Schema<?> schema) {
     var nameSet = NameSet.of(names);
     return switch (type) {
-      case BRANCH -> newBranch(nameSet, converter, help, schema);
+      case BRANCH -> new Branch<>(nameSet, v -> converter.apply(v), help, schema);
       case FLAG -> new Flag(nameSet, v -> (Boolean) converter.apply(v), help, schema);
       case SINGLE -> new Single<>(nameSet, v -> (Optional<?>) converter.apply(v), help, schema);
       case REPEATABLE -> new Repeatable<>(nameSet, v -> (List<?>) converter.apply(v), help, schema);
       case REQUIRED -> new Required<>(nameSet, converter, help, schema);
       case VARARGS -> new Varargs<>(nameSet, v -> (Object[]) converter.apply(v), help, schema);
     };
-  }
-
-  @SuppressWarnings("unchecked")  // need to capture the Schema type
-  private static <T> Branch<T> newBranch(Set<String> nameSet, Function<Object, ?> converter, String help, Schema<T> schema) {
-    return new Branch<>(nameSet, v -> (T) converter.apply(v), help, schema);
   }
 
   private static MethodHandle constructor(Lookup lookup, Class<?> schema) {
