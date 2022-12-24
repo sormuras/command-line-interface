@@ -97,7 +97,7 @@ public sealed interface Option<T> permits AbstractOption {
      * @param toValue a conversion function.
      * @param help a help text.
      * @param nestedSchema a nested schema or null.
-     * @throws IllegalArgumentException if a name is empty, if there are duplicated names.
+     * @throws IllegalArgumentException if a name is empty
      *
      * @see #branch(String...)
      */
@@ -151,7 +151,7 @@ public sealed interface Option<T> permits AbstractOption {
      * @param toValue a conversion function.
      * @param help a help text.
      * @param nestedSchema a nested schema or null.
-     * @throws IllegalArgumentException if a name is empty, if there are duplicated names.
+     * @throws IllegalArgumentException if a name is empty
      *
      * @see #flag(String...)
      */
@@ -209,7 +209,7 @@ public sealed interface Option<T> permits AbstractOption {
      * @param toValue a conversion function.
      * @param help a help text.
      * @param nestedSchema a nested schema or null.
-     * @throws IllegalArgumentException if a name is empty, if there are duplicated names.
+     * @throws IllegalArgumentException if a name is empty
      *
      * @see #single(String...)
      */
@@ -269,7 +269,7 @@ public sealed interface Option<T> permits AbstractOption {
      * @param toValue a conversion function.
      * @param help a help text.
      * @param nestedSchema a nested schema or null.
-     * @throws IllegalArgumentException if a name is empty, if there are duplicated names.
+     * @throws IllegalArgumentException if a name is empty
      *
      * @see #repeatable(String...)
      */
@@ -329,7 +329,7 @@ public sealed interface Option<T> permits AbstractOption {
      * @param toValue a conversion function.
      * @param help a help text.
      * @param nestedSchema a nested schema or null.
-     * @throws IllegalArgumentException if a name is empty, if there are duplicated names.
+     * @throws IllegalArgumentException if a name is empty
      *
      * @see #required(String...)
      */
@@ -388,7 +388,7 @@ public sealed interface Option<T> permits AbstractOption {
      * @param toValue a conversion function.
      * @param help a help text.
      * @param nestedSchema a nested schema or null.
-     * @throws IllegalArgumentException if a name is empty, if there are duplicated names.
+     * @throws IllegalArgumentException if a name is empty
      *
      * @see #varargs(String...)
      */
