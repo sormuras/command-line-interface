@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.RECORD_COMPONENT)
+@Target({ElementType.RECORD_COMPONENT, ElementType.METHOD})
 public @interface Name {
   String[] value();
 }

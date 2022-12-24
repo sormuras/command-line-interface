@@ -1,12 +1,18 @@
 package main;
 
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Proxy;
 import java.lang.reflect.RecordComponent;
+import java.lang.reflect.Type;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.List;
 import java.util.Optional;
@@ -19,37 +25,87 @@ import main.Command.Builder;
  * Uses {@link Record}s to derive a {@link Builder} from the {@link RecordComponent}s as well as
  * container for the result values.
  */
-class RecordSupport {
-  private RecordSupport() {
+class ReflectSupport {
+  private ReflectSupport() {
     throw new AssertionError();
   }
 
-  static <T extends Record> Command.Factory<T> factory(Lookup lookup, Class<T> of) {
-    RecordComponent[] components = of.getRecordComponents();
+  /*
+  Using Java Records as target types
+   */
+
+  static <T extends Record> Command.Factory<T> recordFactory(Lookup lookup, Class<T> schema) {
+    requireNonNull(schema, "schema is null");
+    requireNonNull(lookup, "lookup is null");
+    RecordComponent[] components = schema.getRecordComponents();
     Command.Builder<Object[], T> cmd =
         Command.builder(
-            () -> new Object[components.length], values -> createRecord(of, values, lookup));
+            () -> new Object[components.length], values -> createRecord(schema, values, lookup));
     for (int i = 0; i < components.length; i++) {
       int index = i;
-      cmd = addOption(lookup, cmd, components[index], (values, value) -> values[index] = value);
+      RecordComponent cmp = components[index];
+      BiConsumer<Object[], Object> to = (values, value) -> values[index] = value;
+      cmd = addOption(lookup, cmd, cmp, cmp.getName(), cmp.getType(), cmp.getGenericType(), to);
     }
     return cmd.build();
   }
 
+  /*
+  Using Java Proxies as target types
+   */
+
+  static <T> Command.Factory<T> proxyFactory(Lookup lookup, Class<T> schema) {
+    requireNonNull(schema, "schema is null");
+    requireNonNull(lookup, "lookup is null");
+    if (!schema.isInterface()) throw new IllegalArgumentException("schema must be an interface");
+    Method[] methods = schema.getMethods();
+    Builder<Object[], T> cmd =
+        Command.builder(
+            () -> new Object[methods.length], values -> newProxy(schema, List.of(methods), values));
+    for (int i = 0; i < methods.length; i++) {
+      Method m = methods[i];
+      if (!Modifier.isStatic(m.getModifiers())) {
+        int index = i;
+        BiConsumer<Object[], Object> to = (values, value) -> values[index] = value;
+        cmd =
+            addOption(lookup, cmd, m, m.getName(), m.getReturnType(), m.getGenericReturnType(), to);
+      }
+    }
+    return cmd.build();
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <T> T newProxy(Class<T> of, List<Method> methods, Object[] values) {
+    return (T)
+        Proxy.newProxyInstance(
+            of.getClassLoader(),
+            new Class[] {of},
+            (proxy, method, args) -> values[methods.indexOf(method)]);
+  }
+
+  /*
+  Shared methods...
+   */
+
   private static <T> Builder<Object[], T> addOption(
       Lookup lookup,
       Builder<Object[], T> builder,
-      RecordComponent component,
+      AnnotatedElement component,
+      String name,
+      Class<?> type,
+      Type genericType,
       BiConsumer<Object[], Object> to) {
     var nameAnno = component.getAnnotation(Name.class);
     // TODO make name of positionals dependent; when component name starts with _ it gets a name,
     // otherwise not
-    var names =
-        nameAnno != null ? nameAnno.value() : new String[] {component.getName().replace('_', '-')};
-    var type = OptionType.of(component.getType());
-    var nestedSchema = toNestedSchema(component);
-    var valueType = valueTypeFrom(component);
-    return addOption(lookup, builder, type, names, valueType, to, nestedSchema);
+    var names = nameAnno != null ? nameAnno.value() : new String[] {name.replace('_', '-')};
+    var optionType = OptionType.of(type);
+    var subCommandType = toSubCommandType(type, genericType);
+    var valueType = valueTypeFrom(type, genericType);
+    Command.Factory<?> subCommand =
+        subCommandType == null ? null : recordFactory(lookup, subCommandType);
+    return addOption(
+        lookup, builder, optionType, names, valueType, to, (Command.Factory) subCommand);
   }
 
   private static <T, V> Builder<Object[], T> addOption(
@@ -59,10 +115,8 @@ class RecordSupport {
       String[] names,
       Class<V> of,
       BiConsumer<Object[], Object> to,
-      Class<? extends Record> subCommandType) {
+      Command.Factory<V> subCommand) {
     var valueConverter = valueConverter(lookup, of);
-    Command.Factory<V> subCommand =
-        subCommandType == null ? null : (Command.Factory<V>) factory(lookup, subCommandType);
     return switch (type) {
       case SUB -> builder.addSub(of, to::accept, subCommand, names);
       case FLAG -> builder.addFlag(to::accept, names);
@@ -77,20 +131,19 @@ class RecordSupport {
     };
   }
 
-  private static Class<?> valueTypeFrom(RecordComponent component) {
-    Class<?> type = component.getType();
+  private static Class<?> valueTypeFrom(Class<?> type, Type genericType) {
     if (type.isRecord()) return type;
     if (type == Boolean.class || type == boolean.class) return Boolean.class;
     if (type.isArray()) return type.getComponentType();
-    if (type == List.class || type == Optional.class)
-      return (Class<?>)
-          ((ParameterizedType) component.getGenericType()).getActualTypeArguments()[0];
+    if (type == List.class || type == Optional.class) {
+      return (Class<?>) ((ParameterizedType) genericType).getActualTypeArguments()[0];
+    }
     return type;
   }
 
-  private static Class<? extends Record> toNestedSchema(RecordComponent component) {
-    if (component.getType().isRecord()) return component.getType().asSubclass(Record.class);
-    return (component.getGenericType() instanceof ParameterizedType paramType
+  private static Class<? extends Record> toSubCommandType(Class<?> type, Type genericType) {
+    if (type.isRecord()) return type.asSubclass(Record.class);
+    return (genericType instanceof ParameterizedType paramType
             && paramType.getActualTypeArguments()[0] instanceof Class<?> nestedType
             && nestedType.isRecord())
         ? nestedType.asSubclass(Record.class)

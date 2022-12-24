@@ -6,7 +6,6 @@ import static test.api.Assertions.assertEqualsOptional;
 
 import java.nio.file.Path;
 import java.time.ZonedDateTime;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import main.Name;
@@ -53,7 +52,7 @@ public class JarRecordTests {
   }
 
   private static JarOptions splitInput(String line) {
-    return Splitter.of(lookup(), JarOptions.class).split(line.split("\\s+"));
+    return Splitter.ofRecord(lookup(), JarOptions.class).split(line.split("\\s+"));
   }
 
   @Test

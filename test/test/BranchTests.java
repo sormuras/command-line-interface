@@ -18,7 +18,7 @@ class BranchTests {
     record Help(String topic, Detail detail) {}
     record Main(boolean verbose, Help help, String source, String target) {}
 
-    var splitter = Splitter.of(MethodHandles.lookup(), Main.class);
+    var splitter = Splitter.ofRecord(MethodHandles.lookup(), Main.class);
 
     assertEquals(
         new Main(false, new Help("hello", new Detail("world")), null, null),
