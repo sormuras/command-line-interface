@@ -4,6 +4,8 @@ import static test.api.Assertions.assertEquals;
 import static test.api.Assertions.assertFalse;
 import static test.api.Assertions.assertTrue;
 
+import java.nio.file.Path;
+import java.util.Optional;
 import main.Command;
 import main.Splitter;
 import test.api.JTest;
@@ -17,9 +19,17 @@ class ProgrammaticTests {
 
   @Test
   void testProgrammaticAssembly() {
+    class SubOptions {
+      Path dir;
+
+      void setDir(Path dir) {
+        this.dir = dir;
+      }
+    }
     class Options {
       boolean y;
       String x;
+      Optional<SubOptions> s;
 
       public void setY(boolean y) {
         this.y = y;
@@ -28,21 +38,34 @@ class ProgrammaticTests {
       public void setX(String x) {
         this.x = x;
       }
+
+      public void setS(Optional<SubOptions> s) {
+        this.s = s;
+      }
     }
     Command.Factory<Options> cmd =
         Command.builder(Options::new)
             .addFlag(Options::setY, "--f")
             .addRequired(Options::setX)
+            .addOptional(
+                SubOptions.class,
+                Options::setS,
+                Command.builder(SubOptions::new)
+                    .addRequired(Path.class, Path::of, SubOptions::setDir)
+                    .build(),
+                "-s")
             .build();
 
     Options options = Splitter.of(cmd).split("--f", "hello");
 
     assertTrue(options.y);
     assertEquals("hello", options.x);
+    assertTrue(options.s.isEmpty());
 
-    Options options2 = Splitter.of(cmd).split("world");
+    Options options2 = Splitter.of(cmd).split("-s", "filename", "world");
 
     assertFalse(options2.y);
     assertEquals("world", options2.x);
+    assertEquals(Path.of("filename"), options2.s.orElseThrow().dir);
   }
 }

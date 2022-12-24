@@ -44,18 +44,18 @@ public interface Command<T> {
 
     Class<?> of();
 
-    /**
-     * Adds or set the option value.
-     *
-     * @param value raw value to add or set for this option
-     */
-    void add(String value);
-
     Optional<? extends Factory<?>> sub();
 
     default String name() {
       return names().iterator().next();
     }
+
+    /**
+     * Adds or sets the option raw value as extracted from the command line arguments.
+     *
+     * @param value raw value to add or set for this option
+     */
+    void add(String value);
   }
 
   /**
@@ -157,7 +157,7 @@ public interface Command<T> {
     }
 
     public <V> Builder<A, T> addBranch(
-        Factory<V> sub, Class<V> of, BiConsumer<A, V> to, String... names) {
+        Class<V> of, BiConsumer<A, V> to, Factory<V> sub, String... names) {
       return add(OptionType.BRANCH, names, of, str -> null, valueToList(to, null), sub);
     }
 
@@ -166,22 +166,18 @@ public interface Command<T> {
           OptionType.FLAG, names, Boolean.class, Boolean::valueOf, valueToList(to, false), null);
     }
 
-    public Builder<A, T> addSingle(BiConsumer<A, Optional<String>> to, String... names) {
-      return addSingle(String.class, Function.identity(), to, names);
+    public Builder<A, T> addOptional(BiConsumer<A, Optional<String>> to, String... names) {
+      return addOptional(String.class, Function.identity(), to, names);
     }
 
-    public <V> Builder<A, T> addSingle(
+    public <V> Builder<A, T> addOptional(
         Class<V> of, Function<String, V> from, BiConsumer<A, Optional<V>> to, String... names) {
-      return addSingle(null, of, from, to, names);
+      return add(OptionType.SINGLE, names, of, from, optionalToList(to), null);
     }
 
-    public <V> Builder<A, T> addSingle(
-        Factory<V> sub,
-        Class<V> of,
-        Function<String, V> from,
-        BiConsumer<A, Optional<V>> to,
-        String... names) {
-      return add(OptionType.SINGLE, names, of, from, optionalToList(to), sub);
+    public <V> Builder<A, T> addOptional(
+        Class<V> of, BiConsumer<A, Optional<V>> to, Factory<V> sub, String... names) {
+      return add(OptionType.SINGLE, names, of, str -> null, optionalToList(to), sub);
     }
 
     public Builder<A, T> addRequired(BiConsumer<A, String> to, String... names) {
@@ -199,16 +195,12 @@ public interface Command<T> {
 
     public <V> Builder<A, T> addRepeatable(
         Class<V> of, Function<String, V> from, BiConsumer<A, List<V>> to, String... names) {
-      return addRepeatable(null, of, from, to, names);
+      return add(OptionType.REPEATABLE, names, of, from, to, null);
     }
 
     public <V> Builder<A, T> addRepeatable(
-        Factory<V> sub,
-        Class<V> of,
-        Function<String, V> from,
-        BiConsumer<A, List<V>> to,
-        String... names) {
-      return add(OptionType.REPEATABLE, names, of, from, to, sub);
+        Class<V> of, BiConsumer<A, List<V>> to, Factory<V> sub, String... names) {
+      return add(OptionType.REPEATABLE, names, of, str -> null, to, sub);
     }
 
     public Builder<A, T> addVarargs(BiConsumer<A, String[]> to, String... names) {
@@ -299,6 +291,11 @@ public interface Command<T> {
         return new OptionValue<>(type, names, of, from, to, linkedSub, copy);
       }
 
+      /**
+       * Links sub-command results, so they automatically end up in the values once they are
+       * completed. This allows to not have an additional method in the public API which accepts non
+       * {@link String} results.
+       */
       private Factory<T> link(Factory<T> factory, List<T> values) {
         return () ->
             new Command<>() {
