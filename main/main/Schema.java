@@ -13,6 +13,10 @@ import java.util.stream.Stream;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toCollection;
+import static main.AbstractOption.isVarargs;
+import static main.AbstractOption.applyToValue;
+import static main.AbstractOption.defaultValue;
+import static main.AbstractOption.name;
 
 /**
  * Schema used to split the command line into arguments.
@@ -77,27 +81,27 @@ public class Schema<T> {
   }
 
   private static void checkVarargs(List<Option<?>> options) {
-    var varargs = options.stream().filter(Schema::isVarargsOption).toList();
+    var varargs = options.stream().filter(AbstractOption::isVarargs).toList();
     if (varargs.isEmpty()) return;
     if (varargs.size() > 1)
       throw new IllegalArgumentException("Too many varargs types specified: " + varargs);
-    var positionals = options.stream().filter(Schema::isPositionalOption).toList();
-    if (!isVarargsOption(positionals.get(positionals.size() - 1)))
+    var positionals = options.stream().filter(AbstractOption::isPositional).toList();
+    if (!isVarargs(positionals.get(positionals.size() - 1)))
       throw new IllegalArgumentException("varargs is not at last positional option: " + options);
   }
 
   T split(boolean nested, ArrayDeque<String> pendingArguments) {
     var requiredOptions =
-        options.stream().filter(Schema::isRequiredOption).collect(toCollection(ArrayDeque::new));
+        options.stream().filter(AbstractOption::isRequired).collect(toCollection(ArrayDeque::new));
     var optionsByName = new HashMap<String, Option<?>>();
     var workspace = new LinkedHashMap<String, Object>();
-    var flagCount = options.stream().filter(Schema::isFlagOption).count();
+    var flagCount = options.stream().filter(AbstractOption::isFlag).count();
     var flagPattern = flagCount == 0 ? null : Pattern.compile("^-[a-zA-Z]{1," + flagCount + "}$");
     for (var option : options) {
       for (var name : option.names()) {
         optionsByName.put(name, option);
       }
-      workspace.put(optionName(option), optionDefaultValue(option));
+      workspace.put(name(option), defaultValue(option));
     }
 
     boolean doubleDashMode = false;
@@ -119,7 +123,7 @@ public class Schema<T> {
       // try well-known option first
       if (!doubleDashMode && optionsByName.containsKey(maybeName)) {
         var option = optionsByName.get(maybeName);
-        var name = optionName(option);
+        var name = name(option);
         if (option.type() == Option.Type.BRANCH) {
           workspace.put(name, splitNested(pendingArguments, option));
           if (!pendingArguments.isEmpty())
@@ -157,7 +161,7 @@ public class Schema<T> {
         if (flags.stream().allMatch(optionsByName::containsKey)) {
           flags.forEach(flag -> {
             var option = optionsByName.get(flag);
-            workspace.put(optionName(option),true);
+            workspace.put(name(option),true);
           });
           continue;
         }
@@ -165,16 +169,16 @@ public class Schema<T> {
       // try required option
       if (!requiredOptions.isEmpty()) {
         var requiredOption = requiredOptions.pop();
-        workspace.put(optionName(requiredOption), argument);
+        workspace.put(name(requiredOption), argument);
         continue;
       }
       // restore pending arguments deque
       pendingArguments.addFirst(argument);
       if (nested) return create(workspace, optionsByName);
       // try globbing all pending arguments into a varargs collector
-      var varargsOption = options.stream().filter(Schema::isVarargsOption).findFirst().orElse(null);
+      var varargsOption = options.stream().filter(AbstractOption::isVarargs).findFirst().orElse(null);
       if (varargsOption != null) {
-        workspace.put(optionName(varargsOption), pendingArguments.toArray(String[]::new));
+        workspace.put(name(varargsOption), pendingArguments.toArray(String[]::new));
         return create(workspace, optionsByName);
       }
       throw new IllegalArgumentException("Unhandled arguments: " + pendingArguments);
@@ -193,59 +197,8 @@ public class Schema<T> {
     var values = new ArrayList<>();
     workspace.forEach((optionName, value) -> {
       var option = optionsByName.get(optionName);
-      values.add(optionApply(option, value));
+      values.add(applyToValue(option, value));
     });
     return finalizer.apply(values);
-  }
-
-
-  // helper methods
-
-  @SuppressWarnings("unchecked")
-  private static <T> T optionDefaultValue(Option<T> option) {
-    return (T) option.type().defaultValue;
-  }
-
-  @SuppressWarnings("unchecked")
-  private static <T> T optionApply(Option<T> option, Object arg) {
-    if (option instanceof Option.Branch<T> branch) {
-      return branch.toValue.apply((T) arg);
-    }
-    if (option instanceof Option.Flag flag) {
-      return (T) flag.toValue.apply((Boolean) arg);
-    }
-    if (option instanceof Option.Single<?> single) {
-      return (T) single.toValue.apply((Optional<String>) arg);
-    }
-    if (option instanceof Option.Repeatable<?> repeatable) {
-      return (T) repeatable.toValue.apply((List<String>) arg);
-    }
-    if (option instanceof Option.Required<T> required) {
-      return required.toValue.apply((String) arg);
-    }
-    if (option instanceof Option.Varargs<?> varargs) {
-      return (T) varargs.toValue.apply((String[]) arg);
-    }
-    throw new AssertionError();
-  }
-
-  private static String optionName(Option<?> option) {
-    return option.names().iterator().next();
-  }
-
-  private static boolean isVarargsOption(Option<?> option) {
-    return option instanceof Option.Varargs<?>;
-  }
-
-  private static boolean isRequiredOption(Option<?> option) {
-    return option instanceof Option.Required<?>;
-  }
-
-  private static boolean isFlagOption(Option<?> option) {
-    return option instanceof Option.Flag;
-  }
-
-  private static boolean isPositionalOption(Option<?> option) {
-    return option instanceof Option.Required<?> || option instanceof Option.Varargs<?>;
   }
 }

@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -52,6 +54,56 @@ abstract sealed class AbstractOption<T>
   @Override
   public final String toString() {
     return type + names.toString();
+  }
+
+  // helper methods
+
+  @SuppressWarnings("unchecked")
+  static <T> T defaultValue(Option<T> option) {
+    return (T) option.type().defaultValue;
+  }
+
+  @SuppressWarnings("unchecked")
+  static <T> T applyToValue(Option<T> option, Object arg) {
+    if (option instanceof Option.Branch<T> branch) {
+      return branch.toValue.apply((T) arg);
+    }
+    if (option instanceof Option.Flag flag) {
+      return (T) flag.toValue.apply((Boolean) arg);
+    }
+    if (option instanceof Option.Single<?> single) {
+      return (T) single.toValue.apply((Optional<String>) arg);
+    }
+    if (option instanceof Option.Repeatable<?> repeatable) {
+      return (T) repeatable.toValue.apply((List<String>) arg);
+    }
+    if (option instanceof Option.Required<T> required) {
+      return required.toValue.apply((String) arg);
+    }
+    if (option instanceof Option.Varargs<?> varargs) {
+      return (T) varargs.toValue.apply((String[]) arg);
+    }
+    throw new AssertionError();
+  }
+
+  static String name(Option<?> option) {
+    return option.names().iterator().next();
+  }
+
+  static boolean isVarargs(Option<?> option) {
+    return option instanceof Option.Varargs<?>;
+  }
+
+  static boolean isRequired(Option<?> option) {
+    return option instanceof Option.Required<?>;
+  }
+
+  static boolean isFlag(Option<?> option) {
+    return option instanceof Option.Flag;
+  }
+
+  static boolean isPositional(Option<?> option) {
+    return option instanceof Option.Required<?> || option instanceof Option.Varargs<?>;
   }
 
   static final class NameSet extends AbstractSet<String> {
