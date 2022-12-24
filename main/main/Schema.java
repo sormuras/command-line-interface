@@ -14,10 +14,40 @@ import static java.lang.Boolean.parseBoolean;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toCollection;
 
+/**
+ * Schema used to split the command line into arguments.
+ * The arguments are described using {@link Option}s, the {@link Splitter} splits command line arguments
+ * following the recipe defined by the options.
+ * <p>
+ * The option list should follow these rules:
+ * <ul>
+ *   <li>there is at least one option
+ *   <li>no two option share the same name
+ *   <li>there is only zero or one varargs
+ *   <li>the varargs should appear after all required.
+ * </ul>
+ * <p>
+ * The schema also specify a finalizer function that is called with the list of arguments decoded by
+ * the {@link Splitter} so the arguments can be bundled into a more user-friendly class.
+ * <p>
+ * This class is deigned to be immutable so the finalizer should not do any side effects.
+ *
+ * @param <T> the type of the value bundling the command line arguments.
+ * @see Splitter
+ */
 public class Schema<T> {
   final List<Option<?>> options;
   private final Function<? super List<Object>, ? extends T> finalizer;
 
+  /**
+   * Create a schema from a list of options and a finalizer function.
+   *
+   * @param options the options.
+   * @param finalizer a side effect free function.
+   * @throws IllegalArgumentException if the list of options is empty, if the same option is specified twice,
+   * if at least two options share the same name, if there are more than one varargs, if the varargs is
+   * not specified after the required option.
+   */
   public Schema(List<? extends Option<?>> options, Function<? super List<Object>, ? extends T> finalizer) {
     requireNonNull(options, "options is null");
     requireNonNull(finalizer, "finalizer is null");
@@ -179,22 +209,22 @@ public class Schema<T> {
   @SuppressWarnings("unchecked")
   private static <T> T optionApply(Option<T> option, Object arg) {
     if (option instanceof Option.Branch<T> branch) {
-      return branch.toValue().apply((T) arg);
+      return branch.toValue.apply((T) arg);
     }
     if (option instanceof Option.Flag flag) {
-      return (T) flag.toValue().apply((Boolean) arg);
+      return (T) flag.toValue.apply((Boolean) arg);
     }
     if (option instanceof Option.Single<?> single) {
-      return (T) single.toValue().apply((Optional<String>) arg);
+      return (T) single.toValue.apply((Optional<String>) arg);
     }
     if (option instanceof Option.Repeatable<?> repeatable) {
-      return (T) repeatable.toValue().apply((List<String>) arg);
+      return (T) repeatable.toValue.apply((List<String>) arg);
     }
     if (option instanceof Option.Required<T> required) {
-      return required.toValue().apply((String) arg);
+      return required.toValue.apply((String) arg);
     }
     if (option instanceof Option.Varargs<?> varargs) {
-      return (T) varargs.toValue().apply((String[]) arg);
+      return (T) varargs.toValue.apply((String[]) arg);
     }
     throw new AssertionError();
   }

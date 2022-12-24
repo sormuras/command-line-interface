@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 
 /**
  * An Option is a description of one of more arguments of the command line.
- * Option are immutable value classes and can be shared between several {@link Schema schemas}.
+ * Option are immutable classes and can be shared between several {@link Schema schemas}.
  *
  * <p>There two kinds of options, optional options with three sub-categories {@link #flag(String...) FLAG},
  * {@link #single(String...) SINGLE} and {@link #repeatable(String...) REPETABLE} and positional
@@ -56,7 +56,7 @@ import java.util.stream.Stream;
  *
  * @param <T> type of the argument(s) described by this Option.
  */
-public sealed interface Option<T> {
+public sealed interface Option<T> permits AbstractOption {
   /**
    * Type of {@link Option}.
    */
@@ -83,24 +83,25 @@ public sealed interface Option<T> {
   /**
    * An option that branch to a nested schema.
    *
-   * @param names the names of the branch.
-   * @param toValue a conversion function.
-   * @param help a help message or "" if not defined.
-   * @param nestedSchema the nested schema.
    * @param <T> the type of the argument corresponding to that option.
    */
-  record Branch<T>(Set<String> names, UnaryOperator<T> toValue, String help, Schema<T> nestedSchema) implements Option<T> {
-    public Branch {
-      requireNonNull(names, "names is null");
-      requireNonNull(toValue, "toValue is null");
-      requireNonNull(help, "help null");
-      requireNonNull(nestedSchema, "nestedSchema null");
-      names = NameSet.copyOf(names);
-    }
+  final class Branch<T> extends AbstractOption<T> {
+    final UnaryOperator<T> toValue;
 
-    @Override
-    public String toString() {
-      return "BRANCH" + names.toString();
+    /**
+     * Create a branch option with several names, a conversion function, a help text and a nested schema
+     *
+     * @param names names of the option.
+     * @param toValue a conversion function.
+     * @param help a help text.
+     * @param nestedSchema a nested schema or null.
+     * @throws IllegalArgumentException if a name is empty, if there are duplicated names.
+     *
+     * @see #branch(String...)
+     */
+    public Branch(Set<String> names, UnaryOperator<T> toValue, String help, Schema<?> nestedSchema) {
+      super(Type.BRANCH, names, help, nestedSchema);
+      this.toValue = requireNonNull(toValue, "toValue is null");
     }
 
     @Override
@@ -137,23 +138,24 @@ public sealed interface Option<T> {
 
   /**
    * A boolean optional option.
-   *
-   * @param names the names of the option.
-   * @param toValue a conversion function.
-   * @param help a help message or "" if not defined.
-   * @param nestedSchema a nested schema or null.
    */
-  record Flag(Set<String> names, UnaryOperator<Boolean> toValue, String help, Schema<?> nestedSchema) implements Option<Boolean> {
-    public Flag {
-      requireNonNull(names, "names is null");
-      requireNonNull(toValue, "toValue is null");
-      requireNonNull(help, "help null");
-      names = NameSet.copyOf(names);
-    }
+  final class Flag extends AbstractOption<Boolean> {
+    final UnaryOperator<Boolean> toValue;
 
-    @Override
-    public String toString() {
-      return "FLAG" + names.toString();
+    /**
+     * Create a flag option with several names, a conversion function, a help text and a nested schema
+     *
+     * @param names names of the option.
+     * @param toValue a conversion function.
+     * @param help a help text.
+     * @param nestedSchema a nested schema or null.
+     * @throws IllegalArgumentException if a name is empty, if there are duplicated names.
+     *
+     * @see #flag(String...)
+     */
+    public Flag(Set<String> names, UnaryOperator<Boolean> toValue, String help, Schema<?> nestedSchema) {
+      super(Type.FLAG, names, help, nestedSchema);
+      this.toValue = requireNonNull(toValue, "toValue is null");
     }
 
     @Override
@@ -194,24 +196,24 @@ public sealed interface Option<T> {
 
   /**
    * An optional key/value option.
-   *
-   * @param names the names of the option.
-   * @param toValue a conversion function.
-   * @param help a help message or "" if not defined.
-   * @param nestedSchema a nested schema.
-   * @param <T> the type of the argument corresponding to that option.
    */
-  record Single<T>(Set<String> names, Function<? super Optional<String>, ? extends Optional<T>> toValue, String help, Schema<?> nestedSchema) implements Option<Optional<T>> {
-    public Single {
-      requireNonNull(names, "names is null");
-      requireNonNull(toValue, "toValue is null");
-      requireNonNull(help, "help null");
-      names = NameSet.copyOf(names);
-    }
+  final class Single<T> extends AbstractOption<Optional<T>> {
+    final Function<? super Optional<String>, ? extends Optional<T>> toValue;
 
-    @Override
-    public String toString() {
-      return "SINGLE" + names.toString();
+    /**
+     * Create a single option with several names, a conversion function, a help text and a nested schema
+     *
+     * @param names names of the option.
+     * @param toValue a conversion function.
+     * @param help a help text.
+     * @param nestedSchema a nested schema or null.
+     * @throws IllegalArgumentException if a name is empty, if there are duplicated names.
+     *
+     * @see #single(String...)
+     */
+    public Single(Set<String> names, Function<? super Optional<String>, ? extends Optional<T>> toValue, String help, Schema<?> nestedSchema) {
+      super(Type.SINGLE, names, help, nestedSchema);
+      this.toValue = requireNonNull(toValue, "toValue is null");
     }
 
     @Override
@@ -253,23 +255,25 @@ public sealed interface Option<T> {
   /**
    * An optional repeatable key/value option.
    *
-   * @param names the names of the option.
-   * @param toValue a conversion function.
-   * @param help a help message or "" if not defined.
-   * @param nestedSchema a nested schema.
    * @param <T> the type of the argument corresponding to that option.
    */
-  record Repeatable<T>(Set<String> names, Function<? super List<String>, ? extends List<T>> toValue, String help, Schema<?> nestedSchema) implements Option<List<T>> {
-    public Repeatable {
-      requireNonNull(names, "names is null");
-      requireNonNull(toValue, "toValue is null");
-      requireNonNull(help, "help null");
-      names = NameSet.copyOf(names);
-    }
+  final class Repeatable<T> extends AbstractOption<List<T>> {
+    final Function<? super List<String>, ? extends List<T>> toValue;
 
-    @Override
-    public String toString() {
-      return "REPEATABLE" + names.toString();
+    /**
+     * Create a repeatable option with several names, a conversion function, a help text and a nested schema
+     *
+     * @param names names of the option.
+     * @param toValue a conversion function.
+     * @param help a help text.
+     * @param nestedSchema a nested schema or null.
+     * @throws IllegalArgumentException if a name is empty, if there are duplicated names.
+     *
+     * @see #repeatable(String...)
+     */
+    public Repeatable(Set<String> names, Function<? super List<String>, ? extends List<T>> toValue, String help, Schema<?> nestedSchema) {
+      super(Type.REPEATABLE, names, help, nestedSchema);
+      this.toValue = requireNonNull(toValue, "toValue is null");
     }
 
     @Override
@@ -311,23 +315,25 @@ public sealed interface Option<T> {
   /**
    * A required positional option.
    *
-   * @param names the names of the option.
-   * @param toValue a conversion function.
-   * @param help a help message or "" if not defined.
-   * @param nestedSchema a nested schema.
    * @param <T> the type of the argument corresponding to that option.
    */
-  record Required<T>(Set<String> names, Function<? super String, ? extends T> toValue, String help, Schema<?> nestedSchema) implements Option<T> {
-    public Required {
-      requireNonNull(names, "names is null");
-      requireNonNull(toValue, "toValue is null");
-      requireNonNull(help, "help null");
-      names = NameSet.copyOf(names);
-    }
+  final class Required<T> extends AbstractOption<T> {
+    final Function<? super String, ? extends T> toValue;
 
-    @Override
-    public String toString() {
-      return "REQUIRED" + names.toString();
+    /**
+     * Create a required option with several names, a conversion function, a help text and a nested schema
+     *
+     * @param names names of the option.
+     * @param toValue a conversion function.
+     * @param help a help text.
+     * @param nestedSchema a nested schema or null.
+     * @throws IllegalArgumentException if a name is empty, if there are duplicated names.
+     *
+     * @see #required(String...)
+     */
+    public Required(Set<String> names, Function<? super String, ? extends T> toValue, String help, Schema<?> nestedSchema) {
+      super(Type.REQUIRED, names, help, nestedSchema);
+      this.toValue = requireNonNull(toValue, "toValue is null");
     }
 
     @Override
@@ -368,23 +374,27 @@ public sealed interface Option<T> {
   /**
    * An option corresponding to the rest of the positional arguments..
    *
-   * @param names the names of the option.
-   * @param toValue a conversion function.
-   * @param help a help message or "" if not defined.
-   * @param nestedSchema a nested schema.
    * @param <T> the type of the argument corresponding to that option.
    */
-  record Varargs<T>(Set<String> names, Function<? super String[], ? extends T[]> toValue, String help, Schema<?> nestedSchema) implements Option<T[]> {
-    public Varargs {
-      requireNonNull(names, "names is null");
-      requireNonNull(toValue, "toValue is null");
+  final class Varargs<T> extends AbstractOption<T[]> {
+    final Function<? super String[], ? extends T[]> toValue;
+
+    /**
+     * Create a varargs option with several names, a conversion function, a help text and a nested schema
+     *
+     * @param names names of the option.
+     * @param toValue a conversion function.
+     * @param help a help text.
+     * @param nestedSchema a nested schema or null.
+     * @throws IllegalArgumentException if a name is empty, if there are duplicated names.
+     *
+     * @see #varargs(String...)
+     */
+    public Varargs(Set<String> names, Function<? super String[], ? extends T[]> toValue, String help, Schema<?> nestedSchema) {
+      super(Type.VARARGS, names, help, nestedSchema);
+      this.toValue = requireNonNull(toValue, "toValue is null");
       requireNonNull(help, "help null");
       names = NameSet.copyOf(names);
-    }
-
-    @Override
-    public String toString() {
-      return "VARARGS" + names.toString();
     }
 
     @Override
@@ -428,31 +438,10 @@ public sealed interface Option<T> {
    * Returns the type of the option.
    * @return the type of the option.
    */
-  default Type type() {
-    if (this instanceof Branch<?>) {
-      return Type.BRANCH;
-    }
-    if (this instanceof Flag) {
-      return Type.FLAG;
-    }
-    if (this instanceof Single<?>) {
-      return Type.SINGLE;
-    }
-    if (this instanceof Repeatable<?>) {
-      return Type.REPEATABLE;
-    }
-    if (this instanceof Required<?>) {
-      return Type.REQUIRED;
-    }
-    if (this instanceof Option.Varargs<?>) {
-      return Type.VARARGS;
-    }
-    throw new AssertionError();
-  }
+  Type type();
 
   /**
    * Returns the names of the options.
-   *
    * @return the named of the options.
    */
   Set<String> names();
