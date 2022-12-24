@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
 
@@ -56,7 +57,20 @@ abstract sealed class AbstractOption<T>
     return type + names.toString();
   }
 
+
   // helper methods
+
+  static Option<?> newOption(Type type, String[] names, Function<Object, ?> converter, String help, Schema<?> schema) {
+    var nameSet = NameSet.of(names);
+    return switch (type) {
+      case BRANCH -> new Branch<>(nameSet, v -> converter.apply(v), help, schema);
+      case FLAG -> new Flag(nameSet, v -> (Boolean) converter.apply(v), help, schema);
+      case SINGLE -> new Single<>(nameSet, v -> (Optional<?>) converter.apply(v), help, schema);
+      case REPEATABLE -> new Repeatable<>(nameSet, v -> (List<?>) converter.apply(v), help, schema);
+      case REQUIRED -> new Required<>(nameSet, converter, help, schema);
+      case VARARGS -> new Varargs<>(nameSet, v -> (Object[]) converter.apply(v), help, schema);
+    };
+  }
 
   @SuppressWarnings("unchecked")
   static <T> T defaultValue(Option<T> option) {

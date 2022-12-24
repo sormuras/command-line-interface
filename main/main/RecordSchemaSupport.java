@@ -1,13 +1,6 @@
 package main;
 
-import main.AbstractOption.NameSet;
-import main.Option.Branch;
-import main.Option.Flag;
-import main.Option.Repeatable;
-import main.Option.Required;
-import main.Option.Single;
 import main.Option.Type;
-import main.Option.Varargs;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
@@ -54,7 +47,7 @@ class RecordSchemaSupport {
     var nestedSchema = toNestedSchema(component);
     var converter = resolveConverter(lookup, component, resolver);
     var optionSchema = nestedSchema == null ? null: toSchema(lookup, nestedSchema, resolver);
-    return newOption(type, names, converter, help, optionSchema);
+    return AbstractOption.newOption(type, names, converter, help, optionSchema);
   }
 
   private static Function<Object, ?> resolveConverter(Lookup lookup, RecordComponent component, ConverterResolver resolver) {
@@ -79,18 +72,6 @@ class RecordSchemaSupport {
             && nestedType.isRecord())
         ? nestedType.asSubclass(Record.class)
         : null;
-  }
-
-  private static Option<?> newOption(Type type, String[] names, Function<Object, ?> converter, String help, Schema<?> schema) {
-    var nameSet = NameSet.of(names);
-    return switch (type) {
-      case BRANCH -> new Branch<>(nameSet, v -> converter.apply(v), help, schema);
-      case FLAG -> new Flag(nameSet, v -> (Boolean) converter.apply(v), help, schema);
-      case SINGLE -> new Single<>(nameSet, v -> (Optional<?>) converter.apply(v), help, schema);
-      case REPEATABLE -> new Repeatable<>(nameSet, v -> (List<?>) converter.apply(v), help, schema);
-      case REQUIRED -> new Required<>(nameSet, converter, help, schema);
-      case VARARGS -> new Varargs<>(nameSet, v -> (Object[]) converter.apply(v), help, schema);
-    };
   }
 
   private static MethodHandle constructor(Lookup lookup, Class<?> schema) {
