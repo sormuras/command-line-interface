@@ -127,12 +127,12 @@ public interface Command<T> {
     private Command<T> createCommand() {
       A state = init.get();
       var optionValues = options.stream().map(OptionValue::empty).toList();
-      record Instance<A, T>(List<? extends OptionValue<A, ?>> options, A state, Function<A, T> done)
+      record Instance<A, T>(List<? extends OptionValue<A, ?>> options, A state, Function<A, T> exit)
           implements Command<T> {
         @Override
         public T complete() {
           options.forEach(opt -> opt.complete(state));
-          return done.apply(state);
+          return exit.apply(state);
         }
       }
       checkDuplicates(optionValues);
@@ -156,9 +156,9 @@ public interface Command<T> {
               type, List.of(names), of, from, to, Optional.ofNullable(sub), List.of()));
     }
 
-    public <V> Builder<A, T> addBranch(
-        Class<V> of, BiConsumer<A, V> to, Factory<V> sub, String... names) {
-      return add(OptionType.BRANCH, names, of, str -> null, valueToList(to, null), sub);
+    public <V> Builder<A, T> addSub(
+        Class<V> of, BiConsumer<A, V> to, Factory<V> from, String... names) {
+      return add(OptionType.SUB, names, of, str -> null, valueToList(to, null), from);
     }
 
     public Builder<A, T> addFlag(BiConsumer<A, Boolean> to, String... names) {
@@ -172,12 +172,12 @@ public interface Command<T> {
 
     public <V> Builder<A, T> addOptional(
         Class<V> of, Function<String, V> from, BiConsumer<A, Optional<V>> to, String... names) {
-      return add(OptionType.SINGLE, names, of, from, optionalToList(to), null);
+      return add(OptionType.OPTIONAL, names, of, from, optionalToList(to), null);
     }
 
     public <V> Builder<A, T> addOptional(
-        Class<V> of, BiConsumer<A, Optional<V>> to, Factory<V> sub, String... names) {
-      return add(OptionType.SINGLE, names, of, str -> null, optionalToList(to), sub);
+        Class<V> of, BiConsumer<A, Optional<V>> to, Factory<V> from, String... names) {
+      return add(OptionType.OPTIONAL, names, of, str -> null, optionalToList(to), from);
     }
 
     public Builder<A, T> addRequired(BiConsumer<A, String> to, String... names) {
@@ -199,8 +199,8 @@ public interface Command<T> {
     }
 
     public <V> Builder<A, T> addRepeatable(
-        Class<V> of, BiConsumer<A, List<V>> to, Factory<V> sub, String... names) {
-      return add(OptionType.REPEATABLE, names, of, str -> null, to, sub);
+        Class<V> of, BiConsumer<A, List<V>> to, Factory<V> from, String... names) {
+      return add(OptionType.REPEATABLE, names, of, str -> null, to, from);
     }
 
     public Builder<A, T> addVarargs(BiConsumer<A, String[]> to, String... names) {

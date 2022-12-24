@@ -64,9 +64,9 @@ class RecordSupport {
     Command.Factory<V> subCommand =
         subCommandType == null ? null : (Command.Factory<V>) factory(lookup, subCommandType);
     return switch (type) {
-      case BRANCH -> builder.addBranch(of, to::accept, subCommand, names);
+      case SUB -> builder.addSub(of, to::accept, subCommand, names);
       case FLAG -> builder.addFlag(to::accept, names);
-      case SINGLE -> subCommand == null
+      case OPTIONAL -> subCommand == null
           ? builder.addOptional(of, valueConverter, to::accept, names)
           : builder.addOptional(of, to::accept, subCommand, names);
       case REPEATABLE -> subCommand == null

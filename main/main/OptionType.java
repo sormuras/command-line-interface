@@ -8,12 +8,12 @@ public enum OptionType {
    * A branch to enter a sub-command, all remaining arguments are expected to belong to the
    * sub-command
    */
-  BRANCH,
+  SUB,
   /** An optional flag, like {@code --verbose}. */
   FLAG,
   /** An optional key-value pair, like {@code --version 47.11}. */
-  SINGLE,
-  /** An optional and repeatable key, like {@code --with alpha --with omega} */
+  OPTIONAL,
+  /** A key-value that can occur zero or more times, like {@code --with alpha --with omega} */
   REPEATABLE,
   /** A required positional option */
   REQUIRED,
@@ -21,9 +21,9 @@ public enum OptionType {
   VARARGS;
 
   public static OptionType of(Class<?> valueType) {
-    if (valueType.isRecord()) return BRANCH;
+    if (valueType.isRecord()) return SUB;
     if (valueType == Boolean.class || valueType == boolean.class) return FLAG;
-    if (valueType == Optional.class) return SINGLE;
+    if (valueType == Optional.class) return OPTIONAL;
     if (valueType == List.class) return REPEATABLE;
     if (valueType.isArray()) return VARARGS;
     return REQUIRED;

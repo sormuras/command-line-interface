@@ -98,7 +98,7 @@ public interface Splitter<T> {
       if (!doubleDashMode && optionsByName.containsKey(maybeName)) {
         var option = optionsByName.get(maybeName);
         var name = option.name();
-        if (option.type() == OptionType.BRANCH) {
+        if (option.type() == OptionType.SUB) {
           split(option, remainingArgs);
           if (!remainingArgs.isEmpty())
             throw new IllegalArgumentException("Too many arguments: " + remainingArgs);
@@ -108,7 +108,7 @@ public interface Splitter<T> {
           case FLAG:
             option.add(noValue || parseBoolean(maybeValue) ? "true" : "false");
             break;
-          case SINGLE:
+          case OPTIONAL:
             if (option.sub().isPresent()) {
               split(option, remainingArgs);
             } else option.add(noValue ? remainingArgs.pop() : maybeValue);
