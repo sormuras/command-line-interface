@@ -49,6 +49,27 @@ class DoubleDashTests {
     assertEquals(List.of("-files", "file1", "file2"), List.of(obj.params()));
   }
 
+  public static class DoubleDashDemo {
+    @Name("-v")
+    boolean verbose;
+
+    @Name("-files")
+    List<String> files;
+
+    String[] params;
+  }
+
+  @Test
+  void doubleDashPicocliDemo_Pojo() {
+    String[] args = {"-v", "--", "-files", "file1", "file2"};
+    Splitter<DoubleDashDemo> splitter = Splitter.of(lookup(), DoubleDashDemo.class);
+    DoubleDashDemo obj = splitter.split(args);
+
+    assertEquals(true, obj.verbose);
+    assertEquals(List.of(), obj.files);
+    assertEquals(List.of("-files", "file1", "file2"), List.of(obj.params));
+  }
+
   @Test
   void doubleDashRequired_Record() {
     record DoubleDashRequired(boolean __verbose, Optional<String> dir, String target) {}

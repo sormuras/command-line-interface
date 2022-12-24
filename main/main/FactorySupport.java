@@ -7,6 +7,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
@@ -18,20 +19,59 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import main.Command.Builder;
 
-/**
- * Uses {@link Record}s to derive a {@link Builder} from the {@link RecordComponent}s as well as
- * container for the result values.
- */
-class ReflectSupport {
-  private ReflectSupport() {
+class FactorySupport {
+  private FactorySupport() {
     throw new AssertionError();
   }
 
   static <T> Command.Factory<T> factory(Lookup lookup, Class<T> schema) {
-    return schema.isRecord() ? recordFactory(lookup, schema) : proxyFactory(lookup, schema);
+    requireNonNull(lookup, "lookup is null");
+    requireNonNull(schema, "schema is null");
+
+    if (schema.isRecord()) return recordFactory(lookup, schema);
+    if (schema.isInterface()) return proxyFactory(lookup, schema);
+    return pojoFactory(lookup, schema);
+  }
+
+  /*
+  Using Java POJOs as target types (requires getter/setters)
+   */
+
+  private static <T> Command.Factory<T> pojoFactory(Lookup lookup, Class<T> schema) {
+    Predicate<Field> filter = m -> !m.isSynthetic() && !Modifier.isStatic(m.getModifiers());
+    List<Field> properties = Stream.of(schema.getDeclaredFields()).filter(filter).toList();
+    Command.Builder<Object[], T> cmd =
+        Command.builder(
+            () -> new Object[properties.size()],
+            values -> newPojo(lookup, schema, properties, values));
+    for (int i = 0; i < properties.size(); i++) {
+      int index = i;
+      Field f = properties.get(index);
+      BiConsumer<Object[], Object> to = (values, value) -> values[index] = value;
+      cmd = addOption(lookup, cmd, f, f.getName(), f.getType(), f.getGenericType(), to);
+    }
+    return cmd.build();
+  }
+
+  private static <T> T newPojo(
+      Lookup lookup, Class<T> schema, List<Field> properties, Object[] values) {
+    {
+      try {
+        MethodHandle noArgsConstructor = lookup.unreflectConstructor(schema.getConstructor());
+        T target = schema.cast(noArgsConstructor.invoke());
+        for (int i = 0; i < properties.size(); i++) {
+          MethodHandle setter = lookup.unreflectSetter(properties.get(i));
+          setter.invoke(target, values[i]);
+        }
+        return target;
+      } catch (Throwable e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 
   /*
@@ -39,10 +79,6 @@ class ReflectSupport {
    */
 
   private static <T> Command.Factory<T> recordFactory(Lookup lookup, Class<T> schema) {
-    requireNonNull(schema, "schema is null");
-    requireNonNull(lookup, "lookup is null");
-    if (!schema.isRecord()) throw new IllegalArgumentException("schema must be a record");
-
     RecordComponent[] components = schema.getRecordComponents();
     Command.Builder<Object[], T> cmd =
         Command.builder(
@@ -61,10 +97,6 @@ class ReflectSupport {
    */
 
   private static <T> Command.Factory<T> proxyFactory(Lookup lookup, Class<T> schema) {
-    requireNonNull(schema, "schema is null");
-    requireNonNull(lookup, "lookup is null");
-    if (!schema.isInterface()) throw new IllegalArgumentException("schema must be an interface");
-
     Method[] methods = schema.getMethods();
     Builder<Object[], T> cmd =
         Command.builder(
@@ -188,9 +220,7 @@ class ReflectSupport {
     throw new UnsupportedOperationException("Unsupported conversion from String to " + valueType);
   }
 
-  private static MethodHandle constructor(Lookup lookup, Class<?> schema) {
-    var components = schema.getRecordComponents();
-    var types = Stream.of(components).map(RecordComponent::getType).toArray(Class[]::new);
+  private static MethodHandle constructor(Lookup lookup, Class<?> schema, Class<?>... types) {
     try {
       return lookup.findConstructor(schema, MethodType.methodType(void.class, types));
     } catch (NoSuchMethodException | IllegalAccessException e) {
@@ -199,8 +229,11 @@ class ReflectSupport {
   }
 
   private static <T> T createRecord(Class<T> schema, Object[] values, Lookup lookup) {
+    var components = schema.getRecordComponents();
+    var types = Stream.of(components).map(RecordComponent::getType).toArray(Class[]::new);
     try {
-      return schema.cast(constructor(lookup, schema).asFixedArity().invokeWithArguments(values));
+      return schema.cast(
+          constructor(lookup, schema, types).asFixedArity().invokeWithArguments(values));
     } catch (RuntimeException | Error e) {
       throw e;
     } catch (Throwable e) {

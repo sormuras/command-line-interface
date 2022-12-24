@@ -20,7 +20,7 @@ import main.Command.Option;
 public interface Splitter<T> {
 
   static <R> Splitter<R> of(Lookup lookup, Class<R> schema) {
-    return of(ReflectSupport.factory(lookup, schema));
+    return of(FactorySupport.factory(lookup, schema));
   }
 
   static <X> Splitter<X> of(Command.Factory<X> cmd) {
