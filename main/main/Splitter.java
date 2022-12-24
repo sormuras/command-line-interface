@@ -14,7 +14,6 @@ import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-import main.Command.Builder;
 import main.Command.Option;
 
 @FunctionalInterface
@@ -23,10 +22,10 @@ public interface Splitter<T> {
   static <R extends Record> Splitter<R> of(Lookup lookup, Class<R> schema) {
     requireNonNull(schema, "schema is null");
     requireNonNull(lookup, "lookup is null");
-    return of(RecordSchemaSupport.toCommand(lookup, schema));
+    return of(RecordSupport.factory(lookup, schema));
   }
 
-  static <T> Splitter<T> of(Command.Builder<T> cmd) {
+  static <X> Splitter<X> of(Command.Factory<X> cmd) {
     Objects.requireNonNull(cmd, "schema is null");
     return args -> {
       requireNonNull(args, "args is null");
@@ -69,8 +68,8 @@ public interface Splitter<T> {
   Implementation
    */
 
-  private static <T> T split(Builder<T> cmd, boolean nested, Deque<String> remainingArgs) {
-    var res = cmd.build();
+  private static <T> T split(Command.Factory<T> cmd, boolean nested, Deque<String> remainingArgs) {
+    var res = cmd.create();
     var options = res.options();
     var requiredOptions =
         res.options(OptionType::isRequired).collect(toCollection(ArrayDeque::new));

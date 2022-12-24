@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -29,7 +29,7 @@ public interface Command<T> {
 
     List<String> names();
 
-    Class<?> valueType();
+    Class<?> of();
 
     /**
      * Adds or set the option value.
@@ -38,7 +38,7 @@ public interface Command<T> {
      */
     void add(String value);
 
-    Optional<Builder<?>> sub();
+    Optional<Factory<?>> sub();
 
     void addSub(Object value);
 
@@ -47,120 +47,139 @@ public interface Command<T> {
     }
   }
 
-  static <T> Builder<T> of(Supplier<T> finalizer) {
-    return new Builder<>(List.of(), finalizer);
+  @FunctionalInterface
+  interface Factory<T> {
+
+    Command<T> create();
   }
 
-  final class Builder<T> {
+  static <T> Builder<T, T> of(Supplier<T> init) {
+    return of(init, Function.identity());
+  }
 
-    private final List<OptionDescriptor<?>> options;
-    private final Supplier<T> finalizer;
+  static <A, T> Builder<A, T> of(Supplier<A> init, Function<A, T> exit) {
+    return new Builder<>(List.of(), init, exit);
+  }
 
-    private Builder(List<OptionDescriptor<?>> options, Supplier<T> finalizer) {
-      requireNonNull(options, "options is null");
-      requireNonNull(finalizer, "finalizer is null");
+  final class Builder<A, T> {
+
+    private final List<OptionValue<A, ?>> options;
+    private final Supplier<A> init;
+    private final Function<A, T> exit;
+
+    private Builder(List<OptionValue<A, ?>> options, Supplier<A> init, Function<A, T> exit) {
+      requireNonNull(init, "init is null");
+      requireNonNull(exit, "exit is null");
       this.options = options;
-      this.finalizer = finalizer;
+      this.init = init;
+      this.exit = exit;
     }
 
-    public Command<T> build() {
-      var opts = options.stream().map(opt -> new OptionInstance<>(opt, new ArrayList<>())).toList();
-      record Cmd<T>(List<? extends OptionInstance<?>> options, Supplier<T> done)
+    public Factory<T> build() {
+      // this is to hide the create method from the Builder class even if it is implemented here
+      return this::createCommand;
+    }
+
+    private Command<T> createCommand() {
+      var opts = options.stream().map(OptionValue::empty).toList();
+      record Instance<A, T>(List<? extends OptionValue<A, ?>> options, A init, Function<A, T> done)
           implements Command<T> {
         @Override
         public T complete() {
-          options.forEach(OptionInstance::complete);
-          return done.get();
+          options.forEach(opt -> opt.complete(init));
+          return done.apply(init);
         }
       }
       checkDuplicates(opts);
       checkVarargs(opts);
-      return new Cmd<>(opts, finalizer);
+      return new Instance<>(opts, init.get(), exit);
     }
 
-    private Builder<T> add(OptionDescriptor<?> option) {
-      return new Builder<>(Stream.concat(options.stream(), Stream.of(option)).toList(), finalizer);
+    private Builder<A, T> add(OptionValue<A, ?> option) {
+      return new Builder<>(Stream.concat(options.stream(), Stream.of(option)).toList(), init, exit);
     }
 
-    private <V> Builder<T> add(
+    private <V> Builder<A, T> add(
         OptionType type,
         String[] names,
         Class<V> of,
         Function<String, V> from,
-        Consumer<List<V>> to,
-        Builder<?> sub) {
-      return add(new OptionDescriptor<>(type, List.of(names), of, from, to, sub));
+        BiConsumer<A, List<V>> to,
+        Factory<?> sub) {
+      return add(new OptionValue<>(type, List.of(names), of, from, to, Optional.ofNullable(sub), List.of()));
     }
 
-    public <V> Builder<T> addBranch(Builder<V> sub, Class<V> of, Consumer<V> to, String... names) {
+    public <V> Builder<A, T> addBranch(
+        Factory<V> sub, Class<V> of, BiConsumer<A, V> to, String... names) {
       return add(OptionType.BRANCH, names, of, str -> null, fromList1(to, null), sub);
     }
 
-    public Builder<T> addFlag(Consumer<Boolean> to, String... names) {
+    public Builder<A, T> addFlag(BiConsumer<A, Boolean> to, String... names) {
       return add(
           OptionType.FLAG, names, Boolean.class, Boolean::valueOf, fromList1(to, false), null);
     }
 
-    public Builder<T> addSingle(Consumer<Optional<String>> to, String... names) {
+    public Builder<A, T> addSingle(BiConsumer<A, Optional<String>> to, String... names) {
       return addSingle(String.class, Function.identity(), to, names);
     }
 
-    public <V> Builder<T> addSingle(
-        Class<V> of, Function<String, V> from, Consumer<Optional<V>> to, String... names) {
+    public <V> Builder<A, T> addSingle(
+        Class<V> of, Function<String, V> from, BiConsumer<A, Optional<V>> to, String... names) {
       return addSingle(null, of, from, to, names);
     }
 
-    public <V> Builder<T> addSingle(
-        Builder<V> sub,
+    public <V> Builder<A, T> addSingle(
+        Factory<V> sub,
         Class<V> of,
         Function<String, V> from,
-        Consumer<Optional<V>> to,
+        BiConsumer<A, Optional<V>> to,
         String... names) {
-      Consumer<List<V>> listToOptional =
-          list -> to.accept(list.isEmpty() ? Optional.empty() : Optional.of(list.get(0)));
+      BiConsumer<A, List<V>> listToOptional =
+          (agg, list) ->
+              to.accept(agg, list.isEmpty() ? Optional.empty() : Optional.of(list.get(0)));
       return add(OptionType.SINGLE, names, of, from, listToOptional, sub);
     }
 
-    public Builder<T> addRequired(Consumer<String> to, String... names) {
+    public Builder<A, T> addRequired(BiConsumer<A, String> to, String... names) {
       return addRequired(String.class, Function.identity(), to, names);
     }
 
-    public <V> Builder<T> addRequired(
-        Class<V> of, Function<String, V> from, Consumer<V> to, String... names) {
+    public <V> Builder<A, T> addRequired(
+        Class<V> of, Function<String, V> from, BiConsumer<A, V> to, String... names) {
       return add(OptionType.REQUIRED, names, of, from, fromList1(to, null), null);
     }
 
-    public Builder<T> addRepeatable(Consumer<List<String>> to, String... names) {
+    public Builder<A, T> addRepeatable(BiConsumer<A, List<String>> to, String... names) {
       return addRepeatable(String.class, Function.identity(), to, names);
     }
 
-    public <V> Builder<T> addRepeatable(
-        Class<V> of, Function<String, V> from, Consumer<List<V>> to, String... names) {
+    public <V> Builder<A, T> addRepeatable(
+        Class<V> of, Function<String, V> from, BiConsumer<A, List<V>> to, String... names) {
       return addRepeatable(null, of, from, to, names);
     }
 
-    public <V> Builder<T> addRepeatable(
-        Builder<V> sub,
+    public <V> Builder<A, T> addRepeatable(
+        Factory<V> sub,
         Class<V> of,
         Function<String, V> from,
-        Consumer<List<V>> to,
+        BiConsumer<A, List<V>> to,
         String... names) {
       return add(OptionType.REPEATABLE, names, of, from, to, sub);
     }
 
-    public Builder<T> addVarargs(Consumer<String[]> to, String... names) {
+    public Builder<A, T> addVarargs(BiConsumer<A, String[]> to, String... names) {
       return addVarargs(String.class, Function.identity(), to, names);
     }
 
-    public <V> Builder<T> addVarargs(
-        Class<V> of, Function<String, V> from, Consumer<V[]> to, String... names) {
-      Consumer<List<V>> listToArray =
-          list -> to.accept(list.toArray(size -> (V[]) Array.newInstance(of, size)));
+    public <V> Builder<A, T> addVarargs(
+        Class<V> of, Function<String, V> from, BiConsumer<A, V[]> to, String... names) {
+      BiConsumer<A, List<V>> listToArray =
+          (agg, list) -> to.accept(agg, list.toArray(size -> (V[]) Array.newInstance(of, size)));
       return add(OptionType.VARARGS, names, of, from, listToArray, null);
     }
 
-    private static <V> Consumer<List<V>> fromList1(Consumer<V> to, V defaultValue) {
-      return values -> to.accept(values.isEmpty() ? defaultValue : values.get(0));
+    private static <A, V> BiConsumer<A, List<V>> fromList1(BiConsumer<A, V> to, V defaultValue) {
+      return (agg, values) -> to.accept(agg, values.isEmpty() ? defaultValue : values.get(0));
     }
 
     private static void checkDuplicates(List<? extends Option> options) {
@@ -189,51 +208,17 @@ public interface Command<T> {
         throw new IllegalArgumentException("varargs is not at last positional option: " + options);
     }
 
-    private record OptionInstance<T>(OptionDescriptor<T> option, List<T> values) implements Option {
-      @Override
-      public OptionType type() {
-        return option.type;
-      }
-
-      @Override
-      public List<String> names() {
-        return option.names();
-      }
-
-      @Override
-      public Class<?> valueType() {
-        return option.of();
-      }
-
-      @Override
-      public void add(String value) throws IllegalStateException {
-        values.add(option().from.apply(value));
-      }
-
-      void complete() {
-        option().to.accept(values);
-      }
-
-      @Override
-      public Optional<Builder<?>> sub() {
-        return Optional.ofNullable(option().sub());
-      }
-
-      @Override
-      public void addSub(Object value) {
-        values.add(option().of().cast(value));
-      }
-    }
-
-    private record OptionDescriptor<T>(
+    private record OptionValue<A, T>(
         OptionType type,
         List<String> names,
         Class<T> of,
         Function<String, T> from,
-        Consumer<List<T>> to,
-        Builder<?> sub) {
+        BiConsumer<A, List<T>> to,
+        Optional<Factory<?>> sub,
+        List<T> values)
+        implements Option {
 
-      public OptionDescriptor {
+      public OptionValue {
         requireNonNull(type, "type is null");
         requireNonNull(names, "names is null");
         requireNonNull(of, "of is null");
@@ -241,6 +226,24 @@ public interface Command<T> {
         if (names.isEmpty() && !type.isPositional())
           throw new IllegalArgumentException(
               "Option of type " + type + " must have at least one name");
+      }
+
+      OptionValue<A, T> empty() {
+        return new OptionValue<>(type, names, of, from, to, sub, new ArrayList<>());
+      }
+
+      @Override
+      public void add(String value) {
+        values.add(from.apply(value));
+      }
+
+      void complete(A target) {
+        to.accept(target, values);
+      }
+
+      @Override
+      public void addSub(Object value) {
+        values.add(of.cast(value));
       }
     }
   }

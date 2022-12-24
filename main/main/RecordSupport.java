@@ -1,7 +1,5 @@
 package main;
 
-import main.Command.Builder;
-
 import static java.lang.String.format;
 
 import java.lang.invoke.MethodHandle;
@@ -12,32 +10,36 @@ import java.lang.reflect.RecordComponent;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import main.Command.Builder;
 
 /**
  * Uses {@link Record}s to derive a {@link Builder} from the {@link RecordComponent}s as well as
  * container for the result values.
  */
-class RecordSchemaSupport {
-  private RecordSchemaSupport() {
+class RecordSupport {
+  private RecordSupport() {
     throw new AssertionError();
   }
 
-  static <T extends Record> Builder<T> toCommand(Lookup lookup, Class<T> commandType) {
-    RecordComponent[] components = commandType.getRecordComponents();
-    Object[] values = new Object[components.length];
-    Builder<T> cmd = Command.of(() -> createRecord(commandType, values, lookup));
+  static <T extends Record> Command.Factory<T> factory(Lookup lookup, Class<T> of) {
+    RecordComponent[] components = of.getRecordComponents();
+    Command.Builder<Object[], T> cmd =
+        Command.of(() -> new Object[components.length], values -> createRecord(of, values, lookup));
     for (int i = 0; i < components.length; i++) {
       int index = i;
-      cmd = addOption(lookup, cmd, components[i], value -> values[index] = value);
+      cmd = addOption(lookup, cmd, components[i], (values, value) -> values[index] = value);
     }
-    return cmd;
+    return cmd.build();
   }
 
-  private static <T> Builder<T> addOption(
-          Lookup lookup, Builder<T> cmd, RecordComponent component, Consumer<Object> target) {
+  private static <T> Builder<Object[], T> addOption(
+      Lookup lookup,
+      Builder<Object[], T> builder,
+      RecordComponent component,
+      BiConsumer<Object[], Object> to) {
     var nameAnno = component.getAnnotation(Name.class);
     // TODO make name of positionals dependent; when component name starts with _ it gets a name,
     // otherwise not
@@ -46,28 +48,27 @@ class RecordSchemaSupport {
     var type = OptionType.of(component.getType());
     var nestedSchema = toNestedSchema(component);
     var valueType = valueTypeFrom(component);
-    return addOption(lookup, cmd, type, names, valueType, target, nestedSchema);
+    return addOption(lookup, builder, type, names, valueType, to, nestedSchema);
   }
 
-  private static <T, V> Builder<T> addOption(
+  private static <T, V> Builder<Object[], T> addOption(
       Lookup lookup,
-      Builder<T> cmd,
+      Builder<Object[], T> builder,
       OptionType type,
       String[] names,
-      Class<V> valueType,
-      Consumer<Object> target,
+      Class<V> of,
+      BiConsumer<Object[], Object> to,
       Class<? extends Record> subCommandType) {
-    var valueConverter = valueConverter(lookup, valueType);
-    Builder<V> subCommand =
-        subCommandType == null ? null : (Builder<V>) toCommand(lookup, subCommandType);
+    var valueConverter = valueConverter(lookup, of);
+    Command.Factory<V> subCommand =
+        subCommandType == null ? null : (Command.Factory<V>) factory(lookup, subCommandType);
     return switch (type) {
-      case BRANCH -> cmd.addBranch(subCommand, valueType, target::accept, names);
-      case FLAG -> cmd.addFlag(target::accept, names);
-      case SINGLE -> cmd.addSingle(subCommand, valueType, valueConverter, target::accept, names);
-      case REPEATABLE -> cmd.addRepeatable(
-          subCommand, valueType, valueConverter, target::accept, names);
-      case REQUIRED -> cmd.addRequired(valueType, valueConverter, target::accept, names);
-      case VARARGS -> cmd.addVarargs(valueType, valueConverter, target::accept, names);
+      case BRANCH -> builder.addBranch(subCommand, of, to::accept, names);
+      case FLAG -> builder.addFlag(to::accept, names);
+      case SINGLE -> builder.addSingle(subCommand, of, valueConverter, to::accept, names);
+      case REPEATABLE -> builder.addRepeatable(subCommand, of, valueConverter, to::accept, names);
+      case REQUIRED -> builder.addRequired(of, valueConverter, to::accept, names);
+      case VARARGS -> builder.addVarargs(of, valueConverter, to::accept, names);
     };
   }
 
@@ -91,15 +92,15 @@ class RecordSchemaSupport {
         : null;
   }
 
-  private static <T> Function<String, T> valueConverter(Lookup lookup, Class<T> valueType) {
-    if (valueType == String.class || valueType.isRecord()) return (Function) Function.identity();
-    MethodHandle mh = valueOfMethod(lookup, valueType);
+  private static <T> Function<String, T> valueConverter(Lookup lookup, Class<T> of) {
+    if (of == String.class || of.isRecord()) return (Function) Function.identity();
+    MethodHandle mh = valueOfMethod(lookup, of);
     return arg -> {
       try {
-        return valueType.cast(mh.invoke(arg));
+        return of.cast(mh.invoke(arg));
       } catch (Throwable e) {
         throw new IllegalArgumentException(
-            format("Not a valid value for type %s: %s", valueType.getSimpleName(), arg), e);
+            format("Not a valid value for type %s: %s", of.getSimpleName(), arg), e);
       }
     };
   }

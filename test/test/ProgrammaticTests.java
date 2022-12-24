@@ -1,12 +1,13 @@
 package test;
 
 import main.Command;
-import main.Command.Builder;
 import main.Splitter;
 import test.api.JTest;
 import test.api.JTest.Test;
 
 import static test.api.Assertions.assertEquals;
+import static test.api.Assertions.assertFalse;
+import static test.api.Assertions.assertTrue;
 
 class ProgrammaticTests {
 
@@ -28,14 +29,19 @@ class ProgrammaticTests {
                 this.x = x;
             }
         }
-        Options options = new Options();
-        Builder<Object> cmd = Command.of(() -> null)
-                .addFlag(options::setY, "--f")
-                .addRequired(options::setX);
+        Command.Factory<Options> cmd = Command.of(Options::new)
+                .addFlag(Options::setY, "--f")
+                .addRequired(Options::setX)
+                .build();
 
-        Splitter.of(cmd).split("--f", "hello");
+        Options options = Splitter.of(cmd).split("--f", "hello");
 
-        assertEquals(true, options.y);
+        assertTrue( options.y);
         assertEquals("hello", options.x);
+
+        Options options2 = Splitter.of(cmd).split("world");
+
+        assertFalse(options2.y);
+        assertEquals("world", options2.x);
     }
 }
