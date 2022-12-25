@@ -5,6 +5,7 @@ import main.ConverterResolver.TypeReference;
 import main.Name;
 import main.Option;
 import main.Splitter;
+import main.SplittingException;
 import test.api.JTest;
 import test.api.JTest.Test;
 
@@ -18,6 +19,7 @@ import static main.ConverterResolver.when;
 import static test.api.Assertions.assertAll;
 import static test.api.Assertions.assertEquals;
 import static test.api.Assertions.assertFalse;
+import static test.api.Assertions.assertThrows;
 
 class ConverterTests {
   public static void main(String... args) {
@@ -137,5 +139,27 @@ class ConverterTests {
         () -> assertEquals("hello", message.argument(bag)),
         () -> assertEquals(List.of(Path.of("foo.txt")), List.of(rest.argument(bag)))
     );
+  }
+
+  @Test
+  void optionConverterFails() {
+    var flag = Option.flag("--verbose", "-v")
+        .convert(__ -> { throw new IllegalStateException("oops"); });
+    var splitter = Splitter.of(flag);
+
+    assertThrows(SplittingException.class, () -> splitter.split("--verbose"));
+  }
+
+  @Test
+  void recordConverterFails() {
+    record Command(
+      @Name({"--verbose", "-v"}) boolean verbose
+    ) {}
+
+    var flag = Option.flag("--verbose", "-v");
+    var resolver = ConverterResolver.of((lookup, type) -> Optional.of(__ -> { throw new IllegalStateException("oops"); }));
+    var splitter = Splitter.of(lookup(), Command.class, resolver);
+
+    assertThrows(SplittingException.class, () -> splitter.split("--verbose"));
   }
 }

@@ -23,6 +23,10 @@ public final class Assertions {
     throw new AssertionError(message);
   }
 
+  public static AssertionError fail(String message, Throwable cause) {
+    throw (AssertionError) new AssertionError(message).initCause(cause);
+  }
+
   public static void assertTrue(boolean actual) {
     assertEquals(true, actual);
   }
@@ -62,7 +66,7 @@ public final class Assertions {
       if (expected.isInstance(ex)) {
         return expected.cast(ex);
       }
-      throw fail("Expected a " + expected.getName() + " exception but " + ex.getClass().getName() + " was thrown.");
+      throw fail("Expected a " + expected.getName() + " exception but " + ex.getClass().getName() + " was thrown.", ex);
     }
   }
 
