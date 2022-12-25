@@ -144,6 +144,7 @@ public interface Splitter<T> {
    *
    * @param args the command line arguments.
    * @return an object gathering the values of the arguments.
+   * @throws SplittingException if the arguments does not match the schema.
    */
   T split(Stream<String> args);
 
@@ -157,6 +158,7 @@ public interface Splitter<T> {
    *
    * @param args the command line arguments.
    * @return an object gathering the values of the arguments.
+   * @throws SplittingException if the arguments does not match the schema.
    */
   default T split(String... args) {
     requireNonNull(args, "args is null");
@@ -173,6 +175,7 @@ public interface Splitter<T> {
    *
    * @param args the command line arguments.
    * @return an object gathering the values of the arguments.
+   * @throws SplittingException if the arguments does not match the schema.
    */
   default T split(List<String> args) {
     requireNonNull(args, "args is null");

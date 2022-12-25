@@ -2,6 +2,7 @@ package test.unit;
 
 import main.Option;
 import main.Splitter;
+import main.SplittingException;
 import test.api.JTest;
 import test.api.JTest.Test;
 
@@ -69,10 +70,8 @@ public class SplitterOptionTests {
     var splitter = Splitter.of(required);
     assertAll(
         () -> assertEquals("value", splitter.split("value").argument(required)),
-        // FIXME, use a proper exception !
-        () -> assertThrows(IllegalArgumentException.class, () -> splitter.split().argument(required)),
-        // FIXME use a proper exception !
-        () -> assertThrows(IllegalArgumentException.class, () -> splitter.split("v1", "v2").argument(required))
+        () -> assertThrows(SplittingException.class, () -> splitter.split().argument(required)),
+        () -> assertThrows(SplittingException.class, () -> splitter.split("v1", "v2").argument(required))
     );
   }
 

@@ -108,7 +108,7 @@ public class Schema<T> {
     while (true) {
       if (pendingArguments.isEmpty()) {
         if (requiredOptions.isEmpty()) return create(workspace, optionsByName);
-        throw new IllegalArgumentException("Required option(s) missing: " + requiredOptions);
+        throw new SplittingException("Required option(s) missing: " + requiredOptions);
       }
       // acquire next argument
       var argument = pendingArguments.removeFirst();
@@ -127,7 +127,7 @@ public class Schema<T> {
         if (option.type() == Option.Type.BRANCH) {
           workspace.put(name, splitNested(pendingArguments, option));
           if (!pendingArguments.isEmpty())
-            throw new IllegalArgumentException("Too many arguments: " + pendingArguments);
+            throw new SplittingException("Too many arguments: " + pendingArguments);
           return create(workspace, optionsByName);
         }
         var optionValue =
@@ -181,7 +181,7 @@ public class Schema<T> {
         workspace.put(name(varargsOption), pendingArguments.toArray(String[]::new));
         return create(workspace, optionsByName);
       }
-      throw new IllegalArgumentException("Unhandled arguments: " + pendingArguments);
+      throw new SplittingException("Unhandled arguments: " + pendingArguments);
     }
   }
 
