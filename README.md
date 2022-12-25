@@ -5,7 +5,7 @@ following a [Schema](main/main/Schema.java). A schema is defined by a list of [O
 specifying how to transform the strings into argument values.
 
 There are two pre-defined schemas, a record based schema that uses convention oven configuration and
-an options based schema that offer a programmatic API.
+an options based schema that offers a programmatic API.
 
 ## Record based schema
 
@@ -33,8 +33,8 @@ Option structures are described using Java types.
 - Positional required options are described by the `String` type
 - Variadic options are described by the `String...` type
  
-Nested option structures can be described by custom `record` types.
-Nested option structures can only be used for single key-value option and repeatable key-value options.
+Nested option structures are single key-value option or repeatable key-value options
+described by custom `record` types.
 
 By convention, a `_` character in record component names is mapped to `-` character on the command-line.
 
