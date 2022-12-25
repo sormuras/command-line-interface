@@ -78,7 +78,7 @@ abstract sealed class AbstractOption<T>
   }
 
   @SuppressWarnings("unchecked")
-  static <T> T applyToValue(Option<T> option, Object arg) {
+  static <T> T applyConverter(Option<T> option, Object arg) {
     if (option instanceof Option.Branch<T> branch) {
       return branch.converter.apply((T) arg);
     }

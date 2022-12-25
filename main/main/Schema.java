@@ -14,7 +14,7 @@ import static java.lang.Boolean.parseBoolean;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toCollection;
 import static main.AbstractOption.isVarargs;
-import static main.AbstractOption.applyToValue;
+import static main.AbstractOption.applyConverter;
 import static main.AbstractOption.defaultValue;
 import static main.AbstractOption.name;
 
@@ -197,7 +197,13 @@ public class Schema<T> {
     var values = new ArrayList<>();
     workspace.forEach((optionName, value) -> {
       var option = optionsByName.get(optionName);
-      values.add(applyToValue(option, value));
+      Object convertedValue;
+      try {
+        convertedValue = applyConverter(option, value);
+      } catch(RuntimeException e) {
+        throw new SplittingException("error while calling converter for option " + option, e);
+      }
+      values.add(convertedValue);
     });
     return finalizer.apply(values);
   }
