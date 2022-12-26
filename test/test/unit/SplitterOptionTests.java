@@ -365,6 +365,49 @@ public class SplitterOptionTests {
   }
 
   @Test
+  void splitterOfOptionShortFormFlag() {
+    var flag = Option.flag("flag");
+    var splitter = Splitter.of(flag);
+    assertAll(
+        () -> assertTrue(splitter.split("flag=true").argument(flag)),
+        () -> assertFalse(splitter.split("flag=false").argument(flag))
+    );
+  }
+
+  @Test
+  void splitterOfOptionOneLetterPOSIXFlag() {
+    var full = Option.flag("-f");
+    var verbose = Option.flag("-v");
+    var splitter = Splitter.of(full, verbose);
+    var argumentMap = splitter.split("-vf");
+    assertAll(
+        () -> assertTrue(full.argument(argumentMap)),
+        () -> assertTrue(verbose.argument(argumentMap))
+    );
+  }
+
+  @Test
+  void splitterOfOptionShortFormSingle() {
+    var key = Option.single("key");
+    var splitter = Splitter.of(key);
+    assertAll(
+        () -> assertEquals("value", splitter.split("key=value").argument(key).orElseThrow()),
+        () -> assertEquals("foo", splitter.split("key=foo").argument(key).orElseThrow())
+    );
+  }
+
+  @Test
+  void splitterOfOptionShortFormRepeatable() {
+    var key = Option.repeatable("key");
+    var splitter = Splitter.of(key);
+    assertAll(
+        () -> assertEquals(List.of("v1"), splitter.split("key=v1").argument(key)),
+        () -> assertEquals(List.of("v1", "v2"), splitter.split("key=v1,v2").argument(key)),
+        () -> assertEquals(List.of("v1", "v2", "v3"), splitter.split("key=v1,v2,v3").argument(key))
+    );
+  }
+
+  @Test
   void splitterOfOptionMapConversions() {
     var flag = Option.flag("-flag").convert(b -> !b);
     var single = Option.single("-single").convert(String::length);
