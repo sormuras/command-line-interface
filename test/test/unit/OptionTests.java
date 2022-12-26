@@ -253,20 +253,27 @@ public class OptionTests {
   void nestedSchema() {
     var schema = new Schema<>(List.of(Option.flag("flag")), x -> x);
 
-    assertEquals(schema, Option.flag("a").nestedSchema(schema).nestedSchema());
     assertEquals(schema, Option.single("a").nestedSchema(schema).nestedSchema());
-    assertEquals(schema, Option.required("a").nestedSchema(schema).nestedSchema());
     assertEquals(schema, Option.repeatable("a").nestedSchema(schema).nestedSchema());
-    assertEquals(schema, Option.varargs("a").nestedSchema(schema).nestedSchema());
   }
 
   @Test
-  void nestedSchemaPrecondition() {
-    var flag1 = Option.flag("a");
-    var flag2 = Option.flag("b").nestedSchema(new Schema<>(List.of(Option.flag("c")), x -> x));
+  void nestedSchemaSinglePrecondition() {
+    var single1 = Option.single("a");
+    var single2 = Option.single("b").nestedSchema(new Schema<>(List.of(Option.flag("c")), x -> x));
     assertAll(
-        () -> assertThrows(NullPointerException.class, () -> flag1.nestedSchema(null)),
-        () -> assertThrows(IllegalStateException.class, () -> flag2.nestedSchema(new Schema<>(List.of(Option.flag("d")), x -> x)))
+        () -> assertThrows(NullPointerException.class, () -> single1.nestedSchema(null)),
+        () -> assertThrows(IllegalStateException.class, () -> single2.nestedSchema(new Schema<>(List.of(Option.flag("d")), x -> x)))
+    );
+  }
+
+  @Test
+  void nestedSchemaRepeatablePrecondition() {
+    var repeatable1 = Option.repeatable("a");
+    var repeatable2 = Option.repeatable("b").nestedSchema(new Schema<>(List.of(Option.flag("c")), x -> x));
+    assertAll(
+        () -> assertThrows(NullPointerException.class, () -> repeatable1.nestedSchema(null)),
+        () -> assertThrows(IllegalStateException.class, () -> repeatable2.nestedSchema(new Schema<>(List.of(Option.flag("d")), x -> x)))
     );
   }
 

@@ -90,9 +90,10 @@ public sealed interface Option<T> permits AbstractOption {
   final class Branch<T> extends AbstractOption<T> {
     final UnaryOperator<T> converter;
 
-    Branch(Set<String> names, UnaryOperator<T> converter, String help, Schema<?> nestedSchema) {
+    Branch(Set<String> names, UnaryOperator<T> converter, String help, Schema<T> nestedSchema) {
       super(Type.BRANCH, names, help, nestedSchema);
       this.converter = requireNonNull(converter, "converter is null");
+      requireNonNull(nestedSchema, "schema is null");
     }
 
     /**
@@ -100,27 +101,21 @@ public sealed interface Option<T> permits AbstractOption {
      *
      * @param names names of the option.
      * @param converter a conversion function.
+     * @param nestedSchema the nested schema
      * @throws IllegalArgumentException if a name is empty or if names are duplicated.
-     *
-     * @see #branch(String...)
      */
-    public Branch(List<String> names, UnaryOperator<T> converter) {
-      this(NameSet.copyOf(names), converter, "", null);
+    public Branch(List<String> names, UnaryOperator<T> converter, Schema<T> nestedSchema) {
+      this(NameSet.copyOf(names), converter, "", nestedSchema);
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Branch<T> help(String helpText) {
       requireNonNull(helpText, "helpText is null");
       if (!help.isEmpty()) {
         throw new IllegalStateException("option already has an help text");
       }
-      return new Branch<>(names, converter, helpText, nestedSchema);
-    }
-
-    @Override
-    public Branch<T> nestedSchema(Schema<?> nestedSchema) {
-      requireNonNull(nestedSchema, "nestedSchema is null");
-      throw new IllegalStateException("a nested schema is already set");
+      return new Branch<>(names, converter, helpText, (Schema<T>) nestedSchema);
     }
 
     /**
@@ -129,9 +124,10 @@ public sealed interface Option<T> permits AbstractOption {
      * @param mapper the function to apply to do the conversion.
      * @return a new option that converts the argument to a value of the same type.
      */
+    @SuppressWarnings("unchecked")
     public Branch<T> convert(UnaryOperator<T> mapper) {
       requireNonNull(mapper, "mapper is null");
-      return new Branch<>(names, v -> mapper.apply(converter.apply(v)), help, nestedSchema);
+      return new Branch<>(names, v -> mapper.apply(converter.apply(v)), help, (Schema<T>) nestedSchema);
     }
 
     @Override
@@ -146,8 +142,8 @@ public sealed interface Option<T> permits AbstractOption {
   final class Flag extends AbstractOption<Boolean> {
     final UnaryOperator<Boolean> converter;
 
-    Flag(Set<String> names, UnaryOperator<Boolean> converter, String help, Schema<?> nestedSchema) {
-      super(Type.FLAG, names, help, nestedSchema);
+    Flag(Set<String> names, UnaryOperator<Boolean> converter, String help) {
+      super(Type.FLAG, names, help, null);
       this.converter = requireNonNull(converter, "converter is null");
     }
 
@@ -161,7 +157,7 @@ public sealed interface Option<T> permits AbstractOption {
      * @see #flag(String...)
      */
     public Flag(List<String> names, UnaryOperator<Boolean> converter) {
-      this(NameSet.copyOf(names), converter, "", null);
+      this(NameSet.copyOf(names), converter, "");
     }
 
     @Override
@@ -170,16 +166,7 @@ public sealed interface Option<T> permits AbstractOption {
       if (!help.isEmpty()) {
         throw new IllegalStateException("option already has an help text");
       }
-      return new Flag(names, converter, helpText, nestedSchema);
-    }
-
-    @Override
-    public Flag nestedSchema(Schema<?> nestedSchema) {
-      requireNonNull(nestedSchema, "nestedSchema is null");
-      if (this.nestedSchema != null) {
-        throw new IllegalStateException("a nested schema is already set");
-      }
-      return new Flag(names, converter, help, nestedSchema);
+      return new Flag(names, converter, helpText);
     }
 
     /**
@@ -190,7 +177,7 @@ public sealed interface Option<T> permits AbstractOption {
      */
     public Flag convert(UnaryOperator<Boolean> mapper) {
       requireNonNull(mapper, "mapper is null");
-      return new Flag(names, v -> mapper.apply(converter.apply(v)), help, nestedSchema);
+      return new Flag(names, v -> mapper.apply(converter.apply(v)), help);
     }
 
     @Override
@@ -233,7 +220,6 @@ public sealed interface Option<T> permits AbstractOption {
       return new Single<>(names, converter, helpText, nestedSchema);
     }
 
-    @Override
     public Single<T> nestedSchema(Schema<?> nestedSchema) {
       requireNonNull(nestedSchema, "nestedSchema is null");
       if (this.nestedSchema != null) {
@@ -295,7 +281,6 @@ public sealed interface Option<T> permits AbstractOption {
       return new Repeatable<>(names, converter, helpText, nestedSchema);
     }
 
-    @Override
     public Repeatable<T> nestedSchema(Schema<?> nestedSchema) {
       requireNonNull(nestedSchema, "nestedSchema is null");
       if (this.nestedSchema != null) {
@@ -330,8 +315,8 @@ public sealed interface Option<T> permits AbstractOption {
   final class Required<T> extends AbstractOption<T> {
     final Function<? super String, ? extends T> converter;
 
-    Required(Set<String> names, Function<? super String, ? extends T> converter, String help, Schema<?> nestedSchema) {
-      super(Type.REQUIRED, names, help, nestedSchema);
+    Required(Set<String> names, Function<? super String, ? extends T> converter, String help) {
+      super(Type.REQUIRED, names, help, null);
       this.converter = requireNonNull(converter, "converter is null");
     }
 
@@ -345,7 +330,7 @@ public sealed interface Option<T> permits AbstractOption {
      * @see #required(String...)
      */
     public Required(List<String> names, Function<? super String, ? extends T> converter) {
-      this(NameSet.copyOf(names), converter, "", null);
+      this(NameSet.copyOf(names), converter, "");
     }
 
     @Override
@@ -354,16 +339,7 @@ public sealed interface Option<T> permits AbstractOption {
       if (!help.isEmpty()) {
         throw new IllegalStateException("option already has an help text");
       }
-      return new Required<>(names, converter, helpText, nestedSchema);
-    }
-
-    @Override
-    public Required<T> nestedSchema(Schema<?> nestedSchema) {
-      requireNonNull(nestedSchema, "nestedSchema is null");
-      if (this.nestedSchema != null) {
-        throw new IllegalStateException("a nested schema is already set");
-      }
-      return new Required<>(names, converter, help, nestedSchema);
+      return new Required<>(names, converter, helpText);
     }
 
     /**
@@ -374,7 +350,7 @@ public sealed interface Option<T> permits AbstractOption {
      */
     public <U> Required<U> convert(Function<? super T, ? extends U> mapper) {
       requireNonNull(mapper, "mapper is null");
-      return new Required<>(names, converter.andThen(mapper), help, nestedSchema);
+      return new Required<>(names, converter.andThen(mapper), help);
     }
 
     @Override
@@ -391,11 +367,9 @@ public sealed interface Option<T> permits AbstractOption {
   final class Varargs<T> extends AbstractOption<T[]> {
     final Function<? super String[], ? extends T[]> converter;
 
-    Varargs(Set<String> names, Function<? super String[], ? extends T[]> converter, String help, Schema<?> nestedSchema) {
-      super(Type.VARARGS, names, help, nestedSchema);
+    Varargs(Set<String> names, Function<? super String[], ? extends T[]> converter, String help) {
+      super(Type.VARARGS, names, help, null);
       this.converter = requireNonNull(converter, "converter is null");
-      requireNonNull(help, "help null");
-      names = NameSet.copyOf(names);
     }
 
     /**
@@ -408,7 +382,7 @@ public sealed interface Option<T> permits AbstractOption {
      * @see #varargs(String...)
      */
     public Varargs(List<String> names, Function<? super String[], ? extends T[]> converter) {
-      this(NameSet.copyOf(names), converter, "", null);
+      this(NameSet.copyOf(names), converter, "");
     }
 
     @Override
@@ -417,16 +391,7 @@ public sealed interface Option<T> permits AbstractOption {
       if (!help.isEmpty()) {
         throw new IllegalStateException("option already has an help text");
       }
-      return new Varargs<>(names, converter, helpText, nestedSchema);
-    }
-
-    @Override
-    public Varargs<T> nestedSchema(Schema<?> nestedSchema) {
-      requireNonNull(nestedSchema, "nestedSchema is null");
-      if (this.nestedSchema != null) {
-        throw new IllegalStateException("a nested schema is already set");
-      }
-      return new Varargs<>(names, converter, help, nestedSchema);
+      return new Varargs<>(names, converter, helpText);
     }
 
     /**
@@ -438,13 +403,13 @@ public sealed interface Option<T> permits AbstractOption {
      */
     public <U> Varargs<U> convert(Function<? super T, ? extends U> mapper, IntFunction<U[]> generator) {
       requireNonNull(mapper, "mapper is null");
-      return new Varargs<>(names, converter.andThen(v -> Arrays.stream(v).map(mapper).toArray(generator)), help, nestedSchema);
+      return new Varargs<>(names, converter.andThen(v -> Arrays.stream(v).map(mapper).toArray(generator)), help);
     }
 
     @Override
     public Varargs<T> defaultValue(T[] value) {
       requireNonNull(value, "value is null");
-      return new Varargs<>(names, converter.andThen(v -> v.length == 0 ? value : v), help, nestedSchema);
+      return new Varargs<>(names, converter.andThen(v -> v.length == 0 ? value : v), help);
     }
   }
 
@@ -473,17 +438,6 @@ public sealed interface Option<T> permits AbstractOption {
   Schema<?> nestedSchema();
 
   /**
-   * Creates an option of type {@link Type#BRANCH} with names.
-   *
-   * @param names the names of the options.
-   * @return a new {@link Type#BRANCH} option.
-   * @throws IllegalArgumentException is there are duplicated names.
-   */
-  static <T extends Record> Branch<T> branch(String... names) {
-    return new Branch<>(NameSet.of(names), value -> value, "", null);
-  }
-
-  /**
    * Creates an option of type {@link Type#FLAG} with names.
    *
    * @param names the names of the options.
@@ -491,7 +445,7 @@ public sealed interface Option<T> permits AbstractOption {
    * @throws IllegalArgumentException is there are duplicated names.
    */
   static Flag flag(String... names) {
-    return new Flag(NameSet.of(names), value -> value, "", null);
+    return new Flag(NameSet.of(names), value -> value, "");
   }
 
   /**
@@ -524,7 +478,7 @@ public sealed interface Option<T> permits AbstractOption {
    * @throws IllegalArgumentException is there are duplicated names.
    */
   static Required<String> required(String... names) {
-    return new Required<>(NameSet.of(names), value -> value, "", null);
+    return new Required<>(NameSet.of(names), value -> value, "");
   }
 
   /**
@@ -535,7 +489,7 @@ public sealed interface Option<T> permits AbstractOption {
    * @throws IllegalArgumentException is there are duplicated names.
    */
   static Varargs<String> varargs(String... names) {
-    return new Varargs<>(NameSet.of(names), value -> value, "", null);
+    return new Varargs<>(NameSet.of(names), value -> value, "");
   }
 
   /**
@@ -561,15 +515,6 @@ public sealed interface Option<T> permits AbstractOption {
    * @throws IllegalStateException if the option already has a help text set.
    */
   Option<T> help(String helpText);
-
-  /**
-   * Returns a new option with the nested schema.
-   *
-   * @param nestedSchema the nested schema of the new option.
-   * @return a new option with the nested schema.
-   * @throws IllegalStateException if the option already has a nested schema set.
-   */
-  Option<?> nestedSchema(Schema<?> nestedSchema);
 
   /**
    * Returns the value of the argument associated with the current option.
