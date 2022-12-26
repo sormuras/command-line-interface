@@ -90,7 +90,7 @@ public sealed interface Option<T> permits AbstractOption {
   final class Branch<T> extends AbstractOption<T> {
     final UnaryOperator<T> converter;
 
-    Branch(Set<String> names, UnaryOperator<T> converter, String help, Schema<T> nestedSchema) {
+    Branch(Set<String> names, UnaryOperator<T> converter, String help, Schema<?> nestedSchema) {
       super(Type.BRANCH, names, help, nestedSchema);
       this.converter = requireNonNull(converter, "converter is null");
       requireNonNull(nestedSchema, "schema is null");
@@ -109,13 +109,12 @@ public sealed interface Option<T> permits AbstractOption {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public Branch<T> help(String helpText) {
       requireNonNull(helpText, "helpText is null");
       if (!help.isEmpty()) {
         throw new IllegalStateException("option already has an help text");
       }
-      return new Branch<>(names, converter, helpText, (Schema<T>) nestedSchema);
+      return new Branch<>(names, converter, helpText, nestedSchema);
     }
 
     /**
@@ -124,10 +123,9 @@ public sealed interface Option<T> permits AbstractOption {
      * @param mapper the function to apply to do the conversion.
      * @return a new option that converts the argument to a value of the same type.
      */
-    @SuppressWarnings("unchecked")
     public Branch<T> convert(UnaryOperator<T> mapper) {
       requireNonNull(mapper, "mapper is null");
-      return new Branch<>(names, v -> mapper.apply(converter.apply(v)), help, (Schema<T>) nestedSchema);
+      return new Branch<>(names, v -> mapper.apply(converter.apply(v)), help, nestedSchema);
     }
 
     @Override
@@ -191,9 +189,9 @@ public sealed interface Option<T> permits AbstractOption {
    * An optional key/value option.
    */
   final class Single<T> extends AbstractOption<Optional<T>> {
-    final Function<? super Optional<String>, ? extends Optional<T>> converter;
+    final Function<Optional<?>, ? extends Optional<T>> converter;
 
-    Single(Set<String> names, Function<? super Optional<String>, ? extends Optional<T>> converter, String help, Schema<?> nestedSchema) {
+    Single(Set<String> names, Function<Optional<?>, ? extends Optional<T>> converter, String help, Schema<?> nestedSchema) {
       super(Type.SINGLE, names, help, nestedSchema);
       this.converter = requireNonNull(converter, "converter is null");
     }
@@ -207,8 +205,9 @@ public sealed interface Option<T> permits AbstractOption {
      *
      * @see #single(String...)
      */
+    @SuppressWarnings("unchecked")
     public Single(List<String> names, Function<? super Optional<String>, ? extends Optional<T>> converter) {
-      this(NameSet.copyOf(names), converter, "", null);
+      this(NameSet.copyOf(names), (Function<Optional<?>, ? extends Optional<T>>) converter, "", null);
     }
 
     @Override
@@ -220,12 +219,21 @@ public sealed interface Option<T> permits AbstractOption {
       return new Single<>(names, converter, helpText, nestedSchema);
     }
 
-    public Single<T> nestedSchema(Schema<?> nestedSchema) {
+    /**
+     * Returns a new option with the nested schema.
+     * The newly created option has no defined conversion.
+     *
+     * @param nestedSchema the nested schema of the new option.
+     * @return a new option with the nested schema.
+     * @throws IllegalStateException if the option already has a nested schema set.
+     */
+    @SuppressWarnings("unchecked")
+    public <U> Single<U> nestedSchema(Schema<U> nestedSchema) {
       requireNonNull(nestedSchema, "nestedSchema is null");
       if (this.nestedSchema != null) {
         throw new IllegalStateException("a nested schema is already set");
       }
-      return new Single<>(names, converter, help, nestedSchema);
+      return new Single<>(names, opt -> (Optional<U>) opt, help, nestedSchema);
     }
 
     /**
@@ -252,9 +260,9 @@ public sealed interface Option<T> permits AbstractOption {
    * @param <T> the type of the argument corresponding to that option.
    */
   final class Repeatable<T> extends AbstractOption<List<T>> {
-    final Function<? super List<String>, ? extends List<T>> converter;
+    final Function<List<?>, ? extends List<T>> converter;
 
-    Repeatable(Set<String> names, Function<? super List<String>, ? extends List<T>> converter, String help, Schema<?> nestedSchema) {
+    Repeatable(Set<String> names, Function<List<?>, ? extends List<T>> converter, String help, Schema<?> nestedSchema) {
       super(Type.REPEATABLE, names, help, nestedSchema);
       this.converter = requireNonNull(converter, "converter is null");
     }
@@ -268,8 +276,9 @@ public sealed interface Option<T> permits AbstractOption {
      *
      * @see #repeatable(String...)
      */
+    @SuppressWarnings("unchecked")
     public Repeatable(List<String> names, Function<? super List<String>, ? extends List<T>> converter) {
-      this(NameSet.copyOf(names), converter, "", null);
+      this(NameSet.copyOf(names), (Function<List<?>, ? extends List<T>>) converter, "", null);
     }
 
     @Override
@@ -281,12 +290,21 @@ public sealed interface Option<T> permits AbstractOption {
       return new Repeatable<>(names, converter, helpText, nestedSchema);
     }
 
-    public Repeatable<T> nestedSchema(Schema<?> nestedSchema) {
+    /**
+     * Returns a new option with the nested schema.
+     * The newly created option has no defined conversion.
+     *
+     * @param nestedSchema the nested schema of the new option.
+     * @return a new option with the nested schema.
+     * @throws IllegalStateException if the option already has a nested schema set.
+     */
+    @SuppressWarnings("unchecked")
+    public <U> Repeatable<U> nestedSchema(Schema<U> nestedSchema) {
       requireNonNull(nestedSchema, "nestedSchema is null");
       if (this.nestedSchema != null) {
         throw new IllegalStateException("a nested schema is already set");
       }
-      return new Repeatable<>(names, converter, help, nestedSchema);
+      return new Repeatable<>(names, x -> (List<U>) x, help, nestedSchema);
     }
 
     /**
@@ -455,8 +473,9 @@ public sealed interface Option<T> permits AbstractOption {
    * @return a new {@link Type#SINGLE} option.
    * @throws IllegalArgumentException is there are duplicated names.
    */
+  @SuppressWarnings("unchecked")
   static Single<String> single(String... names) {
-    return new Single<>(NameSet.of(names), value -> value, "", null);
+    return new Single<>(NameSet.of(names), value -> (Optional<String>) value, "", null);
   }
 
   /**
@@ -466,8 +485,9 @@ public sealed interface Option<T> permits AbstractOption {
    * @return a new {@link Type#REPEATABLE} option.
    * @throws IllegalArgumentException is there are duplicated names.
    */
+  @SuppressWarnings("unchecked")
   static Repeatable<String> repeatable(String... names) {
-    return new Repeatable<>(NameSet.of(names), value -> value, "", null);
+    return new Repeatable<>(NameSet.of(names), value -> (List<String>) value, "", null);
   }
 
   /**
