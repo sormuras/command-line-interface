@@ -436,6 +436,28 @@ public class SplitterOptionTests {
   }
 
   @Test
+  void splitterPositionalOptionAreNotSeenAsOptional() {
+    var required = Option.required("required");
+    var varargs = Option.varargs("varargs");
+    var argumentMap = Splitter.of(required, varargs).split("varargs");
+    assertAll(
+        () -> assertEquals("varargs", argumentMap.argument(required)),
+        () -> assertArrayEquals(new String[0], argumentMap.argument(varargs))
+    );
+  }
+
+  @Test
+  void splitterPositionalOptionAreNotSeenAsOptional2() {
+    var required = Option.required("required");
+    var varargs = Option.varargs("varargs");
+    var argumentMap = Splitter.of(required, varargs).split("required", "varargs");
+    assertAll(
+        () -> assertEquals("required", argumentMap.argument(required)),
+        () -> assertArrayEquals(new String[] { "varargs" }, argumentMap.argument(varargs))
+    );
+  }
+
+  @Test
   void splitterOfOptionMapConversions() {
     var flag = Option.flag("-flag").convert(b -> !b);
     var single = Option.single("-single").convert(String::length);
