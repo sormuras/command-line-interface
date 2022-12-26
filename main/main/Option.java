@@ -97,7 +97,7 @@ public sealed interface Option<T> permits AbstractOption {
     }
 
     /**
-     * Create a branch option with several names and a conversion function
+     * Create a branch option with several names, a conversion function and a nested schema.
      *
      * @param names names of the option.
      * @param converter a conversion function.
