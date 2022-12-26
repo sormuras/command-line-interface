@@ -408,6 +408,34 @@ public class SplitterOptionTests {
   }
 
   @Test
+  void splitterSingleMissingArgument() {
+    var single = Option.single("single");
+    var splitter = Splitter.of(single);
+    assertThrows(SplittingException.class, () -> splitter.split("single"));
+  }
+
+  @Test
+  void splitterRepeatableMissingArgument() {
+    var repeatable = Option.repeatable("repeatable");
+    var splitter = Splitter.of(repeatable);
+    assertThrows(SplittingException.class, () -> splitter.split("repeatable"));
+  }
+
+  @Test
+  void splitterRequiredMissingArgument() {
+    var required = Option.required("required");
+    var splitter = Splitter.of(required);
+    assertThrows(SplittingException.class, () -> splitter.split(new String[0]));
+  }
+
+  @Test
+  void splitterUnknownArgument() {
+    var flag = Option.flag("-f");
+    var splitter = Splitter.of(flag);
+    assertThrows(SplittingException.class, () -> splitter.split("unknown"));
+  }
+
+  @Test
   void splitterOfOptionMapConversions() {
     var flag = Option.flag("-flag").convert(b -> !b);
     var single = Option.single("-single").convert(String::length);

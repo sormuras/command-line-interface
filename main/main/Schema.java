@@ -1,11 +1,10 @@
 package main;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -14,6 +13,8 @@ import java.util.stream.Stream;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toCollection;
+import static java.util.stream.Collectors.toMap;
+import static java.util.stream.IntStream.range;
 import static main.AbstractOption.isVarargs;
 import static main.AbstractOption.applyConverter;
 import static main.AbstractOption.defaultValue;
@@ -94,21 +95,15 @@ public class Schema<T> {
   T split(boolean nested, ArrayDeque<String> pendingArguments) {
     var requiredOptions =
         options.stream().filter(AbstractOption::isRequired).collect(toCollection(ArrayDeque::new));
-    var optionsByName = new HashMap<String, Option<?>>();
-    var workspace = new LinkedHashMap<String, Object>();
+    var optionalOptionByName = optionalOptionByName(options);
+    var workspace = new Workspace(options);
     var flagCount = options.stream().filter(AbstractOption::isFlag).count();
     var flagPattern = flagCount == 0 ? null : Pattern.compile("^-[a-zA-Z]{1," + flagCount + "}$");
-    for (var option : options) {
-      for (var name : option.names()) {
-        optionsByName.put(name, option);
-      }
-      workspace.put(name(option), defaultValue(option));
-    }
 
     var doubleDashMode = false;
     while (true) {
       if (pendingArguments.isEmpty()) {
-        if (requiredOptions.isEmpty()) return create(workspace, optionsByName);
+        if (requiredOptions.isEmpty()) return workspace.create(finalizer);
         throw new SplittingException("Required option(s) missing: " + requiredOptions);
       }
       // acquire next argument
@@ -122,14 +117,13 @@ public class Schema<T> {
       var argumentName = longForm ? argument : argument.substring(0, separator);
       var shortFormValue = longForm ? null : unQuote(argument.substring(separator + 1));
       // try well-known option first
-      if (!doubleDashMode && optionsByName.containsKey(argumentName)) {
-        var option = optionsByName.get(argumentName);
-        var optionName = name(option);
+      if (!doubleDashMode && optionalOptionByName.containsKey(argumentName)) {
+        var option = optionalOptionByName.get(argumentName);
         if (option.type() == Option.Type.BRANCH) {
-          workspace.put(optionName, splitNested(pendingArguments, option));
+          workspace.set(option, splitNested(pendingArguments, option));
           if (!pendingArguments.isEmpty())
             throw new SplittingException("Too many arguments: " + pendingArguments);
-          return create(workspace, optionsByName);
+          return workspace.create(finalizer);
         }
         var optionValue =
             switch (option.type()) {
@@ -138,7 +132,7 @@ public class Schema<T> {
                 var value =
                     option.nestedSchema() != null
                         ? splitNested(pendingArguments, option)
-                        : longForm ? pendingArguments.removeFirst() : shortFormValue;
+                        : longForm ? nextArgument(pendingArguments, option) : shortFormValue;
                 yield Optional.of(value);
               }
               case REPEATABLE -> {
@@ -146,23 +140,23 @@ public class Schema<T> {
                     option.nestedSchema() != null
                         ? Stream.of(splitNested(pendingArguments, option))
                         : longForm
-                            ? Stream.of(pendingArguments.removeFirst())
+                            ? Stream.of(nextArgument(pendingArguments, option))
                             : Arrays.stream(shortFormValue.split(","));
-                var elements = (List<?>) workspace.get(optionName);
+                var elements = (List<?>) workspace.get(option);
                 yield Stream.concat(elements.stream(), value).toList();
               }
-              case BRANCH, VARARGS, REQUIRED -> throw new AssertionError("Unnamed optionName? " + optionName);
+              case BRANCH, VARARGS, REQUIRED -> throw new AssertionError("" + option);
             };
-        workspace.put(optionName, optionValue);
+        workspace.set(option, optionValue);
         continue; // with next argument
       }
       // maybe a combination of single letter flags?
       if (!doubleDashMode && flagPattern != null && flagPattern.matcher(argument).matches()) {
         var flags = argument.substring(1).chars().mapToObj(c -> "-" + (char) c).toList();
-        if (flags.stream().allMatch(optionsByName::containsKey)) {
+        if (flags.stream().allMatch(optionalOptionByName::containsKey)) {
           flags.forEach(flag -> {
-            var option = optionsByName.get(flag);
-            workspace.put(name(option),true);
+            var option = optionalOptionByName.get(flag);
+            workspace.set(option, true);
           });
           continue;
         }
@@ -170,20 +164,40 @@ public class Schema<T> {
       // try required option
       if (!requiredOptions.isEmpty()) {
         var requiredOption = requiredOptions.removeFirst();
-        workspace.put(name(requiredOption), argument);
+        workspace.set(requiredOption, argument);
         continue;
       }
       // restore pending arguments deque
       pendingArguments.addFirst(argument);
-      if (nested) return create(workspace, optionsByName);
+      if (nested) return workspace.create(finalizer);
       // try globbing all pending arguments into a varargs collector
       var varargsOption = options.stream().filter(AbstractOption::isVarargs).findFirst().orElse(null);
       if (varargsOption != null) {
-        workspace.put(name(varargsOption), pendingArguments.toArray(String[]::new));
-        return create(workspace, optionsByName);
+        workspace.set(varargsOption, pendingArguments.toArray(String[]::new));
+        return workspace.create(finalizer);
       }
       throw new SplittingException("Unhandled arguments: " + pendingArguments);
     }
+  }
+
+  private static HashMap<String, Option<?>> optionalOptionByName(List<Option<?>> options) {
+    var optionalOptionByName = new HashMap<String, Option<?>>();
+    for (var option : options) {
+      if (AbstractOption.isPositional(option)) {
+        continue;  // skip positional option
+      }
+      for (var name : option.names()) {
+        optionalOptionByName.put(name, option);
+      }
+    }
+    return optionalOptionByName;
+  }
+
+  private static String nextArgument(ArrayDeque<String> pendingArguments, Option<?> option) {
+    if (pendingArguments.isEmpty()) {
+      throw new SplittingException("no argument available for option " + option);
+    }
+    return pendingArguments.removeFirst();
   }
 
   private static String unQuote(String str) {
@@ -194,18 +208,40 @@ public class Schema<T> {
     return option.nestedSchema().split(true, pendingArguments);
   }
 
-  private T create(LinkedHashMap<String, Object> workspace, HashMap<String, Option<?>> optionsByName) {
-    var values = new ArrayList<>();
-    workspace.forEach((optionName, value) -> {
-      var option = optionsByName.get(optionName);
-      Object convertedValue;
+  private static final class Workspace {
+    private final List<Option<?>> options;
+    private final Map<String, Integer> indexMap;
+    private final Object[] array;
+
+    private Workspace(List<Option<?>> options) {
+      this.options = options;
+      indexMap = range(0, options.size()).boxed().collect(toMap(i -> name(options.get(i)), i -> i));
+      var array = new Object[options.size()];
+      Arrays.setAll(array, i -> defaultValue(options.get(i)));
+      this.array = array;
+    }
+
+    Object get(Option<?> option) {
+      return array[indexMap.get(name(option))];
+    }
+
+    void set(Option<?> option, Object value) {
+      array[indexMap.get(name(option))] = value;
+    }
+
+    private static Object convert(Option<?> option, Object value) {
       try {
-        convertedValue = applyConverter(option, value);
+        return applyConverter(option, value);
       } catch(RuntimeException e) {
         throw new SplittingException("error while calling converter for option " + option, e);
       }
-      values.add(convertedValue);
-    });
-    return finalizer.apply(values);
+    }
+
+    <T> T create(Function<? super List<Object>, ? extends T> finalizer) {
+      var values = range(0, options.size())
+          .mapToObj(i -> convert(options.get(i), array[i]))
+          .toList();
+      return finalizer.apply(values);
+    }
   }
 }
