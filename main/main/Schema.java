@@ -2,6 +2,7 @@ package main;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -104,7 +105,7 @@ public class Schema<T> {
       workspace.put(name(option), defaultValue(option));
     }
 
-    boolean doubleDashMode = false;
+    var doubleDashMode = false;
     while (true) {
       if (pendingArguments.isEmpty()) {
         if (requiredOptions.isEmpty()) return create(workspace, optionsByName);
@@ -116,43 +117,43 @@ public class Schema<T> {
         doubleDashMode = true;
         continue;
       }
-      int separator = argument.indexOf('=');
-      var noValue = separator == -1;
-      var maybeName = noValue ? argument : argument.substring(0, separator);
-      var maybeValue = noValue ? "" : unQuote(argument.substring(separator + 1));
+      var separator = argument.indexOf('=');
+      var longForm = separator == -1;
+      var argumentName = longForm ? argument : argument.substring(0, separator);
+      var shortFormValue = longForm ? null : unQuote(argument.substring(separator + 1));
       // try well-known option first
-      if (!doubleDashMode && optionsByName.containsKey(maybeName)) {
-        var option = optionsByName.get(maybeName);
-        var name = name(option);
+      if (!doubleDashMode && optionsByName.containsKey(argumentName)) {
+        var option = optionsByName.get(argumentName);
+        var optionName = name(option);
         if (option.type() == Option.Type.BRANCH) {
-          workspace.put(name, splitNested(pendingArguments, option));
+          workspace.put(optionName, splitNested(pendingArguments, option));
           if (!pendingArguments.isEmpty())
             throw new SplittingException("Too many arguments: " + pendingArguments);
           return create(workspace, optionsByName);
         }
         var optionValue =
             switch (option.type()) {
-              case FLAG -> noValue || parseBoolean(maybeValue);
+              case FLAG -> longForm || parseBoolean(shortFormValue);
               case SINGLE -> {
                 var value =
                     option.nestedSchema() != null
                         ? splitNested(pendingArguments, option)
-                        : noValue ? pendingArguments.pop() : maybeValue;
+                        : longForm ? pendingArguments.removeFirst() : shortFormValue;
                 yield Optional.of(value);
               }
               case REPEATABLE -> {
                 var value =
                     option.nestedSchema() != null
-                        ? List.of(splitNested(pendingArguments, option))
-                        : noValue
-                        ? List.of(pendingArguments.pop())
-                        : Stream.of(maybeValue.split(",")).toList();
-                var elements = (List<?>) workspace.get(name);
-                yield Stream.concat(elements.stream(), value.stream()).toList();
+                        ? Stream.of(splitNested(pendingArguments, option))
+                        : longForm
+                            ? Stream.of(pendingArguments.removeFirst())
+                            : Arrays.stream(shortFormValue.split(","));
+                var elements = (List<?>) workspace.get(optionName);
+                yield Stream.concat(elements.stream(), value).toList();
               }
-              case BRANCH, VARARGS, REQUIRED -> throw new AssertionError("Unnamed name? " + name);
+              case BRANCH, VARARGS, REQUIRED -> throw new AssertionError("Unnamed optionName? " + optionName);
             };
-        workspace.put( name, optionValue);
+        workspace.put(optionName, optionValue);
         continue; // with next argument
       }
       // maybe a combination of single letter flags?
@@ -168,7 +169,7 @@ public class Schema<T> {
       }
       // try required option
       if (!requiredOptions.isEmpty()) {
-        var requiredOption = requiredOptions.pop();
+        var requiredOption = requiredOptions.removeFirst();
         workspace.put(name(requiredOption), argument);
         continue;
       }
