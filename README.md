@@ -27,11 +27,11 @@ WordCountOptions options = splitter.split(args);
 
 Option structures are described using Java types.
 
-- Optional flag options are described by `boolean` and `Boolean` types
-- Optional single key-value options are described by the `Optional<String>` type
-- Optional repeatable key-value options are described by the `List<String>` type
-- Positional required options are described by the `String` type
-- Variadic options are described by the `String...` type
+- Optional flag options (`--verbose`, `--foo=true` or `bar=false`) are described by `boolean` and `Boolean` types
+- Optional single key-value options (`--input foo.txt` or `input=foo.txt`) are described by the `Optional<String>` type
+- Optional repeatable key-value options (`-i foo.txt -i bar.txt` or `inputs=foo.txt,bar.txt`) are described by the `List<String>` type
+- Positional required options (`output.txt`) are described by the `String` type
+- Variadic options (`a.txt b.txt ...`) are described by the `String...` type
  
 Nested option structures are single key-value option or repeatable key-value options
 described by custom `record` types.
