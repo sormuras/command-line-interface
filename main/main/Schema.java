@@ -112,13 +112,13 @@ public class Schema<T> {
       }
       // acquire next argument
       var argument = pendingArguments.removeFirst();
-      int separator = argument.indexOf('=');
-      var noValue = separator == -1;
-      var maybeName = noValue ? argument : argument.substring(0, separator);
-      if ("--".equals(maybeName)) {
+      if ("--".equals(argument)) {
         doubleDashMode = true;
         continue;
       }
+      int separator = argument.indexOf('=');
+      var noValue = separator == -1;
+      var maybeName = noValue ? argument : argument.substring(0, separator);
       var maybeValue = noValue ? "" : unQuote(argument.substring(separator + 1));
       // try well-known option first
       if (!doubleDashMode && optionsByName.containsKey(maybeName)) {
