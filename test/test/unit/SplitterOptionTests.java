@@ -136,13 +136,13 @@ public class SplitterOptionTests {
     );
   }
 
-  //@Test
+  @Test
   void splitterOfRequireFlagAndVarargs() {
     var flag1 = Option.flag("-flag1");
     var flag2 = Option.flag("-flag2");
     var required1 = Option.required("required1");
     var required2 = Option.required("required2");
-    var varargs = Option.required("varargs");
+    var varargs = Option.varargs("varargs");
     var splitter = Splitter.of(flag1, required1, flag2, required2, varargs);
     var argumentMap = splitter.split("-flag1", "-flag2", "r1.txt", "r2.txt", "r3.txt", "r4.txt");
     assertAll(
@@ -170,13 +170,13 @@ public class SplitterOptionTests {
     );
   }
 
-  //@Test
+  @Test
   void splitterOfRequireSingleAndVarargs() {
     var single1 = Option.single("-single1");
     var single2 = Option.single("-single2");
     var required1 = Option.required("required1");
     var required2 = Option.required("required2");
-    var varargs = Option.required("varargs");
+    var varargs = Option.varargs("varargs");
     var splitter = Splitter.of(single2, required1, single1, required2, varargs);
     var argumentMap = splitter.split("-single1", "foo", "-single2", "bar", "r1.txt", "r2.txt", "r3.txt", "r4.txt");
     assertAll(
@@ -204,13 +204,13 @@ public class SplitterOptionTests {
     );
   }
 
-  //@Test
+  @Test
   void splitterOfRequireRepeatableAndVarargs() {
     var repeatable1 = Option.repeatable("-repeatable1");
     var repeatable2 = Option.repeatable("-repeatable2");
     var required1 = Option.required("required1");
     var required2 = Option.required("required2");
-    var varargs = Option.required("varargs");
+    var varargs = Option.varargs("varargs");
     var splitter = Splitter.of(repeatable1, required1, required2, repeatable2, varargs);
     var argumentMap = splitter.split("-repeatable1", "foo", "-repeatable2", "bar", "-repeatable2", "baz", "r1.txt", "r2.txt", "r3.txt", "r4.txt");
     assertAll(
@@ -246,7 +246,7 @@ public class SplitterOptionTests {
     );
   }
 
-  //@Test
+  @Test
   void splitterOfAllOptionWithVarargs() {
     var flag1 = Option.flag("-flag1");
     var flag2 = Option.flag("-flag2");
@@ -256,7 +256,7 @@ public class SplitterOptionTests {
     var repeatable2 = Option.repeatable("-repeatable2");
     var required1 = Option.required("required1");
     var required2 = Option.required("required2");
-    var varargs = Option.required("varargs");
+    var varargs = Option.varargs("varargs");
     var splitter = Splitter.of(single1, repeatable1, required1, flag2, required2, repeatable2, varargs, flag1, single2);
     var argumentMap = splitter.split("-single1", "foo", "-flag1", "-repeatable1", "bar", "-repeatable2", "baz", "-single2", "biz", "-repeatable2", "buz", "-flag2", "r1.txt", "r2.txt", "r3.txt", "r4.txt");
     assertAll(
@@ -296,7 +296,7 @@ public class SplitterOptionTests {
     );
   }
 
-  //@Test
+  @Test
   void splitterOfAllOptionListArgsWithVarargs() {
     var flag1 = Option.flag("-flag1");
     var flag2 = Option.flag("-flag2");
@@ -306,7 +306,7 @@ public class SplitterOptionTests {
     var repeatable2 = Option.repeatable("-repeatable2");
     var required1 = Option.required("required1");
     var required2 = Option.required("required2");
-    var varargs = Option.required("varargs");
+    var varargs = Option.varargs("varargs");
     var splitter = Splitter.of(single1, repeatable1, required1, flag2, required2, repeatable2, varargs, flag1, single2);
     var argumentMap = splitter.split(List.of("-single1", "foo", "-flag1", "-repeatable1", "bar", "-repeatable2", "baz", "-single2", "biz", "-repeatable2", "buz", "-flag2", "r1.txt", "r2.txt", "r3.txt", "r4.txt"));
     assertAll(
@@ -342,7 +342,7 @@ public class SplitterOptionTests {
     );
   }
 
-  //@Test
+  @Test
   void splitterOfAllNonPositionalWithVarargs() {
     var flag1 = Option.flag("-flag1");
     var flag2 = Option.flag("-flag2");
@@ -350,7 +350,7 @@ public class SplitterOptionTests {
     var single2 = Option.single("-single2");
     var repeatable1 = Option.repeatable("-repeatable1");
     var repeatable2 = Option.repeatable("-repeatable2");
-    var varargs = Option.required("varargs");
+    var varargs = Option.varargs("varargs");
     var splitter = Splitter.of(varargs, single1, repeatable1, flag2, repeatable2, flag1, single2);
     var argumentMap = splitter.split("-single1", "foo", "-flag1", "-repeatable1", "bar", "-repeatable2", "baz", "-single2", "biz", "-repeatable1", "buz", "-flag2", "r3.txt", "r4.txt");
     assertAll(

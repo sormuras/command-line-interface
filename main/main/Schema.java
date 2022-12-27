@@ -3,8 +3,8 @@ package main;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -18,7 +18,6 @@ import static java.util.stream.IntStream.range;
 import static main.AbstractOption.isVarargs;
 import static main.AbstractOption.applyConverter;
 import static main.AbstractOption.defaultValue;
-import static main.AbstractOption.name;
 
 /**
  * Schema used to split the command line into arguments.
@@ -210,23 +209,23 @@ public class Schema<T> {
 
   private static final class Workspace {
     private final List<Option<?>> options;
-    private final Map<String, Integer> indexMap;
+    private final IdentityHashMap<Option<?>, Integer> indexMap;
     private final Object[] array;
 
     private Workspace(List<Option<?>> options) {
       this.options = options;
-      indexMap = range(0, options.size()).boxed().collect(toMap(i -> name(options.get(i)), i -> i));
+      indexMap = range(0, options.size()).boxed().collect(toMap(options::get, i -> i, (_1, _2) -> { throw null; }, IdentityHashMap::new));
       var array = new Object[options.size()];
       Arrays.setAll(array, i -> defaultValue(options.get(i)));
       this.array = array;
     }
 
     Object get(Option<?> option) {
-      return array[indexMap.get(name(option))];
+      return array[indexMap.get(option)];
     }
 
     void set(Option<?> option, Object value) {
-      array[indexMap.get(name(option))] = value;
+      array[indexMap.get(option)] = value;
     }
 
     private static Object convert(Option<?> option, Object value) {
