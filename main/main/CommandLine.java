@@ -1,10 +1,15 @@
 package main;
 
 import static java.util.Objects.requireNonNull;
+import static main.OptionType.FLAG;
+import static main.OptionType.OPTIONAL;
+import static main.OptionType.REPEATABLE;
+import static main.OptionType.REQUIRED;
+import static main.OptionType.SUB;
+import static main.OptionType.VARARGS;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
@@ -13,7 +18,13 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-public interface Command<T> {
+/**
+ * A command line argument model with focus on converting a sequence of arguments to an object
+ * representation as well as allowing to print a man page or validate the input.
+ *
+ * @param <T> target type of the object that represents the resulting command line arguments
+ */
+public interface CommandLine<T> {
 
   /**
    * @return lists all options of a command in their declaration order
@@ -38,17 +49,15 @@ public interface Command<T> {
 
   interface Option {
 
+    String name();
+
     OptionType type();
 
-    List<String> names();
+    List<String> handles();
 
     Class<?> of();
 
     Optional<? extends Factory<?>> sub();
-
-    default String name() {
-      return names().iterator().next();
-    }
 
     /**
      * Adds or sets the option raw value as extracted from the command line arguments.
@@ -59,7 +68,7 @@ public interface Command<T> {
   }
 
   /**
-   * Creates new instances of a {@link Command} state.
+   * Creates new instances of a {@link CommandLine} state.
    *
    * @param <T> type of the command result value
    */
@@ -69,7 +78,7 @@ public interface Command<T> {
     /**
      * @return a fresh instance of a command with empty (initial) state
      */
-    Command<T> create();
+    CommandLine<T> create();
   }
 
   /**
@@ -124,18 +133,18 @@ public interface Command<T> {
       return new Builder<>(List.copyOf(options), init, exit)::createCommand;
     }
 
-    private Command<T> createCommand() {
+    private CommandLine<T> createCommand() {
       A state = init.get();
       var optionValues = options.stream().map(OptionValue::empty).toList();
       record Instance<A, T>(List<? extends OptionValue<A, ?>> options, A state, Function<A, T> exit)
-          implements Command<T> {
+          implements CommandLine<T> {
         @Override
         public T complete() {
           options.forEach(opt -> opt.complete(state));
           return exit.apply(state);
         }
       }
-      checkDuplicates(optionValues);
+      checkNoHandleCollisions(optionValues);
       checkVarargs(optionValues);
       return new Instance<>(optionValues, state, exit);
     }
@@ -145,71 +154,94 @@ public interface Command<T> {
     }
 
     private <V> Builder<A, T> add(
+        String name,
         OptionType type,
-        String[] names,
+        String[] handles,
         Class<V> of,
         Function<String, V> from,
         BiConsumer<A, List<V>> to,
         Factory<V> sub) {
       return add(
           new OptionValue<>(
-              type, List.of(names), of, from, to, Optional.ofNullable(sub), List.of()));
+              name, type, List.of(handles), of, from, to, Optional.ofNullable(sub), List.of()));
     }
 
     public <V> Builder<A, T> addSub(
-        Class<V> of, BiConsumer<A, V> to, Factory<V> from, String... names) {
-      return add(OptionType.SUB, names, of, str -> null, valueToList(to, null), from);
+        String name, Class<V> of, BiConsumer<A, V> to, Factory<V> from, String... handles) {
+      return add(name, SUB, handles, of, str -> null, valueToList(to, null), from);
     }
 
-    public Builder<A, T> addFlag(BiConsumer<A, Boolean> to, String... names) {
+    public Builder<A, T> addFlag(String name, BiConsumer<A, Boolean> to, String... handles) {
       return add(
-          OptionType.FLAG, names, Boolean.class, Boolean::valueOf, valueToList(to, false), null);
+          name, FLAG, handles, Boolean.class, Boolean::valueOf, valueToList(to, false), null);
     }
 
-    public Builder<A, T> addOptional(BiConsumer<A, Optional<String>> to, String... names) {
-      return addOptional(String.class, Function.identity(), to, names);
-    }
-
-    public <V> Builder<A, T> addOptional(
-        Class<V> of, Function<String, V> from, BiConsumer<A, Optional<V>> to, String... names) {
-      return add(OptionType.OPTIONAL, names, of, from, optionalToList(to), null);
+    public Builder<A, T> addOptional(
+        String name, BiConsumer<A, Optional<String>> to, String... handles) {
+      return addOptional(name, String.class, Function.identity(), to, handles);
     }
 
     public <V> Builder<A, T> addOptional(
-        Class<V> of, BiConsumer<A, Optional<V>> to, Factory<V> from, String... names) {
-      return add(OptionType.OPTIONAL, names, of, str -> null, optionalToList(to), from);
+        String name,
+        Class<V> of,
+        Function<String, V> from,
+        BiConsumer<A, Optional<V>> to,
+        String... handles) {
+      return add(name, OPTIONAL, handles, of, from, optionalToList(to), null);
     }
 
-    public Builder<A, T> addRequired(BiConsumer<A, String> to, String... names) {
-      return addRequired(String.class, Function.identity(), to, names);
+    public <V> Builder<A, T> addOptional(
+        String name,
+        Class<V> of,
+        BiConsumer<A, Optional<V>> to,
+        Factory<V> from,
+        String... handles) {
+      return add(name, OPTIONAL, handles, of, str -> null, optionalToList(to), from);
+    }
+
+    public Builder<A, T> addRequired(String name, BiConsumer<A, String> to, String... handles) {
+      return addRequired(name, String.class, Function.identity(), to, handles);
     }
 
     public <V> Builder<A, T> addRequired(
-        Class<V> of, Function<String, V> from, BiConsumer<A, V> to, String... names) {
-      return add(OptionType.REQUIRED, names, of, from, valueToList(to, null), null);
+        String name,
+        Class<V> of,
+        Function<String, V> from,
+        BiConsumer<A, V> to,
+        String... handles) {
+      return add(name, REQUIRED, handles, of, from, valueToList(to, null), null);
     }
 
-    public Builder<A, T> addRepeatable(BiConsumer<A, List<String>> to, String... names) {
-      return addRepeatable(String.class, Function.identity(), to, names);
+    public Builder<A, T> addRepeatable(
+        String name, BiConsumer<A, List<String>> to, String... handles) {
+      return addRepeatable(name, String.class, Function.identity(), to, handles);
     }
 
     public <V> Builder<A, T> addRepeatable(
-        Class<V> of, Function<String, V> from, BiConsumer<A, List<V>> to, String... names) {
-      return add(OptionType.REPEATABLE, names, of, from, to, null);
+        String name,
+        Class<V> of,
+        Function<String, V> from,
+        BiConsumer<A, List<V>> to,
+        String... handles) {
+      return add(name, REPEATABLE, handles, of, from, to, null);
     }
 
     public <V> Builder<A, T> addRepeatable(
-        Class<V> of, BiConsumer<A, List<V>> to, Factory<V> from, String... names) {
-      return add(OptionType.REPEATABLE, names, of, str -> null, to, from);
+        String name, Class<V> of, BiConsumer<A, List<V>> to, Factory<V> from, String... handles) {
+      return add(name, REPEATABLE, handles, of, str -> null, to, from);
     }
 
-    public Builder<A, T> addVarargs(BiConsumer<A, String[]> to, String... names) {
-      return addVarargs(String.class, Function.identity(), to, names);
+    public Builder<A, T> addVarargs(String name, BiConsumer<A, String[]> to, String... handles) {
+      return addVarargs(name, String.class, Function.identity(), to, handles);
     }
 
     public <V> Builder<A, T> addVarargs(
-        Class<V> of, Function<String, V> from, BiConsumer<A, V[]> to, String... names) {
-      return add(OptionType.VARARGS, names, of, from, arrayToList(of, to), null);
+        String name,
+        Class<V> of,
+        Function<String, V> from,
+        BiConsumer<A, V[]> to,
+        String... handles) {
+      return add(name, VARARGS, handles, of, from, arrayToList(of, to), null);
     }
 
     @SuppressWarnings("unchecked")
@@ -227,18 +259,20 @@ public interface Command<T> {
           to.accept(state, list.isEmpty() ? Optional.empty() : Optional.of(list.get(0)));
     }
 
-    private static void checkDuplicates(List<? extends Option> options) {
-      var optionsByName = new HashMap<String, Option>();
-      for (var option : options) {
-        var names = option.names();
-        for (var name : names) {
-          var otherOption = optionsByName.put(name, option);
-          if (otherOption == option)
+    private static void checkNoHandleCollisions(List<? extends Option> options) {
+      for (int i = 0; i < options.size(); i++) {
+        var a = options.get(i);
+        for (int j = i + 1; j < options.size(); j++) {
+          var b = options.get(j);
+          if (a.handles().stream().anyMatch(handle -> b.handles().contains(handle))) {
             throw new IllegalArgumentException(
-                "option " + option + " declares duplicated name " + name);
-          if (otherOption != null)
-            throw new IllegalArgumentException(
-                "options " + option + " and " + otherOption + " both declares name " + name);
+                "options "
+                    + a.name()
+                    + " and "
+                    + b.name()
+                    + " both declares handle(s) "
+                    + new ArrayList<>(a.handles()).retainAll(b.handles()));
+          }
         }
       }
     }
@@ -254,11 +288,9 @@ public interface Command<T> {
     }
 
     private record OptionValue<A, T>(
+        String name,
         OptionType type,
-        // TODO distinguish name and handles
-        // the name is just a unique term used to refer to the option, its role
-        // the handles are the keywords used on the command line to select an option
-        List<String> names,
+        List<String> handles,
         Class<T> of,
         Function<String, T> from,
         BiConsumer<A, List<T>> to,
@@ -267,13 +299,14 @@ public interface Command<T> {
         implements Option {
 
       public OptionValue {
+        requireNonNull(name, "name is null");
         requireNonNull(type, "type is null");
-        requireNonNull(names, "names is null");
+        requireNonNull(handles, "handles is null");
         requireNonNull(of, "of is null");
         requireNonNull(from, "from is null");
-        if (names.isEmpty() && !type.isPositional())
+        if (handles.isEmpty() && !type.isPositional())
           throw new IllegalArgumentException(
-              "Option of type " + type + " must have at least one name");
+              "Option of type " + type + " must have at least one handle");
       }
 
       @Override
@@ -288,7 +321,7 @@ public interface Command<T> {
       OptionValue<A, T> empty() {
         ArrayList<T> copy = new ArrayList<>();
         Optional<Factory<T>> linkedSub = sub.map(factory -> link(factory, copy));
-        return new OptionValue<>(type, names, of, from, to, linkedSub, copy);
+        return new OptionValue<>(name, type, handles, of, from, to, linkedSub, copy);
       }
 
       /**
@@ -298,8 +331,8 @@ public interface Command<T> {
        */
       private Factory<T> link(Factory<T> factory, List<T> values) {
         return () ->
-            new Command<>() {
-              Command<T> cmd = factory.create();
+            new CommandLine<>() {
+              CommandLine<T> cmd = factory.create();
 
               @Override
               public List<? extends Option> options() {

@@ -52,7 +52,7 @@ public class JarRecordTests {
   }
 
   private static JarOptions splitInput(String line) {
-    return Splitter.of(lookup(), JarOptions.class).split(line.split("\\s+"));
+    return Splitter.of(lookup(), JarOptions.class).withRemoveQuotes().withSplitAssignment().split(line.split("\\s+"));
   }
 
   @Test

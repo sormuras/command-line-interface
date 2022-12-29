@@ -6,7 +6,7 @@ import static test.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.util.Optional;
-import main.Command;
+import main.CommandLine;
 import main.Splitter;
 import test.api.JTest;
 import test.api.JTest.Test;
@@ -43,15 +43,16 @@ class ProgrammaticTests {
         this.s = s;
       }
     }
-    Command.Factory<Options> cmd =
-        Command.builder(Options::new)
-            .addFlag(Options::setY, "--f")
-            .addRequired(Options::setX)
+    CommandLine.Factory<Options> cmd =
+        CommandLine.builder(Options::new)
+            .addFlag("y", Options::setY, "--f")
+            .addRequired("x", Options::setX)
             .addOptional(
+                "s",
                 SubOptions.class,
                 Options::setS,
-                Command.builder(SubOptions::new)
-                    .addRequired(Path.class, Path::of, SubOptions::setDir)
+                CommandLine.builder(SubOptions::new)
+                    .addRequired("dir", Path.class, Path::of, SubOptions::setDir)
                     .build(),
                 "-s")
             .build();

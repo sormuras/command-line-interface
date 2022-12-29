@@ -21,14 +21,14 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
-import main.Command.Builder;
+import main.CommandLine.Builder;
 
 class FactorySupport {
   private FactorySupport() {
     throw new AssertionError();
   }
 
-  static <T> Command.Factory<T> factory(Lookup lookup, Class<T> schema) {
+  static <T> CommandLine.Factory<T> factory(Lookup lookup, Class<T> schema) {
     requireNonNull(lookup, "lookup is null");
     requireNonNull(schema, "schema is null");
 
@@ -41,11 +41,12 @@ class FactorySupport {
   Using Java POJOs as target types (requires getter/setters)
    */
 
-  private static <T> Command.Factory<T> pojoFactory(Lookup lookup, Class<T> schema) {
+  private static <T> CommandLine.Factory<T> pojoFactory(Lookup lookup, Class<T> schema) {
     Predicate<Field> filter = m -> !m.isSynthetic() && !Modifier.isStatic(m.getModifiers());
+    // FIXME fields are not order as declared
     List<Field> properties = Stream.of(schema.getDeclaredFields()).filter(filter).toList();
-    Command.Builder<Object[], T> cmd =
-        Command.builder(
+    CommandLine.Builder<Object[], T> cmd =
+        CommandLine.builder(
             () -> new Object[properties.size()],
             values -> newPojo(lookup, schema, properties, values));
     for (int i = 0; i < properties.size(); i++) {
@@ -78,10 +79,10 @@ class FactorySupport {
   Using Java Records as target types
    */
 
-  private static <T> Command.Factory<T> recordFactory(Lookup lookup, Class<T> schema) {
+  private static <T> CommandLine.Factory<T> recordFactory(Lookup lookup, Class<T> schema) {
     RecordComponent[] components = schema.getRecordComponents();
-    Command.Builder<Object[], T> cmd =
-        Command.builder(
+    CommandLine.Builder<Object[], T> cmd =
+        CommandLine.builder(
             () -> new Object[components.length], values -> createRecord(schema, values, lookup));
     for (int i = 0; i < components.length; i++) {
       int index = i;
@@ -96,14 +97,15 @@ class FactorySupport {
   Using Java Proxies as target types
    */
 
-  private static <T> Command.Factory<T> proxyFactory(Lookup lookup, Class<T> schema) {
+  private static <T> CommandLine.Factory<T> proxyFactory(Lookup lookup, Class<T> schema) {
     Method[] methods = schema.getMethods();
+    // FIXME methods are not order as declared
     Builder<Object[], T> cmd =
-        Command.builder(
+        CommandLine.builder(
             () -> new Object[methods.length], values -> newProxy(schema, List.of(methods), values));
     for (int i = 0; i < methods.length; i++) {
       Method m = methods[i];
-      if (!Modifier.isStatic(m.getModifiers())) {
+      if (!m.isSynthetic() && !Modifier.isStatic(m.getModifiers())) {
         int index = i;
         BiConsumer<Object[], Object> to = (values, value) -> values[index] = value;
         cmd =
@@ -129,43 +131,49 @@ class FactorySupport {
   private static <T> Builder<Object[], T> addOption(
       Lookup lookup,
       Builder<Object[], T> builder,
-      AnnotatedElement component,
+      AnnotatedElement source,
       String name,
       Class<?> type,
       Type genericType,
       BiConsumer<Object[], Object> to) {
-    var nameAnno = component.getAnnotation(Name.class);
-    // TODO make name of positionals dependent; when component name starts with _ it gets a name,
-    // otherwise not
-    var names = nameAnno != null ? nameAnno.value() : new String[] {name.replace('_', '-')};
     var optionType = OptionType.of(type);
+
+    var handlesSource = source.getAnnotation(Name.class);
+    var handles =
+        handlesSource != null
+            ? handlesSource.value()
+            : optionType.isPositional() && !name.startsWith("-")
+                ? new String[0]
+                : new String[] {name.replace('_', '-')};
     var subCommandType = toSubCommandType(type, genericType);
     var valueType = valueTypeFrom(type, genericType);
-    Command.Factory<?> subCommand = subCommandType == null ? null : factory(lookup, subCommandType);
+    CommandLine.Factory<?> subCommand =
+        subCommandType == null ? null : factory(lookup, subCommandType);
     return addOption(
-        lookup, builder, optionType, names, valueType, to, (Command.Factory) subCommand);
+        lookup, builder, name, optionType, handles, valueType, to, (CommandLine.Factory) subCommand);
   }
 
   private static <T, V> Builder<Object[], T> addOption(
       Lookup lookup,
       Builder<Object[], T> builder,
+      String name,
       OptionType type,
       String[] names,
       Class<V> of,
       BiConsumer<Object[], Object> to,
-      Command.Factory<V> subCommand) {
+      CommandLine.Factory<V> subCommand) {
     var valueConverter = valueConverter(lookup, of);
     return switch (type) {
-      case SUB -> builder.addSub(of, to::accept, subCommand, names);
-      case FLAG -> builder.addFlag(to::accept, names);
+      case SUB -> builder.addSub(name, of, to::accept, subCommand, names);
+      case FLAG -> builder.addFlag(name, to::accept, names);
       case OPTIONAL -> subCommand == null
-          ? builder.addOptional(of, valueConverter, to::accept, names)
-          : builder.addOptional(of, to::accept, subCommand, names);
+          ? builder.addOptional(name, of, valueConverter, to::accept, names)
+          : builder.addOptional(name, of, to::accept, subCommand, names);
       case REPEATABLE -> subCommand == null
-          ? builder.addRepeatable(of, valueConverter, to::accept, names)
-          : builder.addRepeatable(of, to::accept, subCommand, names);
-      case REQUIRED -> builder.addRequired(of, valueConverter, to::accept, names);
-      case VARARGS -> builder.addVarargs(of, valueConverter, to::accept, names);
+          ? builder.addRepeatable(name, of, valueConverter, to::accept, names)
+          : builder.addRepeatable(name, of, to::accept, subCommand, names);
+      case REQUIRED -> builder.addRequired(name, of, valueConverter, to::accept, names);
+      case VARARGS -> builder.addVarargs(name, of, valueConverter, to::accept, names);
     };
   }
 

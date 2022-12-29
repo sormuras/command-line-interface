@@ -1,6 +1,5 @@
 package main;
 
-import static java.lang.Boolean.parseBoolean;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toCollection;
 
@@ -10,11 +9,13 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-import main.Command.Option;
+import main.CommandLine.Option;
 
 @FunctionalInterface
 public interface Splitter<T> {
@@ -23,7 +24,7 @@ public interface Splitter<T> {
     return of(FactorySupport.factory(lookup, schema));
   }
 
-  static <X> Splitter<X> of(Command.Factory<X> cmd) {
+  static <X> Splitter<X> of(CommandLine.Factory<X> cmd) {
     Objects.requireNonNull(cmd, "schema is null");
     return args -> {
       requireNonNull(args, "args is null");
@@ -62,17 +63,37 @@ public interface Splitter<T> {
     return args -> split(preprocessor.apply(args));
   }
 
+  default Splitter<T> withSplitAssignment() {
+    Pattern assign = Pattern.compile("^([-\\w]+)=(.*)$");
+    return withExpand(
+        arg -> {
+          Matcher m = assign.matcher(arg);
+          return m.matches() ? Stream.of(m.group(1), m.group(2)) : Stream.of(arg);
+        });
+  }
+
+  default Splitter<T> withRemoveQuotes() {
+    BiPredicate<String, Character> startsAndEndsWith =
+        (str, c) -> str.charAt(0) == c && str.charAt(str.length() - 1) == c;
+    return withEach(
+        arg ->
+            startsAndEndsWith.test(arg, '"') || startsAndEndsWith.test(arg, '\'')
+                ? arg.substring(1, arg.length() - 1)
+                : arg);
+  }
+
   /*
   Implementation
    */
 
-  private static <T> T split(Command.Factory<T> cmd, boolean nested, Deque<String> remainingArgs) {
+  private static <X> X split(
+      CommandLine.Factory<X> cmd, boolean nested, Deque<String> remainingArgs) {
     var res = cmd.create();
     var options = res.options();
     var requiredOptions =
         res.options(OptionType::isRequired).collect(toCollection(ArrayDeque::new));
-    var optionsByName = new HashMap<String, Option>();
-    options.forEach(opt -> opt.names().forEach(name -> optionsByName.put(name, opt)));
+    var optionsByHandle = new HashMap<String, Option>();
+    options.forEach(opt -> opt.handles().forEach(handle -> optionsByHandle.put(handle, opt)));
     var flagCount = res.options(OptionType::isFlag).count();
     var flagPattern = flagCount == 0 ? null : Pattern.compile("^-[a-zA-Z]{1," + flagCount + "}$");
 
@@ -83,18 +104,14 @@ public interface Splitter<T> {
         throw new IllegalArgumentException("Required option(s) missing: " + requiredOptions);
       }
       // acquire next argument
-      var argument = remainingArgs.removeFirst();
-      int separator = argument.indexOf('=');
-      var noValue = separator == -1;
-      var maybeName = noValue ? argument : argument.substring(0, separator);
-      if ("--".equals(maybeName)) {
+      var handle = remainingArgs.removeFirst();
+      if ("--".equals(handle)) {
         doubleDashMode = true;
         continue;
       }
-      var maybeValue = noValue ? "" : unQuote(argument.substring(separator + 1));
       // try well-known option first
-      if (!doubleDashMode && optionsByName.containsKey(maybeName)) {
-        var option = optionsByName.get(maybeName);
+      if (!doubleDashMode && optionsByHandle.containsKey(handle)) {
+        var option = optionsByHandle.get(handle);
         var name = option.name();
         if (option.type() == OptionType.SUB) {
           split(option, remainingArgs);
@@ -104,21 +121,22 @@ public interface Splitter<T> {
         }
         switch (option.type()) {
           case FLAG:
-            option.add(noValue || parseBoolean(maybeValue) ? "true" : "false");
+            var maybeValue = remainingArgs.peekFirst();
+            if ("true".equals(maybeValue) || "false".equals(maybeValue))
+              option.add(remainingArgs.pop());
+            else option.add("true");
             break;
           case OPTIONAL:
-            if (option.sub().isPresent()) {
-              split(option, remainingArgs);
-            } else option.add(noValue ? remainingArgs.pop() : maybeValue);
+            if (option.sub().isPresent()) split(option, remainingArgs);
+            else option.add(remainingArgs.pop());
             break;
-            // TODO handle named required (these are not positional but required and have a handle,
-            // e.g. "-f file" if it must occur somewhere)
+          case REQUIRED:
+            requiredOptions.remove(option);
+            option.add(remainingArgs.pop());
+            break;
           case REPEATABLE:
-            if (option.sub().isPresent()) {
-              split(option, remainingArgs);
-            } else
-              Stream.of((noValue ? remainingArgs.pop() : maybeValue).split(","))
-                  .forEach(option::add);
+            if (option.sub().isPresent()) split(option, remainingArgs);
+            else Stream.of(remainingArgs.pop().split(",")).forEach(option::add);
             break;
           default:
             throw new AssertionError("Unnamed name? " + name);
@@ -126,21 +144,20 @@ public interface Splitter<T> {
         continue; // with next argument
       }
       // maybe a combination of single letter flags?
-      if (!doubleDashMode && flagPattern != null && flagPattern.matcher(argument).matches()) {
-        var flags = argument.substring(1).chars().mapToObj(c -> "-" + (char) c).toList();
-        if (flags.stream().allMatch(optionsByName::containsKey)) {
-          flags.forEach(flag -> optionsByName.get(flag).add("true"));
+      if (!doubleDashMode && flagPattern != null && flagPattern.matcher(handle).matches()) {
+        var flags = handle.substring(1).chars().mapToObj(c -> "-" + (char) c).toList();
+        if (flags.stream().allMatch(optionsByHandle::containsKey)) {
+          flags.forEach(flag -> optionsByHandle.get(flag).add("true"));
           continue;
         }
       }
       // try required option
       if (!requiredOptions.isEmpty()) {
-        var requiredOption = requiredOptions.pop();
-        requiredOption.add(argument);
+        requiredOptions.pop().add(handle);
         continue;
       }
       // restore pending arguments deque
-      remainingArgs.addFirst(argument);
+      remainingArgs.addFirst(handle);
       if (nested) return res.complete();
       // try globbing all pending arguments into a varargs collector
       var varargsOption = res.options(OptionType::isVarargs).findFirst().orElse(null);
@@ -152,13 +169,7 @@ public interface Splitter<T> {
     }
   }
 
-  private static String unQuote(String str) {
-    return str.charAt(0) == '"' && str.charAt(str.length() - 1) == '"'
-        ? str.substring(1, str.length() - 1)
-        : str;
-  }
-
-  private static void split(Option option, Deque<String> pendingArguments) {
-    split(option.sub().get(), true, pendingArguments);
+  private static void split(Option option, Deque<String> remainingArgs) {
+    split(option.sub().get(), true, remainingArgs);
   }
 }
