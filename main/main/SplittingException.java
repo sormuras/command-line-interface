@@ -1,5 +1,6 @@
 package main;
 
+import java.io.Serial;
 import java.util.stream.Stream;
 
 /**
@@ -8,6 +9,9 @@ import java.util.stream.Stream;
  * @see Splitter#split(Stream)
  */
 public class SplittingException extends RuntimeException {
+
+  @Serial private static final long serialVersionUID = 6958903301611893552L;
+
   /**
    * Creates a splitting exception with a message and a cause.
    *

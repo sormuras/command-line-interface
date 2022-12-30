@@ -9,6 +9,9 @@ import static java.util.Objects.requireNonNull;
  * Helper class that generate the help associated to a command line arguments.
  */
 public class Manual {
+  private Manual() {
+    throw new AssertionError();
+  }
 
   /**
    * Generate the help of a command line application.

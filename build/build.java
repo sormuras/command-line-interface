@@ -6,7 +6,7 @@ import java.util.spi.ToolProvider;
 
 class build {
   public static void main(String... args) throws Exception {
-    tool("javac                       --module main --module-source-path . -d classes");
+    tool("javac -Xlint -Werror        --module main --module-source-path . -d classes");
     tool("javac --module-path classes --module test --module-source-path . -d classes");
     if (args.length == 0) {
       java("--module-path classes --module test/test.AllTests");

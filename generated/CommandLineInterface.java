@@ -1,4 +1,5 @@
-// Generated on 2022-12-30T07:08:20.910024+01:00[Europe/Berlin]
+// Generated on 2022-12-30T08:20:38.103844100+01:00[Europe/Berlin]
+import java.io.Serial;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -599,6 +600,9 @@ public interface CommandLineInterface {
    * Helper class that generate the help associated to a command line arguments.
    */
   public class Manual {
+    private Manual() {
+      throw new AssertionError();
+    }
   
     /**
      * Generate the help of a command line application.
@@ -1812,6 +1816,9 @@ public interface CommandLineInterface {
    * @see Splitter#split(Stream)
    */
   public class SplittingException extends RuntimeException {
+  
+    @Serial private static final long serialVersionUID = 6958903301611893552L;
+  
     /**
      * Creates a splitting exception with a message and a cause.
      *
