@@ -17,6 +17,8 @@ class build {
               + " "
               + String.join(" ", copyOfRange(args, 1, args.length)));
     }
+    java("build/generate.java");
+    tool("javac -d classes generated/CommandLineInterface.java");
   }
 
   static void tool(String line) {
