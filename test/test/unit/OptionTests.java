@@ -1,7 +1,7 @@
 package test.unit;
 
 import main.Option;
-import main.Option.Type;
+import main.OptionType;
 import main.Schema;
 import main.Splitter;
 import test.api.JTest;
@@ -26,7 +26,7 @@ public class OptionTests {
   void flag() {
     var option = Option.flag("--foo", "-f");
     assertAll(
-        () -> assertEquals(Type.FLAG, option.type()),
+        () -> assertEquals(OptionType.FLAG, option.type()),
         () -> assertEquals(List.of("--foo", "-f"), List.copyOf(option.names())),
         () -> assertEquals("", option.help()),
         () -> assertEquals(null, option.nestedSchema())
@@ -47,7 +47,7 @@ public class OptionTests {
   void single() {
     var option = Option.single("--foo", "-f");
     assertAll(
-        () -> assertEquals(Type.SINGLE, option.type()),
+        () -> assertEquals(OptionType.SINGLE, option.type()),
         () -> assertEquals(List.of("--foo", "-f"), List.copyOf(option.names())),
         () -> assertEquals("", option.help()),
         () -> assertEquals(null, option.nestedSchema())
@@ -68,7 +68,7 @@ public class OptionTests {
   void required() {
     var option = Option.required("--foo", "-f");
     assertAll(
-        () -> assertEquals(Type.REQUIRED, option.type()),
+        () -> assertEquals(OptionType.REQUIRED, option.type()),
         () -> assertEquals(List.of("--foo", "-f"), List.copyOf(option.names())),
         () -> assertEquals("", option.help()),
         () -> assertEquals(null, option.nestedSchema())
@@ -89,7 +89,7 @@ public class OptionTests {
   void repeatable() {
     var option = Option.repeatable("--foo", "-f");
     assertAll(
-        () -> assertEquals(Type.REPEATABLE, option.type()),
+        () -> assertEquals(OptionType.REPEATABLE, option.type()),
         () -> assertEquals(List.of("--foo", "-f"), List.copyOf(option.names())),
         () -> assertEquals("", option.help()),
         () -> assertEquals(null, option.nestedSchema())
@@ -110,7 +110,7 @@ public class OptionTests {
   void varargs() {
     var option = Option.varargs("--foo", "-f");
     assertAll(
-        () -> assertEquals(Type.VARARGS, option.type()),
+        () -> assertEquals(OptionType.VARARGS, option.type()),
         () -> assertEquals(List.of("--foo", "-f"), List.copyOf(option.names())),
         () -> assertEquals("", option.help()),
         () -> assertEquals(null, option.nestedSchema())

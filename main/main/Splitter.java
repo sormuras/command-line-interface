@@ -41,7 +41,7 @@ import java.util.stream.Stream;
  * Each component of the record is transformed to an {@link Option}. The component type determines
  * the option type, a boolean/Boolean is a {@link Option.Flag Flag}, an Optional is a {@link Option.Single Single},
  * a List is a {@link Option.Repeatable Repeatable}, an array is a {@link Option.Varargs Varargs},
- * a record is a {@link main.Option.Branch Branch} otherwise it's a {@link Option.Required Required}.
+ * a record is a {@link Option.Branch Branch} otherwise it's a {@link Option.Required Required}.
  * <p>
  * The annotations &#064;{@link Name} and &#064;{@link Help} specify respectively
  * {@link Option#names() several names} and a {@link Option#help() help text} of an option.

@@ -1,7 +1,5 @@
 package main;
 
-import main.Option.Type;
-
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
@@ -12,13 +10,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
-
-import static main.Option.Type.BRANCH;
-import static main.Option.Type.FLAG;
-import static main.Option.Type.REPEATABLE;
-import static main.Option.Type.REQUIRED;
-import static main.Option.Type.SINGLE;
-import static main.Option.Type.VARARGS;
 
 /**
  * Uses {@link Record}s to derive a {@link Schema} from the {@link RecordComponent}s as well as
@@ -55,13 +46,13 @@ class RecordSchemaSupport {
          .orElseThrow(() -> new UnsupportedOperationException("no converter for component " + component));
   }
 
-  private static Type optionTypeFrom(Class<?> type) {
-    if (type.isRecord()) return BRANCH;
-    if (type == Boolean.class || type == boolean.class) return FLAG;
-    if (type == Optional.class) return SINGLE;
-    if (type == List.class) return REPEATABLE;
-    if (type.isArray()) return VARARGS;
-    return REQUIRED;
+  private static OptionType optionTypeFrom(Class<?> type) {
+    if (type.isRecord()) return OptionType.BRANCH;
+    if (type == Boolean.class || type == boolean.class) return OptionType.FLAG;
+    if (type == Optional.class) return OptionType.SINGLE;
+    if (type == List.class) return OptionType.REPEATABLE;
+    if (type.isArray()) return OptionType.VARARGS;
+    return OptionType.REQUIRED;
   }
 
   private static Class<? extends Record> toNestedSchema(RecordComponent component) {

@@ -1,7 +1,5 @@
 package main;
 
-import main.AbstractOption.NameSet;
-
 import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
@@ -59,28 +57,6 @@ import java.util.stream.Stream;
  * @param <T> type of the argument(s) described by this Option.
  */
 public sealed interface Option<T> permits AbstractOption {
-  /**
-   * Type of {@link Option}.
-   */
-  enum Type {
-    BRANCH(null),
-    /** An optional flag, like {@code --verbose}, {@code quiet=true} or {@code quiet=false}. */
-    FLAG(false),
-    /** An optional key-value pair, like {@code --version 47.11} or {@code version=47.11}. */
-    SINGLE(Optional.empty()),
-    /** An optional and repeatable key, like {@code --with alpha --with omega} or {@code --with=alpha,omega} */
-    REPEATABLE(List.of()),
-    /** A required positional option */
-    REQUIRED(null),
-    /** An array of all unhandled arguments. */
-    VARARGS(new String[0]);
-
-    final Object defaultValue;
-
-    Type(Object defaultValue) {
-      this.defaultValue = defaultValue;
-    }
-  }
 
   /**
    * An option that branch to a nested schema.
@@ -91,7 +67,7 @@ public sealed interface Option<T> permits AbstractOption {
     final UnaryOperator<T> converter;
 
     Branch(Set<String> names, UnaryOperator<T> converter, String help, Schema<?> nestedSchema) {
-      super(Type.BRANCH, names, help, nestedSchema);
+      super(OptionType.BRANCH, names, help, nestedSchema);
       this.converter = requireNonNull(converter, "converter is null");
       requireNonNull(nestedSchema, "schema is null");
     }
@@ -141,7 +117,7 @@ public sealed interface Option<T> permits AbstractOption {
     final UnaryOperator<Boolean> converter;
 
     Flag(Set<String> names, UnaryOperator<Boolean> converter, String help) {
-      super(Type.FLAG, names, help, null);
+      super(OptionType.FLAG, names, help, null);
       this.converter = requireNonNull(converter, "converter is null");
     }
 
@@ -192,7 +168,7 @@ public sealed interface Option<T> permits AbstractOption {
     final Function<Optional<?>, ? extends Optional<T>> converter;
 
     Single(Set<String> names, Function<Optional<?>, ? extends Optional<T>> converter, String help, Schema<?> nestedSchema) {
-      super(Type.SINGLE, names, help, nestedSchema);
+      super(OptionType.SINGLE, names, help, nestedSchema);
       this.converter = requireNonNull(converter, "converter is null");
     }
 
@@ -263,7 +239,7 @@ public sealed interface Option<T> permits AbstractOption {
     final Function<List<?>, ? extends List<T>> converter;
 
     Repeatable(Set<String> names, Function<List<?>, ? extends List<T>> converter, String help, Schema<?> nestedSchema) {
-      super(Type.REPEATABLE, names, help, nestedSchema);
+      super(OptionType.REPEATABLE, names, help, nestedSchema);
       this.converter = requireNonNull(converter, "converter is null");
     }
 
@@ -334,7 +310,7 @@ public sealed interface Option<T> permits AbstractOption {
     final Function<? super String, ? extends T> converter;
 
     Required(Set<String> names, Function<? super String, ? extends T> converter, String help) {
-      super(Type.REQUIRED, names, help, null);
+      super(OptionType.REQUIRED, names, help, null);
       this.converter = requireNonNull(converter, "converter is null");
     }
 
@@ -386,7 +362,7 @@ public sealed interface Option<T> permits AbstractOption {
     final Function<? super String[], ? extends T[]> converter;
 
     Varargs(Set<String> names, Function<? super String[], ? extends T[]> converter, String help) {
-      super(Type.VARARGS, names, help, null);
+      super(OptionType.VARARGS, names, help, null);
       this.converter = requireNonNull(converter, "converter is null");
     }
 
@@ -435,7 +411,7 @@ public sealed interface Option<T> permits AbstractOption {
    * Returns the type of the option.
    * @return the type of the option.
    */
-  Type type();
+  OptionType type();
 
   /**
    * Returns the names of the options.
@@ -456,10 +432,10 @@ public sealed interface Option<T> permits AbstractOption {
   Schema<?> nestedSchema();
 
   /**
-   * Creates an option of type {@link Type#FLAG} with names.
+   * Creates an option of type {@link OptionType#FLAG} with names.
    *
    * @param names the names of the options.
-   * @return a new {@link Type#FLAG} option.
+   * @return a new {@link OptionType#FLAG} option.
    * @throws IllegalArgumentException is there are duplicated names.
    */
   static Flag flag(String... names) {
@@ -467,10 +443,10 @@ public sealed interface Option<T> permits AbstractOption {
   }
 
   /**
-   * Creates an option of type {@link Type#SINGLE} with names.
+   * Creates an option of type {@link OptionType#SINGLE} with names.
    *
    * @param names the names of the options.
-   * @return a new {@link Type#SINGLE} option.
+   * @return a new {@link OptionType#SINGLE} option.
    * @throws IllegalArgumentException is there are duplicated names.
    */
   @SuppressWarnings("unchecked")
@@ -479,10 +455,10 @@ public sealed interface Option<T> permits AbstractOption {
   }
 
   /**
-   * Creates an option of type {@link Type#REPEATABLE} with names.
+   * Creates an option of type {@link OptionType#REPEATABLE} with names.
    *
    * @param names the names of the options.
-   * @return a new {@link Type#REPEATABLE} option.
+   * @return a new {@link OptionType#REPEATABLE} option.
    * @throws IllegalArgumentException is there are duplicated names.
    */
   @SuppressWarnings("unchecked")
@@ -491,10 +467,10 @@ public sealed interface Option<T> permits AbstractOption {
   }
 
   /**
-   * Creates an option of type {@link Type#REQUIRED} with names.
+   * Creates an option of type {@link OptionType#REQUIRED} with names.
    *
    * @param names the names of the options.
-   * @return a new {@link Type#REQUIRED} option.
+   * @return a new {@link OptionType#REQUIRED} option.
    * @throws IllegalArgumentException is there are duplicated names.
    */
   static Required<String> required(String... names) {
@@ -502,10 +478,10 @@ public sealed interface Option<T> permits AbstractOption {
   }
 
   /**
-   * Creates an option of type {@link Type#VARARGS} with names.
+   * Creates an option of type {@link OptionType#VARARGS} with names.
    *
    * @param names the names of the options.
-   * @return a new {@link Type#VARARGS} option.
+   * @return a new {@link OptionType#VARARGS} option.
    * @throws IllegalArgumentException is there are duplicated names.
    */
   static Varargs<String> varargs(String... names) {

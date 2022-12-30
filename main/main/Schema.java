@@ -15,9 +15,6 @@ import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.IntStream.range;
-import static main.AbstractOption.isVarargs;
-import static main.AbstractOption.applyConverter;
-import static main.AbstractOption.defaultValue;
 
 /**
  * Schema used to split the command line into arguments.
@@ -87,7 +84,7 @@ public class Schema<T> {
     if (varargs.size() > 1)
       throw new IllegalArgumentException("Too many varargs types specified: " + varargs);
     var positionals = options.stream().filter(AbstractOption::isPositional).toList();
-    if (!isVarargs(positionals.get(positionals.size() - 1)))
+    if (!AbstractOption.isVarargs(positionals.get(positionals.size() - 1)))
       throw new IllegalArgumentException("varargs is not at last positional option: " + options);
   }
 
@@ -118,7 +115,7 @@ public class Schema<T> {
       // try well-known option first
       if (!doubleDashMode && optionalOptionByName.containsKey(argumentName)) {
         var option = optionalOptionByName.get(argumentName);
-        if (option.type() == Option.Type.BRANCH) {
+        if (option.type() == OptionType.BRANCH) {
           workspace.set(option, splitNested(pendingArguments, option));
           if (!pendingArguments.isEmpty())
             throw new SplittingException("Too many arguments: " + pendingArguments);
@@ -216,7 +213,7 @@ public class Schema<T> {
       this.options = options;
       indexMap = range(0, options.size()).boxed().collect(toMap(options::get, i -> i, (_1, _2) -> { throw null; }, IdentityHashMap::new));
       var array = new Object[options.size()];
-      Arrays.setAll(array, i -> defaultValue(options.get(i)));
+      Arrays.setAll(array, i -> AbstractOption.defaultValue(options.get(i)));
       this.array = array;
     }
 
@@ -230,7 +227,7 @@ public class Schema<T> {
 
     private static Object convert(Option<?> option, Object value) {
       try {
-        return applyConverter(option, value);
+        return AbstractOption.applyConverter(option, value);
       } catch(RuntimeException e) {
         throw new SplittingException("error while calling converter for option " + option, e);
       }
