@@ -15,7 +15,7 @@ import java.util.stream.Stream;
  * Uses {@link Record}s to derive a {@link Schema} from the {@link RecordComponent}s as well as
  * container for the result values.
  */
-class RecordSchemaSupport {
+final class RecordSchemaSupport {
   private RecordSchemaSupport() {
     throw new AssertionError();
   }

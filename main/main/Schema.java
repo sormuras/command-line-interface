@@ -30,14 +30,14 @@ import static java.util.stream.IntStream.range;
  * </ul>
  * <p>
  * The schema also specify a finalizer function that is called with the list of arguments decoded by
- * the {@link Splitter} so the arguments can be bundled into a more user-friendly class.
+ * the {@link Splitter} so the arguments collected into a more user-friendly data structure.
  * <p>
- * This class is deigned to be immutable so the finalizer should not do any side effects.
+ * A schema should be to be immutable so the finalizer should not do any side effects.
  *
  * @param <T> the type of the value bundling the command line arguments.
  * @see Splitter
  */
-public class Schema<T> {
+public final class Schema<T> {
   final List<Option<?>> options;
   private final Function<? super List<Object>, ? extends T> finalizer;
 

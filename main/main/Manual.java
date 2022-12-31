@@ -8,7 +8,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * Helper class that generate the help associated to a command line arguments.
  */
-public class Manual {
+public final class Manual {
   private Manual() {
     throw new AssertionError();
   }

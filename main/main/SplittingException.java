@@ -8,7 +8,7 @@ import java.util.stream.Stream;
  *
  * @see Splitter#split(Stream)
  */
-public class SplittingException extends RuntimeException {
+public final class SplittingException extends RuntimeException {
 
   @Serial private static final long serialVersionUID = 6958903301611893552L;
 
