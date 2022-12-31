@@ -296,10 +296,4 @@ public class OptionTests {
         () -> assertArrayEquals(new String[] { "biz", "booz" }, argumentMap.argument(varargs))
     );
   }
-
-  @Test
-  void argumentPreconditions() {
-    var flag = Option.flag("-f");
-    assertThrows(NullPointerException.class, () -> flag.argument(null));
-  }
 }

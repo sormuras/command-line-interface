@@ -9,7 +9,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.UnaryOperator;
-import java.util.stream.Stream;
 
 /**
  * An Option is a description of one of more arguments of the command line.
@@ -52,7 +51,6 @@ import java.util.stream.Stream;
  *
  * <p>Options are grouped into a {@link Schema#Schema(List, Function) schema} that is used to create a
  * {@link Splitter#of(Schema) Splitter} that parses the command line.
- * The value of argument(s) of an option are retrieved using {@link #argument(ArgumentMap)}.
  *
  * @param <T> type of the argument(s) described by this Option.
  */
@@ -511,17 +509,4 @@ public sealed interface Option<T> permits AbstractOption {
    * @throws IllegalStateException if the option already has a help text set.
    */
   Option<T> help(String helpText);
-
-  /**
-   * Returns the value of the argument associated with the current option.
-   *
-   * @param argumentMap an argument map produced by {@link Splitter#split(Stream)}.
-   * @return the value of the argument associated with the current option.
-   * @throws IllegalStateException if there is no argument value associated with the current option
-   * in the {@link ArgumentMap}.
-   */
-  default T argument(ArgumentMap argumentMap) {
-    requireNonNull(argumentMap, "dataMap is null");
-    return argumentMap.argument(this);
-  }
 }

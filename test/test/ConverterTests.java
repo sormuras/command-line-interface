@@ -34,10 +34,10 @@ class ConverterTests {
         .convert(Path::of, Path[]::new);
     var splitter = Splitter.of(version, rest);
 
-    var bag = splitter.split("--version", "12", "foo.txt");
+    var map = splitter.split("--version", "12", "foo.txt");
     assertAll(
-        () -> assertEquals(12, version.argument(bag).orElseThrow()),
-        () -> assertEquals(List.of(Path.of("foo.txt")), List.of(rest.argument(bag)))
+        () -> assertEquals(12, map.argument(version).orElseThrow()),
+        () -> assertEquals(List.of(Path.of("foo.txt")), List.of(map.argument(rest)))
     );
   }
 
@@ -104,13 +104,13 @@ class ConverterTests {
         resolver.resolve(lookup, new TypeReference<Path[]>() {}).orElseThrow());
     var splitter = Splitter.of(flag, version, input, message, rest);
 
-    var bag = splitter.split("--version", "12", "hello", "foo.txt");
+    var map = splitter.split("--version", "12", "hello", "foo.txt");
     assertAll(
-        () -> assertFalse(flag.argument(bag)),
-        () -> assertEquals(12, version.argument(bag).orElseThrow()),
-        () -> assertEquals(List.of(), input.argument(bag)),
-        () -> assertEquals("hello", message.argument(bag)),
-        () -> assertEquals(List.of(Path.of("foo.txt")), List.of(rest.argument(bag)))
+        () -> assertFalse(map.argument(flag)),
+        () -> assertEquals(12, map.argument(version).orElseThrow()),
+        () -> assertEquals(List.of(), map.argument(input)),
+        () -> assertEquals("hello", map.argument(message)),
+        () -> assertEquals(List.of(Path.of("foo.txt")), List.of(map.argument(rest)))
     );
   }
 
@@ -131,13 +131,13 @@ class ConverterTests {
         resolver.resolve(lookup, new TypeReference<Path[]>() {}).orElseThrow());
     var splitter = Splitter.of(flag, version, input, message, rest);
 
-    var bag = splitter.split("--version", "12", "hello", "foo.txt");
+    var map = splitter.split("--version", "12", "hello", "foo.txt");
     assertAll(
-        () -> assertFalse(flag.argument(bag)),
-        () -> assertEquals(12, version.argument(bag).orElseThrow()),
-        () -> assertEquals(List.of(), input.argument(bag)),
-        () -> assertEquals("hello", message.argument(bag)),
-        () -> assertEquals(List.of(Path.of("foo.txt")), List.of(rest.argument(bag)))
+        () -> assertFalse(map.argument(flag)),
+        () -> assertEquals(12, map.argument(version).orElseThrow()),
+        () -> assertEquals(List.of(), map.argument(input)),
+        () -> assertEquals("hello", map.argument(message)),
+        () -> assertEquals(List.of(Path.of("foo.txt")), List.of(map.argument(rest)))
     );
   }
 

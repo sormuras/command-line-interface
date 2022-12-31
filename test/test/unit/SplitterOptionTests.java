@@ -381,8 +381,8 @@ public class SplitterOptionTests {
     var splitter = Splitter.of(full, verbose);
     var argumentMap = splitter.split("-vf");
     assertAll(
-        () -> assertTrue(full.argument(argumentMap)),
-        () -> assertTrue(verbose.argument(argumentMap))
+        () -> assertTrue(argumentMap.argument(full)),
+        () -> assertTrue(argumentMap.argument(verbose))
     );
   }
 
