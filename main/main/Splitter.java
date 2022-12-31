@@ -14,7 +14,7 @@ import java.util.stream.Stream;
 
 /**
  * Splits the command line arguments.
- * All the implementations of this interface must be thread-safe.
+ * This implementation is thread safe.
  *
  * <p>A Splitter is created from a schema using {@link #of(Schema)}.
  *    Once configured the Splitter can be used to split arguments using {@link #split(Stream)}.
@@ -25,7 +25,7 @@ import java.util.stream.Stream;
  * </pre>
  *
  * <h2>Using a record to define a schema</h2>
- * <p>There is a convenient method {@link #of(Lookup, Class) of(lookup, class)} that uses a record
+ * <p>There is a convenient method {@link #of(Lookup, Class) of(lookup, record)} that uses a record
  * both as a schema and also as a storage for the arguments.
  * <pre>
  *   record Command(
@@ -69,10 +69,16 @@ import java.util.stream.Stream;
  * <p>The méthodes {@link #withEach(UnaryOperator)} and {@link #withExpand(Function)} allows to
  * pre-process the arguments and respectively modify an argument or expand it into several arguments.
  *
- * @param <T> the type of the class bundling all the arguments extracted from the command line.
+ * @param <T> the type bundling all the arguments extracted from the command line.
  */
-@FunctionalInterface
-public interface Splitter<T> {
+public final class Splitter<T> {
+  private final Schema<T> schema;
+  private final UnaryOperator<Stream<String>> preprocessor;
+
+  private Splitter(Schema<T> schema, UnaryOperator<Stream<String>> preprocessor) {
+    this.schema = schema;
+    this.preprocessor = preprocessor;
+  }
 
   /**
    * Returns a splitter configured from a record class and using the {@link ConverterResolver#defaultResolver() default resolver}.
@@ -86,7 +92,7 @@ public interface Splitter<T> {
    *
    * @param <R> the type of the record.
    */
-  static <R extends Record> Splitter<R> of(Lookup lookup, Class<R> schema) {
+  public static <R extends Record> Splitter<R> of(Lookup lookup, Class<R> schema) {
     return of(lookup, schema, ConverterResolver.defaultResolver());
   }
 
@@ -103,7 +109,7 @@ public interface Splitter<T> {
    *
    * @param <R> the type of the record.
    */
-  static <R extends Record> Splitter<R> of(Lookup lookup, Class<R> schema, ConverterResolver resolver) {
+  public static <R extends Record> Splitter<R> of(Lookup lookup, Class<R> schema, ConverterResolver resolver) {
     requireNonNull(schema, "schema is null");
     requireNonNull(lookup, "lookup is null");
     requireNonNull(resolver, "resolver is null");
@@ -117,7 +123,7 @@ public interface Splitter<T> {
    * @param options the options defining the schema.
    * @return a splitter configured from the options.
    */
-  static Splitter<ArgumentMap> of(Option<?>... options)  {
+  public static Splitter<ArgumentMap> of(Option<?>... options)  {
     requireNonNull(options, "options is null");
     return of(ArgumentMap.toSchema(options));
   }
@@ -130,12 +136,17 @@ public interface Splitter<T> {
    *
    * @param <T> type of the return type of the method {@link #split(Stream)}.
    */
-  static <T> Splitter<T> of(Schema<T> schema) {
+  public static <T> Splitter<T> of(Schema<T> schema) {
     Objects.requireNonNull(schema, "schema is null");
-    return args -> {
-      requireNonNull(args, "args is null");
-      return schema.split(false, args.collect(toCollection(ArrayDeque::new)));
-    };
+    return new Splitter<>(schema, args -> args);
+  }
+
+  /**
+   * Returns the schema used to create this class.
+   * @return the schema used to create this class.
+   */
+  public Schema<T> schema() {
+    return schema;
   }
 
   /**
@@ -146,7 +157,10 @@ public interface Splitter<T> {
    * @return an object gathering the values of the arguments.
    * @throws SplittingException if the arguments does not match the schema.
    */
-  T split(Stream<String> args);
+  public T split(Stream<String> args) {
+    requireNonNull(args, "args is null");
+    return schema.split(false, preprocessor.apply(args).collect(toCollection(ArrayDeque::new)));
+  }
 
   /**
    * Splits the command line argument into different values following the recipe of the {@link Schema}
@@ -160,7 +174,7 @@ public interface Splitter<T> {
    * @return an object gathering the values of the arguments.
    * @throws SplittingException if the arguments does not match the schema.
    */
-  default T split(String... args) {
+  public T split(String... args) {
     requireNonNull(args, "args is null");
     return split(Arrays.stream(args));
   }
@@ -177,7 +191,7 @@ public interface Splitter<T> {
    * @return an object gathering the values of the arguments.
    * @throws SplittingException if the arguments does not match the schema.
    */
-  default T split(List<String> args) {
+  public T split(List<String> args) {
     requireNonNull(args, "args is null");
     return split(args.stream());
   }
@@ -195,9 +209,9 @@ public interface Splitter<T> {
    *
    * @see #split(Stream)
    */
-  default Splitter<T> withEach(UnaryOperator<String> preprocessor) {
+  public Splitter<T> withEach(UnaryOperator<String> preprocessor) {
     requireNonNull(preprocessor, "preprocessor is null");
-    return args -> split(args.map(preprocessor));
+    return new Splitter<>(schema, args -> this.preprocessor.apply(args).map(preprocessor));
   }
 
   /**
@@ -209,8 +223,8 @@ public interface Splitter<T> {
    *
    * @see #split(Stream)
    */
-  default Splitter<T> withExpand(Function<? super String, ? extends Stream<String>> preprocessor) {
+  public Splitter<T> withExpand(Function<? super String, ? extends Stream<String>> preprocessor) {
     requireNonNull(preprocessor, "preprocessor is null");
-    return args -> split(args.flatMap(preprocessor));
+    return new Splitter<>(schema, args -> this.preprocessor.apply(args).flatMap(preprocessor));
   }
 }
