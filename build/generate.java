@@ -50,6 +50,9 @@ public class generate {
                """);
     source.addAll(lines);
     source.add("""
+                 private CommandLineInterface {
+                   throw new AssertionError();
+                 }
                }
                """);
 
