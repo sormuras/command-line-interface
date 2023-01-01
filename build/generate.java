@@ -14,17 +14,27 @@ public class generate {
     try (var files = Files.newDirectoryStream(Path.of("main", "main"), "*.java")) {
       for (var file : files) {
         var topLevel = true;
+        var insideComment = false;
         for (var line : Files.readAllLines(file)) {
           if (line.startsWith("package ")) continue;
           if (line.startsWith("import ")) {
             imports.add(line);
             continue;
           }
-          boolean classDeclaration;
-          if (topLevel && ((classDeclaration = line.contains("class")) || line.contains("interface") || line.contains("enum") || line.contains("record"))) {
-            topLevel = false;
-            if (classDeclaration) {
-              line = "static " + line;
+          if (topLevel) {
+            if (line.contains("/*")) {
+              insideComment = true;
+            }
+            if (line.contains("*/")) {
+              insideComment = false;
+            }
+            boolean classDeclaration;
+            if (!insideComment &&
+                ((classDeclaration = line.contains("class")) || line.contains("interface") || line.contains("enum") || line.contains("record"))) {
+              topLevel = false;
+              if (classDeclaration) {
+                line = "static " + line;
+              }
             }
           }
           lines.add("  " + line);
