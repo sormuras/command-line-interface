@@ -1,3 +1,4 @@
-classes/
-*.class
 .idea/sonarlint/
+classes/
+generated/
+*.class
