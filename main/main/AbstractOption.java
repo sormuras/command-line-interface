@@ -93,10 +93,6 @@ abstract sealed class AbstractOption<T>
     throw new AssertionError();
   }
 
-  static String name(Option<?> option) {
-    return option.names().iterator().next();
-  }
-
   static boolean isVarargs(Option<?> option) {
     return option.type() == OptionType.VARARGS;
   }
