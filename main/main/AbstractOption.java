@@ -98,18 +98,18 @@ abstract sealed class AbstractOption<T>
   }
 
   static boolean isVarargs(Option<?> option) {
-    return option instanceof Option.Varargs<?>;
+    return option.type() == OptionType.VARARGS;
   }
 
   static boolean isRequired(Option<?> option) {
-    return option instanceof Option.Required<?>;
+    return option.type() == OptionType.REQUIRED;
   }
 
   static boolean isFlag(Option<?> option) {
-    return option instanceof Option.Flag;
+    return option.type() == OptionType.FLAG;
   }
 
   static boolean isPositional(Option<?> option) {
-    return option instanceof Option.Required<?> || option instanceof Option.Varargs<?>;
+    return isRequired(option) || isVarargs(option);
   }
 }
