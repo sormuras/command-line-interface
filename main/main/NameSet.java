@@ -11,6 +11,12 @@ import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 
+/**
+ * An immutable set of non-null values that keeps the insertion order.
+ * <p>
+ * It provides {@link #of(String...)} and {@link #copyOf(Collection)} that works like Set.of() / Set.copyOf()
+ * but keeps the insertion order.
+ */
 final class NameSet extends AbstractSet<String> {
   private final LinkedHashSet<String> set;
 

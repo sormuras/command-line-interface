@@ -1,5 +1,6 @@
 package main;
 
+import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -7,6 +8,14 @@ import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Base class for all {@link Option}s.
+ * <p>
+ * It implements the basic accessors {@link #type()}, {@link #names()}, {@link #help()} and
+ * {@link #nestedSchema()}. And provides helper methods for {@link Schema#split(boolean, ArrayDeque)}.
+ *
+ * @param <T> type of the argument of the option.
+ */
 abstract sealed class AbstractOption<T>
     implements Option<T>
     permits Option.Branch, Option.Flag, Option.Single, Option.Repeatable, Option.Required, Option.Varargs {

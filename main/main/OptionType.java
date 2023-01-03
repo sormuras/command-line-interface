@@ -3,8 +3,13 @@ package main;
 import java.util.List;
 import java.util.Optional;
 
-/** Type of {@link Option}. */
+/**
+ * Type of {@link Option}.
+ *
+ * @see Option#type()
+ */
 public enum OptionType {
+  /** A branch to a new set of options. */
   BRANCH(null),
   /** An optional flag, like {@code --verbose}, {@code quiet=true} or {@code quiet=false}. */
   FLAG(false),
