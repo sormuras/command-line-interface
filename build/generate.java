@@ -46,7 +46,7 @@ public class generate {
     source.add("// Generated on " + ZonedDateTime.now());
     source.addAll(imports);
     source.add("""
-               public class CommandLineInterface {
+               public final class CommandLineInterface {
                """);
     source.addAll(lines);
     source.add("""
