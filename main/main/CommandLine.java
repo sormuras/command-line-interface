@@ -1,12 +1,6 @@
 package main;
 
 import static java.util.Objects.requireNonNull;
-import static main.OptionType.FLAG;
-import static main.OptionType.OPTIONAL;
-import static main.OptionType.REPEATABLE;
-import static main.OptionType.REQUIRED;
-import static main.OptionType.SUB;
-import static main.OptionType.VARARGS;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -119,7 +113,7 @@ public interface CommandLine<T> {
     private final Function<A, T> exit;
 
     private Builder(List<OptionValue<A, ?>> options, Supplier<A> init, Function<A, T> exit) {
-      requireNonNull(init, "state is null");
+      requireNonNull(init, "init is null");
       requireNonNull(exit, "exit is null");
       this.options = options;
       this.init = init;
@@ -168,12 +162,12 @@ public interface CommandLine<T> {
 
     public <V> Builder<A, T> addSub(
         String name, Class<V> of, BiConsumer<A, V> to, Factory<V> from, String... handles) {
-      return add(name, SUB, handles, of, str -> null, valueToList(to, null), from);
+      return add(name, OptionType.SUB, handles, of, str -> null, valueToList(to, null), from);
     }
 
     public Builder<A, T> addFlag(String name, BiConsumer<A, Boolean> to, String... handles) {
       return add(
-          name, FLAG, handles, Boolean.class, Boolean::valueOf, valueToList(to, false), null);
+          name, OptionType.FLAG, handles, Boolean.class, Boolean::valueOf, valueToList(to, false), null);
     }
 
     public Builder<A, T> addOptional(
@@ -187,7 +181,7 @@ public interface CommandLine<T> {
         Function<String, V> from,
         BiConsumer<A, Optional<V>> to,
         String... handles) {
-      return add(name, OPTIONAL, handles, of, from, optionalToList(to), null);
+      return add(name, OptionType.OPTIONAL, handles, of, from, optionalToList(to), null);
     }
 
     public <V> Builder<A, T> addOptional(
@@ -196,7 +190,7 @@ public interface CommandLine<T> {
         BiConsumer<A, Optional<V>> to,
         Factory<V> from,
         String... handles) {
-      return add(name, OPTIONAL, handles, of, str -> null, optionalToList(to), from);
+      return add(name, OptionType.OPTIONAL, handles, of, str -> null, optionalToList(to), from);
     }
 
     public Builder<A, T> addRequired(String name, BiConsumer<A, String> to, String... handles) {
@@ -209,7 +203,7 @@ public interface CommandLine<T> {
         Function<String, V> from,
         BiConsumer<A, V> to,
         String... handles) {
-      return add(name, REQUIRED, handles, of, from, valueToList(to, null), null);
+      return add(name, OptionType.REQUIRED, handles, of, from, valueToList(to, null), null);
     }
 
     public Builder<A, T> addRepeatable(
@@ -223,12 +217,12 @@ public interface CommandLine<T> {
         Function<String, V> from,
         BiConsumer<A, List<V>> to,
         String... handles) {
-      return add(name, REPEATABLE, handles, of, from, to, null);
+      return add(name, OptionType.REPEATABLE, handles, of, from, to, null);
     }
 
     public <V> Builder<A, T> addRepeatable(
         String name, Class<V> of, BiConsumer<A, List<V>> to, Factory<V> from, String... handles) {
-      return add(name, REPEATABLE, handles, of, str -> null, to, from);
+      return add(name, OptionType.REPEATABLE, handles, of, str -> null, to, from);
     }
 
     public Builder<A, T> addVarargs(String name, BiConsumer<A, String[]> to, String... handles) {
@@ -241,7 +235,7 @@ public interface CommandLine<T> {
         Function<String, V> from,
         BiConsumer<A, V[]> to,
         String... handles) {
-      return add(name, VARARGS, handles, of, from, arrayToList(of, to), null);
+      return add(name, OptionType.VARARGS, handles, of, from, arrayToList(of, to), null);
     }
 
     @SuppressWarnings("unchecked")

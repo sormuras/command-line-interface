@@ -15,7 +15,6 @@ import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-import main.CommandLine.Option;
 
 @FunctionalInterface
 public interface Splitter<T> {
@@ -92,7 +91,7 @@ public interface Splitter<T> {
     var options = res.options();
     var requiredOptions =
         res.options(OptionType::isRequired).collect(toCollection(ArrayDeque::new));
-    var optionsByHandle = new HashMap<String, Option>();
+    var optionsByHandle = new HashMap<String, CommandLine.Option>();
     options.forEach(opt -> opt.handles().forEach(handle -> optionsByHandle.put(handle, opt)));
     var flagCount = res.options(OptionType::isFlag).count();
     var flagPattern = flagCount == 0 ? null : Pattern.compile("^-[a-zA-Z]{1," + flagCount + "}$");
@@ -169,7 +168,7 @@ public interface Splitter<T> {
     }
   }
 
-  private static void split(Option option, Deque<String> remainingArgs) {
+  private static void split(CommandLine.Option option, Deque<String> remainingArgs) {
     split(option.sub().get(), true, remainingArgs);
   }
 }

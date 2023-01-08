@@ -5,6 +5,7 @@ import static test.api.Assertions.assertFalse;
 import static test.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Optional;
 import main.CommandLine;
 import main.Splitter;

@@ -21,7 +21,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
-import main.CommandLine.Builder;
 
 class FactorySupport {
   private FactorySupport() {
@@ -100,7 +99,7 @@ class FactorySupport {
   private static <T> CommandLine.Factory<T> proxyFactory(Lookup lookup, Class<T> schema) {
     Method[] methods = schema.getMethods();
     // FIXME methods are not order as declared
-    Builder<Object[], T> cmd =
+    CommandLine.Builder<Object[], T> cmd =
         CommandLine.builder(
             () -> new Object[methods.length], values -> newProxy(schema, List.of(methods), values));
     for (int i = 0; i < methods.length; i++) {
@@ -128,9 +127,9 @@ class FactorySupport {
   Shared methods...
    */
 
-  private static <T> Builder<Object[], T> addOption(
+  private static <T> CommandLine.Builder<Object[], T> addOption(
       Lookup lookup,
-      Builder<Object[], T> builder,
+      CommandLine.Builder<Object[], T> builder,
       AnnotatedElement source,
       String name,
       Class<?> type,
@@ -153,9 +152,9 @@ class FactorySupport {
         lookup, builder, name, optionType, handles, valueType, to, (CommandLine.Factory) subCommand);
   }
 
-  private static <T, V> Builder<Object[], T> addOption(
+  private static <T, V> CommandLine.Builder<Object[], T> addOption(
       Lookup lookup,
-      Builder<Object[], T> builder,
+      CommandLine.Builder<Object[], T> builder,
       String name,
       OptionType type,
       String[] names,
