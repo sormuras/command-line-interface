@@ -119,26 +119,25 @@ public interface Splitter<T> {
           return res.complete();
         }
         switch (option.type()) {
-          case FLAG:
+          case FLAG -> {
             var maybeValue = remainingArgs.peekFirst();
             if ("true".equals(maybeValue) || "false".equals(maybeValue))
               option.add(remainingArgs.pop());
             else option.add("true");
-            break;
-          case OPTIONAL:
+          }
+          case OPTIONAL -> {
             if (option.sub().isPresent()) split(option, remainingArgs);
             else option.add(remainingArgs.pop());
-            break;
-          case REQUIRED:
+          }
+          case REQUIRED -> {
             requiredOptions.remove(option);
             option.add(remainingArgs.pop());
-            break;
-          case REPEATABLE:
+          }
+          case REPEATABLE -> {
             if (option.sub().isPresent()) split(option, remainingArgs);
             else Stream.of(remainingArgs.pop().split(",")).forEach(option::add);
-            break;
-          default:
-            throw new AssertionError("Unnamed name? " + name);
+          }
+          default -> throw new AssertionError("Unnamed name? " + name);
         }
         continue; // with next argument
       }
