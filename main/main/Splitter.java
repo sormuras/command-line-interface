@@ -169,6 +169,6 @@ public interface Splitter<T> {
   }
 
   private static void split(CommandLine.Option option, Deque<String> remainingArgs) {
-    split(option.sub().get(), option.type() != OptionType.SUB, remainingArgs);
+    split(option.sub().orElseThrow(), option.type() != OptionType.SUB, remainingArgs);
   }
 }
