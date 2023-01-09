@@ -127,6 +127,7 @@ class FactorySupport {
   Shared methods...
    */
 
+  @SuppressWarnings("unchecked")
   private static <T> CommandLine.Builder<Object[], T> addOption(
       Lookup lookup,
       CommandLine.Builder<Object[], T> builder,
@@ -146,10 +147,10 @@ class FactorySupport {
                 : new String[] {name.replace('_', '-')};
     var subCommandType = toSubCommandType(type, genericType);
     var valueType = valueTypeFrom(type, genericType);
-    CommandLine.Factory<?> subCommand =
-        subCommandType == null ? null : factory(lookup, subCommandType);
+    @SuppressWarnings("rawtypes")
+    CommandLine.Factory subCommand = subCommandType == null ? null : factory(lookup, subCommandType);
     return addOption(
-        lookup, builder, name, optionType, handles, valueType, to, (CommandLine.Factory) subCommand);
+        lookup, builder, name, optionType, handles, valueType, to, subCommand);
   }
 
   private static <T, V> CommandLine.Builder<Object[], T> addOption(
@@ -195,6 +196,7 @@ class FactorySupport {
         : null;
   }
 
+  @SuppressWarnings("unchecked")
   private static <T> Function<String, T> valueConverter(Lookup lookup, Class<T> of) {
     if (of == String.class || of.isRecord()) return (Function) Function.identity();
     MethodHandle mh = valueOfMethod(lookup, of);
