@@ -162,6 +162,7 @@ public interface Splitter<T> {
       var varargsOption = res.options(OptionType::isVarargs).findFirst().orElse(null);
       if (varargsOption != null) {
         remainingArgs.forEach(varargsOption::add);
+        remainingArgs.clear();
         return res.complete();
       }
       throw new IllegalArgumentException("Unhandled arguments: " + remainingArgs);
@@ -169,6 +170,6 @@ public interface Splitter<T> {
   }
 
   private static void split(CommandLine.Option option, Deque<String> remainingArgs) {
-    split(option.sub().get(), true, remainingArgs);
+    split(option.sub().get(), option.type() != OptionType.SUB, remainingArgs);
   }
 }
