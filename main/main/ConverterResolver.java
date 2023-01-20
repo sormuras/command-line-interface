@@ -221,7 +221,7 @@ public interface ConverterResolver {
    * </pre>
    *
    * @param converter a conversion function.
-   * @return a new converter from a conversion function typed as String..
+   * @return a new converter from a conversion function typed as String.
    */
   static Function<Object, ?> stringConverter(Function<? super String, ?> converter) {
     requireNonNull(converter, "converter is null");
