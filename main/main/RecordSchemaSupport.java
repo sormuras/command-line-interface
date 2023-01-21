@@ -41,9 +41,9 @@ final class RecordSchemaSupport {
     return AbstractOption.newOption(type, names, converter, help, optionSchema);
   }
 
-  private static Function<Object, ?> resolveConverter(Lookup lookup, RecordComponent component, ConverterResolver resolver) {
-     return resolver.resolve(lookup, component.getGenericType())
-         .orElseThrow(() -> new UnsupportedOperationException("no converter for component " + component));
+  private static Converter<Object, ?> resolveConverter(Lookup lookup, RecordComponent component, ConverterResolver resolver) {
+    return resolver.resolve(lookup, component.getGenericType())
+        .orElseThrow(() -> new UnsupportedOperationException("no converter for component " + component));
   }
 
   private static OptionType optionTypeFrom(Class<?> type) {
@@ -59,8 +59,8 @@ final class RecordSchemaSupport {
     if (component.getType().isRecord())
       return component.getType().asSubclass(Record.class);
     return (component.getGenericType() instanceof ParameterizedType paramType
-            && paramType.getActualTypeArguments()[0] instanceof Class<?> nestedType
-            && nestedType.isRecord())
+        && paramType.getActualTypeArguments()[0] instanceof Class<?> nestedType
+        && nestedType.isRecord())
         ? nestedType.asSubclass(Record.class)
         : null;
   }
@@ -76,7 +76,7 @@ final class RecordSchemaSupport {
   }
 
   private static <T extends Record> T createRecord(
-          Class<T> schema, List<Object> values, Lookup lookup) {
+      Class<T> schema, List<Object> values, Lookup lookup) {
     try {
       return schema.cast(
           constructor(lookup, schema).asFixedArity().invokeWithArguments(values.toArray()));

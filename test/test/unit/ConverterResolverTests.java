@@ -1,6 +1,8 @@
 package test.unit;
 
+import main.Converter;
 import main.ConverterResolver;
+import main.ConverterResolver.ConverterMirror;
 import main.ConverterResolver.TypeReference;
 import test.api.JTest;
 import test.api.JTest.Test;
@@ -9,6 +11,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.Runtime.Version;
 import java.lang.constant.ClassDesc;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.UndeclaredThrowableException;
@@ -209,15 +212,15 @@ public class ConverterResolverTests {
 
   @Test
   void converterFunctionAndType() {
-    var converter = ConverterResolver.converter(Integer::parseInt, String.class);
+    var converter = ConverterResolver.methodHandle(Integer::parseInt, String.class);
     assertEquals(123, converter.apply("123"));
   }
 
   @Test
   void converterFunctionAndTypePreconditions() {
     assertAll(
-        () -> assertThrows(NullPointerException.class, () -> ConverterResolver.converter(null, String.class)),
-        () -> assertThrows(NullPointerException.class, () -> ConverterResolver.converter(x -> x, null))
+        () -> assertThrows(NullPointerException.class, () -> ConverterResolver.methodHandle(null, String.class)),
+        () -> assertThrows(NullPointerException.class, () -> ConverterResolver.methodHandle(x -> x, null))
     );
   }
 
@@ -365,8 +368,7 @@ public class ConverterResolverTests {
         throw new IOException(text);
       }
     }
-    var e = assertThrows(UndeclaredThrowableException.class, () -> ConverterResolver.reflected(lookup(), Data.class).orElseThrow().apply("foo"));
-    assertTrue(e.getCause() instanceof IOException);
+    assertThrows(UndeclaredThrowableException.class, () -> ConverterResolver.reflected(lookup(), Data.class).orElseThrow().apply("foo"));
   }
 
   @Test
@@ -420,5 +422,113 @@ public class ConverterResolverTests {
     final class Empty {}
 
     assertTrue(resolver.resolve(lookup(), Empty.class).isEmpty());
+  }
+
+  @Test
+  void mirrorBasic() {
+    var resolver = ConverterResolver.defaultResolver();
+
+    var lookup = MethodHandles.lookup();
+    var converter = resolver.resolve(lookup, String.class).orElseThrow();
+
+    var mirror = ConverterMirror.of(lookup, converter).orElseThrow();
+    var expected = new ConverterMirror(ConverterResolver.class.getName(), "basic", List.of());
+    assertEquals(expected, mirror);
+  }
+
+  @Test
+  void mirrorReflectedPathOf() {
+    var resolver = ConverterResolver.defaultResolver();
+
+    var lookup = MethodHandles.lookup();
+    var converter = resolver.resolve(lookup, Path.class).orElseThrow();
+
+    var mirror = ConverterMirror.of(lookup, converter).orElseThrow();
+    var expected = new ConverterMirror(ConverterResolver.class.getName(), "reflected",
+        List.of(new ConverterMirror(Path.class.getName(), "of", List.of())));
+    assertEquals(expected, mirror);
+  }
+
+  @Test
+  void mirrorEnum() {
+    enum Foo {}
+    var resolver = ConverterResolver.defaultResolver();
+
+    var lookup = MethodHandles.lookup();
+    var converter = resolver.resolve(lookup, Foo.class).orElseThrow();
+
+    var mirror = ConverterMirror.of(lookup, converter).orElseThrow();
+    var expected = new ConverterMirror(ConverterResolver.class.getName(), "enumerated", List.of(Foo.class.getName()));
+    assertEquals(expected, mirror);
+  }
+
+  @Test
+  void mirrorUnwrapOptionalOfString() {
+    var resolver = ConverterResolver.defaultResolver();
+
+    var lookup = MethodHandles.lookup();
+    var converter = resolver.resolve(lookup, new TypeReference<Optional<String>>() {}).orElseThrow();
+
+    var mirror = ConverterMirror.of(lookup, converter).orElseThrow();
+    var expected = new ConverterMirror(ConverterResolver.class.getName(), "unwrap",
+        List.of(new ConverterMirror(ConverterResolver.class.getName(), "basic", List.of())));
+    assertEquals(expected, mirror);
+  }
+
+  @Test
+  void mirrorUnwrapListOfString() {
+    var resolver = ConverterResolver.defaultResolver();
+
+    var lookup = MethodHandles.lookup();
+    var converter = resolver.resolve(lookup, new TypeReference<List<String>>() {}).orElseThrow();
+
+    var mirror = ConverterMirror.of(lookup, converter).orElseThrow();
+    var expected = new ConverterMirror(ConverterResolver.class.getName(), "unwrap",
+        List.of(new ConverterMirror(ConverterResolver.class.getName(), "basic", List.of())));
+    assertEquals(expected, mirror);
+  }
+
+  @Test
+  void mirrorUnwrapArrayOfString() {
+    var resolver = ConverterResolver.defaultResolver();
+
+    var lookup = MethodHandles.lookup();
+    var converter = resolver.resolve(lookup, String[].class).orElseThrow();
+
+    var mirror = ConverterMirror.of(lookup, converter).orElseThrow();
+    var expected = new ConverterMirror(ConverterResolver.class.getName(), "unwrap",
+        List.of(new ConverterMirror(ConverterResolver.class.getName(), "basic", List.of()), String.class.getName()));
+    assertEquals(expected, mirror);
+  }
+
+  @Test
+  void mirrorUserDefinedLambda() {
+    Converter<?,?> converter = o -> "*" + o + "*";
+
+    var mirror = ConverterMirror.of(MethodHandles.lookup(), converter).orElseThrow();
+    var expected = new ConverterMirror(ConverterResolverTests.class.getName(), "mirrorUserDefinedLambda", List.of());
+    assertEquals(expected, mirror);
+  }
+
+  @Test
+  void mirrorUserDefinedMethodReference() {
+    Converter<String,Integer> converter = Integer::parseInt;
+
+    var mirror = ConverterMirror.of(MethodHandles.lookup(), converter).orElseThrow();
+    var expected = new ConverterMirror(Integer.class.getName(), "parseInt", List.of());
+    assertEquals(expected, mirror);
+  }
+
+  @Test
+  void mirrorUserDefinedAnonymousClass() {
+    var converter = new Converter<String, String>() {
+      @Override
+      public String apply(String s) {
+        return s;
+      }
+    };
+
+    var mirror = ConverterMirror.of(MethodHandles.lookup(), converter);
+    assertTrue(mirror.isEmpty());
   }
 }

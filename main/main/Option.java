@@ -6,9 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.function.IntFunction;
-import java.util.function.UnaryOperator;
 
 /**
  * An Option is a description of one of more arguments of the command line.
@@ -46,10 +44,10 @@ import java.util.function.UnaryOperator;
  * {@link #nestedSchema() a nested schema}.
  *
  * <p>The argument(s) of an option can be converted using Options specific {@code convert()} methods,
- * {@link Flag#convert(UnaryOperator)}, {@link Single#convert(Function)}, {@link Repeatable#convert(Function)},
- * {@link Required#convert(Function)} and {@link Varargs#convert(Function, IntFunction)}.
+ * {@link Flag#convert(Converter)}, {@link Single#convert(Converter)}, {@link Repeatable#convert(Converter)},
+ * {@link Required#convert(Converter)} and {@link Varargs#convert(Converter, IntFunction)}.
  *
- * <p>Options are grouped into a {@link Schema#Schema(List, Function) schema} that is used to create a
+ * <p>Options are grouped into a {@link Schema#Schema(List, java.util.function.Function) schema} that is used to create a
  * {@link Splitter#of(Schema) Splitter} that parses the command line.
  *
  * @param <T> type of the argument(s) described by this Option.
@@ -62,9 +60,9 @@ public sealed interface Option<T> permits AbstractOption {
    * @param <T> the type of the argument corresponding to that option.
    */
   final class Branch<T> extends AbstractOption<T> {
-    final UnaryOperator<T> converter;
+    final Converter<T,T> converter;
 
-    Branch(Set<String> names, UnaryOperator<T> converter, String help, Schema<?> nestedSchema) {
+    Branch(Set<String> names, Converter<T,T> converter, String help, Schema<?> nestedSchema) {
       super(OptionType.BRANCH, names, help, nestedSchema);
       this.converter = requireNonNull(converter, "converter is null");
       requireNonNull(nestedSchema, "schema is null");
@@ -78,7 +76,7 @@ public sealed interface Option<T> permits AbstractOption {
      * @param nestedSchema the nested schema
      * @throws IllegalArgumentException if a name is empty or if names are duplicated.
      */
-    public Branch(List<String> names, UnaryOperator<T> converter, Schema<T> nestedSchema) {
+    public Branch(List<String> names, Converter<T,T> converter, Schema<T> nestedSchema) {
       this(NameSet.copyOf(names), converter, "", nestedSchema);
     }
 
@@ -97,9 +95,9 @@ public sealed interface Option<T> permits AbstractOption {
      * @param mapper the function to apply to do the conversion.
      * @return a new option that converts the argument to a value of the same type.
      */
-    public Branch<T> convert(UnaryOperator<T> mapper) {
+    public Branch<T> convert(Converter<? super T, ? extends T> mapper) {
       requireNonNull(mapper, "mapper is null");
-      return new Branch<>(names, v -> mapper.apply(converter.apply(v)), help, nestedSchema);
+      return new Branch<>(names, converter.andThen(mapper), help, nestedSchema);
     }
 
     @Override
@@ -112,9 +110,9 @@ public sealed interface Option<T> permits AbstractOption {
    * A boolean optional option.
    */
   final class Flag extends AbstractOption<Boolean> {
-    final UnaryOperator<Boolean> converter;
+    final Converter<Boolean, Boolean> converter;
 
-    Flag(Set<String> names, UnaryOperator<Boolean> converter, String help) {
+    Flag(Set<String> names, Converter<Boolean, Boolean> converter, String help) {
       super(OptionType.FLAG, names, help, null);
       this.converter = requireNonNull(converter, "converter is null");
     }
@@ -128,7 +126,7 @@ public sealed interface Option<T> permits AbstractOption {
      *
      * @see #flag(String...)
      */
-    public Flag(List<String> names, UnaryOperator<Boolean> converter) {
+    public Flag(List<String> names, Converter<Boolean,Boolean> converter) {
       this(NameSet.copyOf(names), converter, "");
     }
 
@@ -147,9 +145,9 @@ public sealed interface Option<T> permits AbstractOption {
      * @param mapper the function to apply to do the conversion.
      * @return a new option that converts the argument to a boolean value.
      */
-    public Flag convert(UnaryOperator<Boolean> mapper) {
+    public Flag convert(Converter<Boolean,Boolean> mapper) {
       requireNonNull(mapper, "mapper is null");
-      return new Flag(names, v -> mapper.apply(converter.apply(v)), help);
+      return new Flag(names, converter.andThen(mapper), help);
     }
 
     @Override
@@ -163,9 +161,9 @@ public sealed interface Option<T> permits AbstractOption {
    * An optional key/value option.
    */
   final class Single<T> extends AbstractOption<Optional<T>> {
-    final Function<Optional<?>, ? extends Optional<T>> converter;
+    final Converter<Optional<?>, ? extends Optional<T>> converter;
 
-    Single(Set<String> names, Function<Optional<?>, ? extends Optional<T>> converter, String help, Schema<?> nestedSchema) {
+    Single(Set<String> names, Converter<Optional<?>, ? extends Optional<T>> converter, String help, Schema<?> nestedSchema) {
       super(OptionType.SINGLE, names, help, nestedSchema);
       this.converter = requireNonNull(converter, "converter is null");
     }
@@ -180,8 +178,8 @@ public sealed interface Option<T> permits AbstractOption {
      * @see #single(String...)
      */
     @SuppressWarnings("unchecked")
-    public Single(List<String> names, Function<? super Optional<String>, ? extends Optional<T>> converter) {
-      this(NameSet.copyOf(names), (Function<Optional<?>, ? extends Optional<T>>) converter, "", null);
+    public Single(List<String> names, Converter<? super Optional<String>, ? extends Optional<T>> converter) {
+      this(NameSet.copyOf(names), (Converter<Optional<?>, ? extends Optional<T>>) converter, "", null);
     }
 
     @Override
@@ -216,7 +214,7 @@ public sealed interface Option<T> permits AbstractOption {
      * @param mapper the function to apply to do the conversion.
      * @return a new option that converts the argument if it exists to another value.
      */
-    public <U> Single<U> convert(Function<? super T, ? extends U> mapper) {
+    public <U> Single<U> convert(Converter<? super T, ? extends U> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Single<>(names, converter.andThen(v -> v.map(mapper)), help, nestedSchema);
     }
@@ -234,9 +232,9 @@ public sealed interface Option<T> permits AbstractOption {
    * @param <T> the type of the argument corresponding to that option.
    */
   final class Repeatable<T> extends AbstractOption<List<T>> {
-    final Function<List<?>, ? extends List<T>> converter;
+    final Converter<List<?>, ? extends List<T>> converter;
 
-    Repeatable(Set<String> names, Function<List<?>, ? extends List<T>> converter, String help, Schema<?> nestedSchema) {
+    Repeatable(Set<String> names, Converter<List<?>, ? extends List<T>> converter, String help, Schema<?> nestedSchema) {
       super(OptionType.REPEATABLE, names, help, nestedSchema);
       this.converter = requireNonNull(converter, "converter is null");
     }
@@ -251,8 +249,8 @@ public sealed interface Option<T> permits AbstractOption {
      * @see #repeatable(String...)
      */
     @SuppressWarnings("unchecked")
-    public Repeatable(List<String> names, Function<? super List<String>, ? extends List<T>> converter) {
-      this(NameSet.copyOf(names), (Function<List<?>, ? extends List<T>>) converter, "", null);
+    public Repeatable(List<String> names, Converter<? super List<String>, ? extends List<T>> converter) {
+      this(NameSet.copyOf(names), (Converter<List<?>, ? extends List<T>>) converter, "", null);
     }
 
     @Override
@@ -287,7 +285,7 @@ public sealed interface Option<T> permits AbstractOption {
      * @param mapper the function to apply to do the conversion.
      * @return a new option that converts each argument to another value.
      */
-    public <U> Repeatable<U> convert(Function<? super T, ? extends U> mapper) {
+    public <U> Repeatable<U> convert(Converter<? super T, ? extends U> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Repeatable<>(names, converter.andThen(list -> list.stream().<U>map(mapper).toList()), help, nestedSchema);
     }
@@ -305,9 +303,9 @@ public sealed interface Option<T> permits AbstractOption {
    * @param <T> the type of the argument corresponding to that option.
    */
   final class Required<T> extends AbstractOption<T> {
-    final Function<? super String, ? extends T> converter;
+    final Converter<? super String, ? extends T> converter;
 
-    Required(Set<String> names, Function<? super String, ? extends T> converter, String help) {
+    Required(Set<String> names, Converter<? super String, ? extends T> converter, String help) {
       super(OptionType.REQUIRED, names, help, null);
       this.converter = requireNonNull(converter, "converter is null");
     }
@@ -321,7 +319,7 @@ public sealed interface Option<T> permits AbstractOption {
      *
      * @see #required(String...)
      */
-    public Required(List<String> names, Function<? super String, ? extends T> converter) {
+    public Required(List<String> names, Converter<? super String, ? extends T> converter) {
       this(NameSet.copyOf(names), converter, "");
     }
 
@@ -340,7 +338,7 @@ public sealed interface Option<T> permits AbstractOption {
      * @param mapper the function to apply to do the conversion.
      * @return a new option that converts the argument to another value.
      */
-    public <U> Required<U> convert(Function<? super T, ? extends U> mapper) {
+    public <U> Required<U> convert(Converter<? super T, ? extends U> mapper) {
       requireNonNull(mapper, "mapper is null");
       return new Required<>(names, converter.andThen(mapper), help);
     }
@@ -357,9 +355,9 @@ public sealed interface Option<T> permits AbstractOption {
    * @param <T> the type of the argument corresponding to that option.
    */
   final class Varargs<T> extends AbstractOption<T[]> {
-    final Function<? super String[], ? extends T[]> converter;
+    final Converter<? super String[], ? extends T[]> converter;
 
-    Varargs(Set<String> names, Function<? super String[], ? extends T[]> converter, String help) {
+    Varargs(Set<String> names, Converter<? super String[], ? extends T[]> converter, String help) {
       super(OptionType.VARARGS, names, help, null);
       this.converter = requireNonNull(converter, "converter is null");
     }
@@ -373,7 +371,7 @@ public sealed interface Option<T> permits AbstractOption {
      *
      * @see #varargs(String...)
      */
-    public Varargs(List<String> names, Function<? super String[], ? extends T[]> converter) {
+    public Varargs(List<String> names, Converter<? super String[], ? extends T[]> converter) {
       this(NameSet.copyOf(names), converter, "");
     }
 
@@ -393,7 +391,7 @@ public sealed interface Option<T> permits AbstractOption {
      * @param generator an array generator
      * @return a new option that converts each argument to another value.
      */
-    public <U> Varargs<U> convert(Function<? super T, ? extends U> mapper, IntFunction<U[]> generator) {
+    public <U> Varargs<U> convert(Converter<? super T, ? extends U> mapper, IntFunction<U[]> generator) {
       requireNonNull(mapper, "mapper is null");
       return new Varargs<>(names, converter.andThen(v -> Arrays.stream(v).map(mapper).toArray(generator)), help);
     }

@@ -62,15 +62,16 @@ abstract sealed class AbstractOption<T>
 
   // helper methods
 
-  static Option<?> newOption(OptionType type, String[] names, Function<Object, ?> converter, String help, Schema<?> schema) {
+  @SuppressWarnings("unchecked")
+  static <T> Option<?> newOption(OptionType type, String[] names, Converter<Object, ?> converter, String help, Schema<?> schema) {
     var nameSet = NameSet.of(names);
     return switch (type) {
-      case BRANCH -> new Branch<>(nameSet, v -> converter.apply(v), help, schema);
-      case FLAG -> new Flag(nameSet, v -> (Boolean) converter.apply(v), help);
-      case SINGLE -> new Single<>(nameSet, v -> (Optional<?>) converter.apply(v), help, schema);
-      case REPEATABLE -> new Repeatable<>(nameSet, v -> (List<?>) converter.apply(v), help, schema);
-      case REQUIRED -> new Required<>(nameSet, converter, help);
-      case VARARGS -> new Varargs<>(nameSet, v -> (Object[]) converter.apply(v), help);
+      case BRANCH -> new Branch<>(nameSet, (Converter<T,T>) converter, help, schema);
+      case FLAG -> new Flag(nameSet, (Converter<Boolean,Boolean>) (Converter<?,?>) converter, help);
+      case SINGLE -> new Single<T>(nameSet, (Converter<Optional<?>, ? extends Optional<T>>) (Converter<?,?>) converter, help, schema);
+      case REPEATABLE -> new Repeatable<T>(nameSet, (Converter<List<?>, ? extends List<T>>) (Converter<?,?>) converter, help, schema);
+      case REQUIRED -> new Required<T>(nameSet, (Converter<? super String, ? extends T>) converter, help);
+      case VARARGS -> new Varargs<T>(nameSet, (Converter<? super String[], ? extends T[]>) (Converter<?,?>) converter, help);
     };
   }
 
