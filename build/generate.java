@@ -49,7 +49,7 @@ public class generate {
   }
 
   private static FileContent applyTemplate(List<String> template, FileContent content) {
-    var imports = new TreeSet<String>(content.imports());
+    var imports = new TreeSet<>(content.imports());
     var lines = new ArrayList<String>();
     for (var line : template) {
       if (line.startsWith("package ")) continue;
@@ -93,8 +93,12 @@ public class generate {
         """;
 
     var content  = gatherAllFiles();
-    var commandLineInterface = applyTemplate(template.lines().toList(), content);
     var target = Files.createDirectories(Path.of("generated"));
+
+    var commandLineInterface = applyTemplate(template.lines().toList(), content);
     writeFile(commandLineInterface, target.resolve("CommandLineInterface.java"));
+
+    var optionizer = applyTemplate(Files.readAllLines(Path.of("template", "optionizer.java")), content);
+    writeFile(optionizer, target.resolve("optionizer.java"));
   }
 }
