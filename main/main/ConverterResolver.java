@@ -257,7 +257,7 @@ public interface ConverterResolver {
       var converterClass = converter.getClass();
       var nestHost = converterClass.getNestHost();
       // try to find a suitable lookup able to see the converter implementation
-      var nestLookup = nestHost == ConverterResolver.class ? MethodHandles.lookup() :
+      var nestLookup = nestHost == ConverterResolver.class.getNestHost() ? MethodHandles.lookup() :
           (nestHost == lookup.lookupClass().getNestHost() ? lookup : null);
       if (nestLookup == null) {
         return Optional.empty();
