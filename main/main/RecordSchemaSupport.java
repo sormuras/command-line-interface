@@ -1,13 +1,17 @@
 package main;
 
+import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 /**
@@ -26,18 +30,42 @@ final class RecordSchemaSupport {
   }
 
   private static Option<?> toOption(Lookup lookup, RecordComponent component, ConverterResolver resolver) {
-    var nameAnno = component.getAnnotation(Name.class);
-    var helpAnno = component.getAnnotation(Help.class);
+    var nameAnno = getAnnotation(component, Name.class, Name::value);
+    var helpAnno = getAnnotation(component, Help.class, Help::value);
     var names =
         nameAnno != null
-            ? nameAnno.value()
+            ? nameAnno
             : new String[] { component.getName().replace('_', '-') };
     var type = optionTypeFrom(component.getType());
-    var help = helpAnno != null ? String.join("\n", helpAnno.value()) : "";
+    var help = helpAnno != null ? String.join("\n", helpAnno) : "";
     var nestedSchema = toNestedSchema(component);
     var converter = resolveConverter(lookup, component, resolver);
     var optionSchema = nestedSchema == null ? null: toSchema(lookup, nestedSchema, resolver);
     return AbstractOption.newOption(type, names, converter, help, optionSchema);
+  }
+
+  private static <A extends Annotation, V> String[] getAnnotation(RecordComponent component, Class<A> annotationClass, Function<A, String[]> value) {
+    var annotations = component.getAnnotations();
+    if (annotations.length == 0) {  // fast path
+      return null;
+    }
+    var annotation = component.getAnnotation(annotationClass);
+    if (annotation != null) {
+      return value.apply(annotation);
+    }
+    // we look for an annotation named 'Name' or 'Help' but maybe in another package
+    return (String[]) Arrays.stream(annotations)
+        .filter(ann -> annotationClass.getSimpleName().equals(ann.annotationType().getSimpleName()))
+        .mapMulti((ann, consumer) -> {
+          try {
+            consumer.accept((ann.annotationType().getMethod("value").invoke(ann)));
+          } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException  e) {
+            // skip the value
+          }
+        })
+        .filter(v -> v instanceof String[])
+        .reduce((v1, v2) -> { throw new IllegalStateException("more than one annotation named " + annotationClass.getSimpleName()); })
+        .orElse(null);
   }
 
   private static Converter<Object, ?> resolveConverter(Lookup lookup, RecordComponent component, ConverterResolver resolver) {
