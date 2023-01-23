@@ -232,7 +232,7 @@ public interface ConverterResolver {
     return methodHandle(converter, String.class);
   }
 
-  private static Converter<Object, ?> reflected(Lookup lookup, MethodHandle mh) {
+  private static Converter<Object, ?> reflected(MethodHandle mh) {
     return arg -> {
       try {
         return mh.invoke(arg);
@@ -440,7 +440,7 @@ public interface ConverterResolver {
     return Optional.of(valueType)
         .flatMap(type -> {
           if (valueType instanceof Class<?> clazz) {
-            return valueOfMethod(lookup, clazz).map(mh -> reflected(lookup, mh));
+            return valueOfMethod(lookup, clazz).map(ConverterResolver::reflected);
           }
           return Optional.empty();
         });
