@@ -1,5 +1,6 @@
 import java.io.PrintStream;
 import java.lang.invoke.MethodHandles.Lookup;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -11,7 +12,7 @@ public class optionizer {
   // specific code below
 
   private static String name(Option<?> option) {
-    return option.names().iterator().next();
+    return option.names().iterator().next().replace('-', '_');
   }
 
   private static Optional<String> methodRef(ConverterResolver.ConverterMirror mirror) {
@@ -70,11 +71,13 @@ public class optionizer {
         """);
   }
 
+  // test with: java ./generated/optionizer.java classes/test/test/AssortedTests\$7Options.class
   public static void main(String... args) throws Exception {
     record ArgParameters(
-        @Help("this is an output")
+        @Help("an optional output file (not implemented yet !)")
         Optional<Path> output,
-        String className
+        @Help("a class file (a .class file)")
+        String fileName
     ) {}
 
     var lookup = MethodHandles.lookup();
@@ -90,11 +93,19 @@ public class optionizer {
       return;
     }
 
-    Class<? extends Record> clazz = Class.forName(argParameters.className).asSubclass(Record.class);
-
-    var schema = Splitter.of(lookup, clazz).schema();
+    var path = Path.of(argParameters.fileName);
+    var bytecode = Files.readAllBytes(path);
+    var clazz = new ClassLoader() {
+      Class<?> define(byte[] bytecode) {
+        return super.defineClass(null, bytecode, 0, bytecode.length);
+      }
+    }.define(bytecode);
+    if (!clazz.isRecord()) {
+      throw new IllegalStateException("class " + argParameters.fileName + "is not a record");
+    }
 
     var resolver = ConverterResolver.defaultResolver();
+    var schema = Splitter.of(lookup, clazz.asSubclass(Record.class), resolver).schema();
 
     generateClassFile(schema, lookup, resolver, System.out);
   }
