@@ -1,5 +1,7 @@
 import java.io.PrintStream;
 import java.lang.invoke.MethodHandles.Lookup;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
@@ -34,7 +36,7 @@ public class optionizer {
       case SINGLE -> ((Option.Single<?>) option).converter;
       case REPEATABLE -> ((Option.Repeatable<?>) option).converter;
       case REQUIRED -> ((Option.Required<?>) option).converter;
-      case VARARGS -> ((Option.Required<?>) option).converter;
+      case VARARGS -> ((Option.Varargs<?>) option).converter;
     };
   }
 
@@ -100,6 +102,21 @@ public class optionizer {
         return super.defineClass(null, bytecode, 0, bytecode.length);
       }
     }.define(bytecode);
+
+    var packagePath = Path.of(clazz.getPackageName().replace('.', '/'));
+    var nameCount = packagePath.getNameCount();
+    var root = path;
+    for(var i = 0; i <= nameCount; i++) {
+      root = root.getParent();
+    }
+
+    var classLoader = new URLClassLoader(new URL[] { root.toUri().toURL() });
+    try {
+      clazz = classLoader.loadClass(clazz.getName());
+    } catch(ClassNotFoundException e) {
+      // the class is not part of a classpath, dependencies will not be resolved
+    }
+
     if (!clazz.isRecord()) {
       throw new IllegalStateException("class " + argParameters.fileName + "is not a record");
     }
