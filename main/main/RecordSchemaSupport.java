@@ -1,5 +1,6 @@
 package main;
 
+import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
@@ -26,7 +27,7 @@ final class RecordSchemaSupport {
   static <T extends Record> Schema<T> toSchema(Lookup lookup, Class<T> schema, ConverterResolver resolver) {
     return new Schema<>(
         Stream.of(schema.getRecordComponents()).map(component -> toOption(lookup, component, resolver)).toList(),
-        values -> createRecord(schema, values, lookup));
+        (Function<? super List<Object>, ? extends T> & Serializable) values -> createRecord(schema, values, lookup));
   }
 
   private static Option<?> toOption(Lookup lookup, RecordComponent component, ConverterResolver resolver) {
