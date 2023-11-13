@@ -4,6 +4,7 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.AnnotatedElement;
@@ -15,6 +16,8 @@ import java.lang.reflect.Proxy;
 import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
@@ -22,7 +25,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-class FactorySupport {
+public class FactorySupport {
   private FactorySupport() {
     throw new AssertionError();
   }
@@ -34,6 +37,31 @@ class FactorySupport {
     if (schema.isRecord()) return recordFactory(lookup, schema);
     if (schema.isInterface()) return proxyFactory(lookup, schema);
     return pojoFactory(lookup, schema);
+  }
+
+  public static <T> CommandLine.Factory<List<T>> sealedFactory(Lookup lookup, Class<T> schema) {
+    Class<? extends T>[] subClasses = (Class<? extends T>[]) schema.getPermittedSubclasses();
+    CommandLine.Builder<Object[], List<T>> cmd = CommandLine.builder(() -> new Object[subClasses.length], values -> createSealedSubTypeList(subClasses, values, lookup));
+    for (int i = 0; i < subClasses.length; i++) {
+      int index = i;
+      Class<?> s = subClasses[index];
+      BiConsumer<Object[], Object> to = (values, value) -> values[index] = value;
+      //FIXME needs a adjusted/different addOption
+      cmd = addOption(lookup, cmd, s, s.getSimpleName(), s, s, to);
+    }
+    return cmd.build();
+  }
+
+  private static <T> List<T> createSealedSubTypeList(Class<? extends T>[] subClasses, Object[] values, Lookup lookup) {
+    List<T> components = new ArrayList<>();
+    for (int i = 0; i < values.length; i++) {
+      Class<? extends T> subClass = subClasses[i];
+      Object value = values[i];
+      if (value != null) {
+        components.add(createSubClassRecord(subClass, value, lookup));
+      }
+    }
+    return components;
   }
 
   /*
@@ -243,6 +271,20 @@ class FactorySupport {
     try {
       return schema.cast(
           constructor(lookup, schema, types).asFixedArity().invokeWithArguments(values));
+    } catch (RuntimeException | Error e) {
+      throw e;
+    } catch (Throwable e) {
+      throw new UndeclaredThrowableException(e);
+    }
+  }
+
+  private static <T> T createSubClassRecord(Class<T> subClass, Object value, Lookup lookup) {
+    try {
+      Class<?>[] types = Arrays.stream(subClass.getRecordComponents()).map(RecordComponent::getType).toArray(Class[]::new);
+      if (types.length == 0)
+        return subClass.cast(constructor(lookup, subClass).invokeWithArguments());
+      return subClass.cast(
+              constructor(lookup, subClass, types).asFixedArity().invokeWithArguments(value));
     } catch (RuntimeException | Error e) {
       throw e;
     } catch (Throwable e) {
