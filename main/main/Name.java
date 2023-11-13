@@ -33,7 +33,7 @@ import java.lang.annotation.Target;
  * </pre>
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.RECORD_COMPONENT)
+@Target({ElementType.RECORD_COMPONENT, ElementType.TYPE})
 public @interface Name {
   /**
    * Returns the option names.

@@ -3,6 +3,7 @@ package test;
 import test.api.JTest;
 import test.jdk.JarRecordTests;
 import test.jdk.JarOptionTests;
+import test.jdk.JarSealedTests;
 import test.unit.ArgumentMapTests;
 import test.unit.ConverterResolverTests;
 import test.unit.OptionTests;
@@ -21,6 +22,7 @@ class AllTests {
         // jdk examples
         JarRecordTests::main,
         JarOptionTests::main,
+        // JarSealedTests::main, 
         // unit tests
         ArgumentMapTests::main,
         ConverterResolverTests::main,
