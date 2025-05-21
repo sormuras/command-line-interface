@@ -22,7 +22,7 @@ class AllTests {
         // jdk examples
         JarRecordTests::main,
         JarOptionTests::main,
-        // JarSealedTests::main, 
+        JarSealedTests::main,
         // unit tests
         ArgumentMapTests::main,
         ConverterResolverTests::main,
